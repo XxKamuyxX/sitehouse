@@ -48,15 +48,18 @@ export function WhatsAppButton({
   };
 
   const handleClick = () => {
-    if (!phoneNumber || phoneNumber.trim() === '') {
-      alert('Cliente sem telefone cadastrado');
-      return;
-    }
-
     try {
-      const phone = sanitizePhone(phoneNumber);
       const message = getMessage();
       const encodedMessage = encodeURIComponent(message);
+      
+      // If phone is empty/invalid, use api.whatsapp.com to allow manual contact selection
+      if (!phoneNumber || phoneNumber.trim() === '') {
+        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+        window.open(whatsappUrl, '_blank');
+        return;
+      }
+
+      const phone = sanitizePhone(phoneNumber);
       const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
       
       window.open(whatsappUrl, '_blank');
@@ -72,7 +75,6 @@ export function WhatsAppButton({
       size={size}
       onClick={handleClick}
       className={`bg-green-600 hover:bg-green-700 ${className}`}
-      disabled={!phoneNumber || phoneNumber.trim() === ''}
     >
       <MessageCircle className="w-5 h-5 mr-2" />
       Enviar no WhatsApp

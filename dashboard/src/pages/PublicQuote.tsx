@@ -47,6 +47,11 @@ export function PublicQuote() {
         return;
       }
 
+      if (!actualQuoteId) {
+        setError('ID do orçamento não fornecido');
+        setLoading(false);
+        return;
+      }
       const quoteDoc = await getDoc(doc(db, 'quotes', actualQuoteId));
       if (!quoteDoc.exists()) {
         setError('Orçamento não encontrado');

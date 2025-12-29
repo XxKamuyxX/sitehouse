@@ -35,3 +35,5 @@ Se o Vercel ainda apresentar erros, pode ser:
 3. Verificar o build no Vercel
 4. Se ainda houver erros, verificar os logs detalhados do Vercel
 
+
+

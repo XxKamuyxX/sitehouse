@@ -15,6 +15,7 @@ interface WorkOrder {
   quoteId: string;
   clientName: string;
   scheduledDate: string;
+  scheduledTime?: string;
   technician: string;
   status: 'scheduled' | 'in-progress' | 'completed';
   checklist: { task: string; completed: boolean }[];
@@ -26,6 +27,7 @@ interface WorkOrder {
     generalChecklist: { task: string; completed: boolean }[];
   };
   clientPhone?: string;
+  hasRisk?: boolean;
 }
 
 export function WorkOrderDetails() {
@@ -39,6 +41,8 @@ export function WorkOrderDetails() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptAmount, setReceiptAmount] = useState(0);
   const [clientPhone, setClientPhone] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [hasRisk, setHasRisk] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -152,6 +156,9 @@ export function WorkOrderDetails() {
         paymentDate: new Date(),
         items: quoteData?.items || [],
         notes: workOrder.notes || '',
+        photos: workOrder.photos || [],
+        hasRisk: workOrder.hasRisk || false,
+        scheduledTime: workOrder.scheduledTime || '',
         createdAt: new Date(),
       };
 
@@ -397,14 +404,59 @@ export function WorkOrderDetails() {
                 <p className="font-medium text-navy">{workOrder.clientName}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-600">Data Agendada</p>
+                <p className="text-sm text-slate-600">Data e Hora Agendada</p>
                 <p className="font-medium text-navy">
                   {new Date(workOrder.scheduledDate).toLocaleDateString('pt-BR')}
+                  {scheduledTime && ` às ${scheduledTime}`}
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Horário
+                </label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => {
+                    setScheduledTime(e.target.value);
+                    if (id && workOrder) {
+                      updateDoc(doc(db, 'workOrders', id), {
+                        scheduledTime: e.target.value,
+                      });
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  required={workOrder.status === 'scheduled'}
+                />
               </div>
               <div>
                 <p className="text-sm text-slate-600">Técnico</p>
                 <p className="font-medium text-navy">{workOrder.technician || 'Não atribuído'}</p>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasRisk}
+                    onChange={(e) => {
+                      setHasRisk(e.target.checked);
+                      if (id && workOrder) {
+                        updateDoc(doc(db, 'workOrders', id), {
+                          hasRisk: e.target.checked,
+                        });
+                      }
+                    }}
+                    className="w-5 h-5 text-red-600 focus:ring-red-500 border-slate-300 rounded"
+                  />
+                  <span className="text-sm font-medium text-red-600">
+                    ⚠️ Sistema com Risco / Vidro Descolado
+                  </span>
+                </label>
+                {hasRisk && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Aviso de risco será incluído no PDF e na aprovação do cliente.
+                  </p>
+                )}
               </div>
             </div>
           </Card>

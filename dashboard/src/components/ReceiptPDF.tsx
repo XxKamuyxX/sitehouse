@@ -16,6 +16,7 @@ interface ReceiptPDFProps {
   clientName: string;
   workOrderId: string;
   scheduledDate: string;
+  scheduledTime?: string;
   completedDate: string;
   technician: string;
   checklist: ChecklistItem[];
@@ -23,6 +24,9 @@ interface ReceiptPDFProps {
   items: ReceiptItem[];
   total: number;
   warranty: string;
+  photos?: string[];
+  hasRisk?: boolean;
+  cnpj?: string;
 }
 
 const styles = StyleSheet.create({
@@ -173,12 +177,74 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#64748B',
   },
+  photoSection: {
+    marginTop: 30,
+    pageBreak: 'before',
+  },
+  photoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginBottom: 15,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  photoContainer: {
+    width: '48%',
+    marginRight: '2%',
+    marginBottom: 15,
+  },
+  photoImage: {
+    width: '100%',
+    height: 120,
+    objectFit: 'cover',
+    marginBottom: 5,
+  },
+  photoCaption: {
+    fontSize: 8,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  riskWarning: {
+    backgroundColor: '#FEE2E2',
+    border: '2 solid #DC2626',
+    padding: 15,
+    marginTop: 20,
+    marginBottom: 20,
+    borderRadius: 5,
+  },
+  riskWarningText: {
+    fontSize: 10,
+    color: '#991B1B',
+    fontWeight: 'bold',
+    lineHeight: 1.5,
+  },
+  companySignature: {
+    marginTop: 30,
+    paddingTop: 20,
+    borderTop: '1 solid #E2E8F0',
+    alignItems: 'center',
+  },
+  signatureImage: {
+    width: 150,
+    height: 60,
+    marginBottom: 10,
+  },
+  cnpjText: {
+    fontSize: 8,
+    color: '#64748B',
+    marginTop: 5,
+  },
 });
 
 export function ReceiptPDF({
   clientName,
   workOrderId,
   scheduledDate,
+  scheduledTime,
   completedDate,
   technician,
   checklist,
@@ -186,6 +252,9 @@ export function ReceiptPDF({
   items,
   total,
   warranty,
+  photos = [],
+  hasRisk = false,
+  cnpj = '00.000.000/0001-00',
 }: ReceiptPDFProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -196,6 +265,11 @@ export function ReceiptPDF({
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatDateTime = (dateString: string, time?: string) => {
+    const date = new Date(dateString).toLocaleDateString('pt-BR');
+    return time ? `${date} às ${time}` : date;
   };
 
   return (
@@ -226,7 +300,7 @@ export function ReceiptPDF({
           <Text style={styles.label}>Número da OS:</Text>
           <Text style={styles.value}>{workOrderId}</Text>
           <Text style={styles.label}>Data de Agendamento:</Text>
-          <Text style={styles.value}>{formatDate(scheduledDate)}</Text>
+          <Text style={styles.value}>{formatDateTime(scheduledDate, scheduledTime)}</Text>
           <Text style={styles.label}>Data de Conclusão:</Text>
           <Text style={styles.value}>{formatDate(completedDate)}</Text>
         </View>
@@ -295,6 +369,16 @@ export function ReceiptPDF({
           </View>
         )}
 
+        {/* Risk Warning */}
+        {hasRisk && (
+          <View style={styles.riskWarning}>
+            <Text style={styles.riskWarningText}>
+              ⚠️ ATENÇÃO: Identificamos fadiga no sistema (vidros descolados/ressecados). 
+              A empresa não se responsabiliza por quebras decorrentes do manuseio de peças já comprometidas estruturalmente.
+            </Text>
+          </View>
+        )}
+
         {/* Legal Text */}
         <View style={styles.footer}>
           <Text>
@@ -308,9 +392,44 @@ export function ReceiptPDF({
         <View style={styles.signature}>
           <View style={styles.signatureLine} />
           <Text style={styles.signatureText}>{clientName}</Text>
-          <Text style={styles.signatureText}>Cliente</Text>
+          <Text style={styles.signatureText}>
+            {hasRisk 
+              ? 'Declaro ciência do risco preexistente e autorizo o serviço, isentando a contratada de responsabilidade sobre quebras de vidros já danificados.'
+              : 'Cliente'}
+          </Text>
+        </View>
+
+        {/* Company Signature & CNPJ */}
+        <View style={styles.companySignature}>
+          <Image
+            src="/signature.png"
+            style={styles.signatureImage}
+          />
+          <Text style={styles.cnpjText}>
+            House Manutenção - CNPJ: {cnpj}
+          </Text>
         </View>
       </Page>
+
+      {/* Photo Report Page */}
+      {photos.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.photoSection}>
+            <Text style={styles.photoTitle}>RELATÓRIO DE VISTORIA - FOTOS DO SERVIÇO</Text>
+            <View style={styles.photoGrid}>
+              {photos.map((photoUrl, index) => (
+                <View key={index} style={styles.photoContainer}>
+                  <Image
+                    src={photoUrl}
+                    style={styles.photoImage}
+                  />
+                  <Text style={styles.photoCaption}>Foto {index + 1}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Page>
+      )}
     </Document>
   );
 }

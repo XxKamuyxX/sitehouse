@@ -42,3 +42,5 @@
 - Adicionar opção de gerar recibo quando OS está "completed"
 - Recibo deve ter: garantia, detalhamento do serviço, fotos antes/depois
 
+
+

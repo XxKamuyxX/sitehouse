@@ -42,3 +42,5 @@ João Silva | 31982798513 | gclid.abc123 | google | cpc | cortina-vidro-bh | 202
 6. Use esse ID no código do Google Apps Script
 
 
+
+

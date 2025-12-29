@@ -100,3 +100,5 @@ O sistema utiliza Firebase Authentication. Você precisará configurar:
 4. Adicionar relatórios e gráficos no Dashboard
 
 
+
+

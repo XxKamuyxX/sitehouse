@@ -83,3 +83,5 @@ Após atualizar as regras:
 3. Teste os botões de Aprovar/Rejeitar
 4. Verifique no dashboard se o status foi atualizado
 
+
+

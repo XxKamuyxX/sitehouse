@@ -95,3 +95,5 @@ Agora você pode:
 ⚠️ **IMPORTANTE:** O arquivo `.env` está no `.gitignore` e não será commitado. 
 Nunca compartilhe suas credenciais do Firebase publicamente!
 
+
+

@@ -152,3 +152,5 @@ export function ImageUpload({ onUploadComplete, path, label = 'Upload de Imagem'
   );
 }
 
+
+

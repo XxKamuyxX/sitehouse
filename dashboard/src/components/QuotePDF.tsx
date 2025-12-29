@@ -31,6 +31,9 @@ interface QuotePDFProps {
   warranty?: string;
   observations?: string;
   pdfConfig?: PDFConfig;
+  photos?: string[];
+  hasRisk?: boolean;
+  cnpj?: string;
 }
 
 const styles = StyleSheet.create({
@@ -177,6 +180,67 @@ const styles = StyleSheet.create({
     color: '#92400E',
     textAlign: 'center',
   },
+  photoSection: {
+    marginTop: 30,
+    pageBreak: 'before',
+  },
+  photoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginBottom: 15,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  photoContainer: {
+    width: '48%',
+    marginRight: '2%',
+    marginBottom: 15,
+  },
+  photoImage: {
+    width: '100%',
+    height: 120,
+    objectFit: 'cover',
+    marginBottom: 5,
+  },
+  photoCaption: {
+    fontSize: 8,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  riskWarning: {
+    backgroundColor: '#FEE2E2',
+    border: '2 solid #DC2626',
+    padding: 15,
+    marginTop: 20,
+    marginBottom: 20,
+    borderRadius: 5,
+  },
+  riskWarningText: {
+    fontSize: 10,
+    color: '#991B1B',
+    fontWeight: 'bold',
+    lineHeight: 1.5,
+  },
+  companySignature: {
+    marginTop: 30,
+    paddingTop: 20,
+    borderTop: '1 solid #E2E8F0',
+    alignItems: 'center',
+  },
+  signatureImage: {
+    width: 150,
+    height: 60,
+    marginBottom: 10,
+  },
+  cnpjText: {
+    fontSize: 8,
+    color: '#64748B',
+    marginTop: 5,
+  },
 });
 
 export function QuotePDF({
@@ -194,7 +258,11 @@ export function QuotePDF({
   warranty,
   observations,
   pdfConfig,
+  photos = [],
+  hasRisk = false,
+  cnpj = '00.000.000/0001-00',
 }: QuotePDFProps) {
+  // photos, hasRisk, and cnpj are used in the JSX below
   const config = pdfConfig || {
     companyName: 'House Manutenção',
     address: 'Rua Rio Grande do Norte, 726, Savassi',
@@ -339,13 +407,58 @@ export function QuotePDF({
           </Text>
         </View>
 
+        {/* Risk Warning */}
+        {hasRisk && (
+          <View style={styles.riskWarning}>
+            <Text style={styles.riskWarningText}>
+              ⚠️ ATENÇÃO: Identificamos fadiga no sistema (vidros descolados/ressecados). 
+              A empresa não se responsabiliza por quebras decorrentes do manuseio de peças já comprometidas estruturalmente.
+            </Text>
+          </View>
+        )}
+
         {/* Signature */}
         <View style={styles.signature}>
           <View style={styles.signatureLine} />
           <Text style={styles.signatureText}>{clientName}</Text>
-          <Text style={styles.signatureText}>Cliente</Text>
+          <Text style={styles.signatureText}>
+            {hasRisk 
+              ? 'Declaro ciência do risco preexistente e autorizo o serviço, isentando a contratada de responsabilidade sobre quebras de vidros já danificados.'
+              : 'Cliente'}
+          </Text>
+        </View>
+
+        {/* Company Signature & CNPJ */}
+        <View style={styles.companySignature}>
+          <Image
+            src="/signature.png"
+            style={styles.signatureImage}
+          />
+          <Text style={styles.cnpjText}>
+            House Manutenção - CNPJ: {cnpj}
+          </Text>
         </View>
       </Page>
+
+      {/* Photo Report Page */}
+      {photos.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.photoSection}>
+            <Text style={styles.photoTitle}>RELATÓRIO DE VISTORIA - FOTOS DO SERVIÇO</Text>
+            <View style={styles.photoGrid}>
+              {photos.map((photoUrl, index) => (
+                <View key={index} style={styles.photoContainer}>
+                  <Image
+                    src={photoUrl}
+                    style={styles.photoImage}
+                  />
+                  <Text style={styles.photoCaption}>Foto {index + 1}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Page>
+      )}
     </Document>
   );
 }

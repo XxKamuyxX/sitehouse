@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Loader2, Download } from 'lucide-react';
+import { Loader2, Download, Star } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { ReceiptPDF } from '../components/ReceiptPDF';
 
@@ -22,6 +22,10 @@ export function PublicReceipt() {
   const [workOrder, setWorkOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (receiptId) {
@@ -207,6 +211,86 @@ export function PublicReceipt() {
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold text-navy mb-4">Observações</h2>
             <p className="text-slate-700">{receipt.notes}</p>
+          </div>
+        )}
+
+        {/* Feedback Section */}
+        {workOrder && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-navy mb-4 text-center">Avalie nosso Serviço</h2>
+            {submitted ? (
+              <div className="text-center">
+                <div className="flex justify-center gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`w-8 h-8 ${
+                        star <= rating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-slate-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-slate-600 mb-4">Obrigado pela sua avaliação!</p>
+                {rating === 5 && (
+                  <button
+                    onClick={() => {
+                      const googleReviewUrl = 'https://g.page/r/YOUR_GOOGLE_MY_BUSINESS_ID/review';
+                      window.open(googleReviewUrl, '_blank');
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Avaliar no Google
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="flex justify-center gap-2 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoveredRating(star)}
+                      onMouseLeave={() => setHoveredRating(0)}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={`w-10 h-10 ${
+                          star <= (hoveredRating || rating)
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-slate-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!rating || !workOrder?.id) return;
+                    setSubmitting(true);
+                    try {
+                      await updateDoc(doc(db, 'workOrders', workOrder.id), {
+                        feedbackSubmitted: true,
+                        feedbackRating: rating,
+                        feedbackDate: new Date(),
+                      });
+                      setSubmitted(true);
+                    } catch (err) {
+                      console.error('Error submitting feedback:', err);
+                      alert('Erro ao enviar feedback');
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                  disabled={!rating || submitting}
+                  className="px-6 py-2 bg-navy text-white rounded-lg hover:bg-navy-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Enviando...' : 'Enviar Avaliação'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

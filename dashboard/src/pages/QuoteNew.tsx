@@ -319,6 +319,9 @@ export function QuoteNew() {
           createdAt={new Date()}
           warranty={warranty || undefined}
           observations={observations || undefined}
+          photos={diagnosis?.beforePhotos || diagnosis?.afterPhotos || []}
+          hasRisk={false}
+          cnpj="00.000.000/0001-00"
         />
       );
 

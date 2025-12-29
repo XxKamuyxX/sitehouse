@@ -109,3 +109,5 @@ Após atualizar as regras:
 5. Teste os botões de WhatsApp
 6. Teste o upload de imagens (requer login)
 
+
+
