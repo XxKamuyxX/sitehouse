@@ -85,10 +85,7 @@ export function Feedback() {
   };
 
   const handleGoogleReview = () => {
-    // TODO: Replace with your actual Google My Business review URL
-    // Get your review URL from: https://www.google.com/business/
-    // Format: https://g.page/r/YOUR_GOOGLE_MY_BUSINESS_ID/review
-    const googleReviewUrl = 'https://g.page/r/YOUR_GOOGLE_MY_BUSINESS_ID/review';
+    const googleReviewUrl = 'https://g.page/r/CbwrbzEhhph2EAE/review';
     window.open(googleReviewUrl, '_blank');
   };
 

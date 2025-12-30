@@ -236,7 +236,7 @@ export function PublicReceipt() {
                 {rating === 5 && (
                   <button
                     onClick={() => {
-                      const googleReviewUrl = 'https://g.page/r/YOUR_GOOGLE_MY_BUSINESS_ID/review';
+                      const googleReviewUrl = 'https://g.page/r/CbwrbzEhhph2EAE/review';
                       window.open(googleReviewUrl, '_blank');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
