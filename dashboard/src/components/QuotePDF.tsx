@@ -6,6 +6,15 @@ interface QuoteItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  pricingMethod?: 'm2' | 'linear' | 'fixed' | 'unit';
+  dimensions?: {
+    width: number;
+    height: number;
+    area?: number;
+  };
+  glassColor?: string;
+  profileColor?: string;
+  isInstallation?: boolean;
 }
 
 interface PDFConfig {
@@ -343,14 +352,48 @@ export function QuotePDF({
             <Text style={styles.tableCellRight}>PREÇO UNIT.</Text>
             <Text style={styles.tableCellRight}>TOTAL</Text>
           </View>
-          {items.map((item, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { flex: 3 }]}>{item.serviceName}</Text>
-              <Text style={styles.tableCellCenter}>{item.quantity}</Text>
-              <Text style={styles.tableCellRight}>{formatCurrency(item.unitPrice)}</Text>
-              <Text style={styles.tableCellRight}>{formatCurrency(item.total)}</Text>
-            </View>
-          ))}
+          {items.map((item, index) => {
+            // Build service description with pricing details
+            let serviceDescription = item.serviceName;
+            
+            if (item.isInstallation && item.pricingMethod) {
+              if (item.pricingMethod === 'm2' && item.dimensions) {
+                const area = item.dimensions.area || (item.dimensions.width * item.dimensions.height);
+                serviceDescription = `${item.serviceName} (${area.toFixed(2)}m²) - ${formatCurrency(item.unitPrice)}/m²`;
+                if (item.quantity > 1) {
+                  serviceDescription += ` × ${item.quantity}`;
+                }
+              } else if (item.pricingMethod === 'linear' && item.dimensions) {
+                const linearMeters = item.dimensions.width * item.quantity;
+                serviceDescription = `${item.serviceName} (${linearMeters.toFixed(2)}m) - ${formatCurrency(item.unitPrice)}/m linear`;
+              } else if (item.pricingMethod === 'fixed') {
+                serviceDescription = `${item.serviceName} - ${formatCurrency(item.total)} (Preço Fechado)`;
+              }
+              
+              // Add color info if available
+              if (item.glassColor || item.profileColor) {
+                const colorInfo = [];
+                if (item.glassColor) colorInfo.push(`Vidro: ${item.glassColor}`);
+                if (item.profileColor) colorInfo.push(`Perfil: ${item.profileColor}`);
+                if (colorInfo.length > 0) {
+                  serviceDescription += `\n${colorInfo.join(' | ')}`;
+                }
+              }
+            }
+
+            return (
+              <View key={index} style={styles.tableRow}>
+                <View style={[styles.tableCell, { flex: 3 }]}>
+                  <Text>{serviceDescription}</Text>
+                </View>
+                <Text style={styles.tableCellCenter}>{item.quantity}</Text>
+                <Text style={styles.tableCellRight}>
+                  {item.pricingMethod === 'fixed' ? '-' : formatCurrency(item.unitPrice)}
+                </Text>
+                <Text style={styles.tableCellRight}>{formatCurrency(item.total)}</Text>
+              </View>
+            );
+          })}
         </View>
 
         {/* Summary */}

@@ -2,10 +2,11 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
-import { Save, Trash2, Download } from 'lucide-react';
+import { Save, Trash2, Download, Plus } from 'lucide-react';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { pdf } from '@react-pdf/renderer';
 import { QuotePDF } from '../components/QuotePDF';
+import { InstallationItemModal } from '../components/InstallationItemModal';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc } from 'firebase/firestore';
@@ -88,6 +89,17 @@ interface QuoteItem {
   unitPrice: number;
   total: number;
   isCustom?: boolean;
+  // Pricing calculator fields
+  pricingMethod?: 'm2' | 'linear' | 'fixed' | 'unit';
+  dimensions?: {
+    width: number;
+    height: number;
+    area?: number;
+  };
+  // Installation-specific fields
+  glassColor?: string;
+  profileColor?: string;
+  isInstallation?: boolean;
 }
 
 export function QuoteNew() {
@@ -103,6 +115,8 @@ export function QuoteNew() {
   const [customServiceName, setCustomServiceName] = useState('');
   const [customServicePrice, setCustomServicePrice] = useState(0);
   const [showCustomService, setShowCustomService] = useState(false);
+  const [showInstallationModal, setShowInstallationModal] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [services, setServices] = useState<Service[]>(DEFAULT_SERVICES);
   const [diagnosis, setDiagnosis] = useState({
     beforePhotos: [] as string[],
@@ -205,15 +219,68 @@ export function QuoteNew() {
     const newItems = [...items];
     const item = newItems[index];
     
-    if (field === 'quantity') {
-      item.quantity = value;
-      item.total = item.quantity * item.unitPrice;
-    } else if (field === 'unitPrice') {
-      item.unitPrice = value;
-      item.total = item.quantity * item.unitPrice;
+    // If item has pricing method, recalculate based on method
+    if (item.pricingMethod && item.pricingMethod !== 'fixed' && !item.isInstallation) {
+      if (field === 'quantity') {
+        item.quantity = value;
+        if (item.pricingMethod === 'm2' && item.dimensions) {
+          const area = item.dimensions.width * item.dimensions.height;
+          item.total = area * item.quantity * item.unitPrice;
+        } else if (item.pricingMethod === 'linear' && item.dimensions) {
+          item.total = item.dimensions.width * item.quantity * item.unitPrice;
+        } else {
+          item.total = item.quantity * item.unitPrice;
+        }
+      } else if (field === 'unitPrice') {
+        item.unitPrice = value;
+        if (item.pricingMethod === 'm2' && item.dimensions) {
+          const area = item.dimensions.width * item.dimensions.height;
+          item.total = area * item.quantity * item.unitPrice;
+        } else if (item.pricingMethod === 'linear' && item.dimensions) {
+          item.total = item.dimensions.width * item.quantity * item.unitPrice;
+        } else {
+          item.total = item.quantity * item.unitPrice;
+        }
+      }
+    } else {
+      // Standard calculation
+      if (field === 'quantity') {
+        item.quantity = value;
+        item.total = item.quantity * item.unitPrice;
+      } else if (field === 'unitPrice') {
+        item.unitPrice = value;
+        item.total = item.quantity * item.unitPrice;
+      }
     }
     
     setItems(newItems);
+  };
+
+  const handleSaveInstallationItem = (itemData: any) => {
+    if (editingItemIndex !== null) {
+      // Update existing item
+      const newItems = [...items];
+      newItems[editingItemIndex] = {
+        ...newItems[editingItemIndex],
+        ...itemData,
+        serviceId: newItems[editingItemIndex].serviceId || `installation-${Date.now()}`,
+      };
+      setItems(newItems);
+      setEditingItemIndex(null);
+    } else {
+      // Add new item
+      const newItem: QuoteItem = {
+        serviceId: `installation-${Date.now()}`,
+        ...itemData,
+      };
+      setItems([...items, newItem]);
+    }
+    setShowInstallationModal(false);
+  };
+
+  const handleEditInstallationItem = (index: number) => {
+    setEditingItemIndex(index);
+    setShowInstallationModal(true);
   };
 
   const removeItem = (index: number) => {
@@ -233,15 +300,28 @@ export function QuoteNew() {
     if (!selectedClient) return;
 
     try {
-      // Sanitize items - remove undefined values
-      const sanitizedItems = items.map((item) => ({
-        serviceId: item.serviceId,
-        serviceName: item.serviceName,
-        quantity: item.quantity || 0,
-        unitPrice: item.unitPrice || 0,
-        total: item.total || 0,
-        isCustom: item.isCustom || false,
-      }));
+      // Sanitize items - include all fields including installation data
+      const sanitizedItems = items.map((item) => {
+        const sanitized: any = {
+          serviceId: item.serviceId,
+          serviceName: item.serviceName,
+          quantity: item.quantity || 0,
+          unitPrice: item.unitPrice || 0,
+          total: item.total || 0,
+          isCustom: item.isCustom || false,
+        };
+        
+        // Add installation-specific fields if present
+        if (item.isInstallation) {
+          sanitized.isInstallation = true;
+          if (item.pricingMethod) sanitized.pricingMethod = item.pricingMethod;
+          if (item.dimensions) sanitized.dimensions = item.dimensions;
+          if (item.glassColor) sanitized.glassColor = item.glassColor;
+          if (item.profileColor) sanitized.profileColor = item.profileColor;
+        }
+        
+        return sanitized;
+      });
 
       // Sanitize diagnosis - only include if has content
       const sanitizedDiagnosis = 
@@ -420,13 +500,27 @@ export function QuoteNew() {
               <div className="mb-4 p-4 border-2 border-dashed border-slate-300 rounded-lg">
                 <div className="flex justify-between items-center mb-3">
                   <p className="text-sm font-medium text-slate-700">Adicionar Serviço:</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCustomService(!showCustomService)}
-                  >
-                    {showCustomService ? 'Cancelar' : '+ Serviço Manual'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setEditingItemIndex(null);
+                        setShowInstallationModal(true);
+                      }}
+                      className="flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Instalação/Vidro
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCustomService(!showCustomService)}
+                    >
+                      {showCustomService ? 'Cancelar' : '+ Serviço Manual'}
+                    </Button>
+                  </div>
                 </div>
 
                 {showCustomService && (
@@ -492,7 +586,7 @@ export function QuoteNew() {
                         className="p-4 border border-slate-200 rounded-lg bg-slate-50"
                       >
                         <div className="flex justify-between items-start mb-3">
-                          <div>
+                          <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="font-medium text-navy">{item.serviceName}</h3>
                               {item.isCustom && (
@@ -500,57 +594,118 @@ export function QuoteNew() {
                                   Manual
                                 </span>
                               )}
+                              {item.isInstallation && (
+                                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">
+                                  Instalação
+                                </span>
+                              )}
                             </div>
-                            {service?.description && !item.isCustom && (
+                            {service?.description && !item.isCustom && !item.isInstallation && (
                               <p className="text-sm text-slate-600">{service.description}</p>
                             )}
+                            {item.isInstallation && (
+                              <div className="mt-2 space-y-1">
+                                {item.pricingMethod === 'm2' && item.dimensions && (
+                                  <p className="text-xs text-slate-600">
+                                    {item.dimensions.width}m × {item.dimensions.height}m = {item.dimensions.area?.toFixed(2)}m²
+                                    {item.quantity > 1 && ` (${item.quantity}x = ${((item.dimensions.area || 0) * item.quantity).toFixed(2)}m² total)`}
+                                  </p>
+                                )}
+                                {item.pricingMethod === 'linear' && item.dimensions && (
+                                  <p className="text-xs text-slate-600">
+                                    {item.dimensions.width}m × {item.quantity} = {(item.dimensions.width * item.quantity).toFixed(2)}m linear
+                                  </p>
+                                )}
+                                {item.glassColor && (
+                                  <p className="text-xs text-slate-600">
+                                    <span className="font-medium">Vidro:</span> {item.glassColor}
+                                  </p>
+                                )}
+                                {item.profileColor && (
+                                  <p className="text-xs text-slate-600">
+                                    <span className="font-medium">Perfil:</span> {item.profileColor}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <button
-                            onClick={() => removeItem(index)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+                          <div className="flex gap-2">
+                            {item.isInstallation && (
+                              <button
+                                onClick={() => handleEditInstallationItem(index)}
+                                className="text-blue-600 hover:text-blue-700"
+                                title="Editar item de instalação"
+                              >
+                                <Save className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => removeItem(index)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs text-slate-600 mb-1">
-                              Quantidade
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={item.quantity}
-                              onChange={(e) =>
-                                updateItem(index, 'quantity', parseFloat(e.target.value) || 1)
-                              }
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-600 mb-1">
-                              Preço / Unidade
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.unitPrice}
-                              onChange={(e) =>
-                                updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
-                              }
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-600 mb-1">Total</label>
-                            <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg font-medium text-navy">
-                              R$ {item.total.toFixed(2)}
+                        {!item.isInstallation ? (
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs text-slate-600 mb-1">
+                                Quantidade
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateItem(index, 'quantity', parseFloat(e.target.value) || 1)
+                                }
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-600 mb-1">
+                                Preço / Unidade
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
+                                }
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-600 mb-1">Total</label>
+                              <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg font-medium text-navy">
+                                R$ {item.total.toFixed(2)}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="p-3 bg-white rounded-lg border border-slate-200">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-xs text-slate-600 mb-1">Método de Precificação</p>
+                                <p className="text-sm font-medium text-navy">
+                                  {item.pricingMethod === 'm2' && 'Por m²'}
+                                  {item.pricingMethod === 'linear' && 'Por Metro Linear'}
+                                  {item.pricingMethod === 'fixed' && 'Preço Fixo'}
+                                  {item.pricingMethod === 'unit' && 'Por Unidade'}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-slate-600 mb-1">Total</p>
+                                <p className="text-lg font-bold text-navy">R$ {item.total.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -632,6 +787,17 @@ export function QuoteNew() {
             </Card>
           </div>
         </div>
+
+        {/* Installation Item Modal */}
+        <InstallationItemModal
+          isOpen={showInstallationModal}
+          onClose={() => {
+            setShowInstallationModal(false);
+            setEditingItemIndex(null);
+          }}
+          onSave={handleSaveInstallationItem}
+          initialItem={editingItemIndex !== null ? items[editingItemIndex] : undefined}
+        />
       </div>
     </Layout>
   );
