@@ -2,20 +2,38 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Loader2, Download } from 'lucide-react';
+import { Loader2, Download, CheckCircle2, XCircle } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { ReceiptPDF } from '../components/ReceiptPDF';
+
+interface Leaf {
+  id: number;
+  status: 'perfect' | 'attention' | 'damaged';
+  defects: string[];
+  photo?: string;
+}
+
+interface GeneralChecklistItem {
+  task: string;
+  completed: boolean;
+  value?: string;
+}
 
 interface WorkOrder {
   id: string;
   quoteId: string;
   clientName: string;
   scheduledDate: string;
+  scheduledTime?: string;
   technician: string;
   status: string;
   checklist: { task: string; completed: boolean }[];
   notes: string;
   photos?: string[];
+  technicalInspection?: {
+    leaves: Leaf[];
+    generalChecklist: GeneralChecklistItem[];
+  };
 }
 
 export function PublicWorkOrder() {
@@ -95,6 +113,7 @@ export function PublicWorkOrder() {
           items={quote.items || []}
           total={quote.total || 0}
           warranty={quote.warranty}
+          cnpj="42.721.809/0001-52"
         />
       );
 
@@ -224,10 +243,187 @@ export function PublicWorkOrder() {
           </div>
         )}
 
-        {/* Photos */}
+        {/* Technical Inspection - Leaves */}
+        {workOrder.technicalInspection && workOrder.technicalInspection.leaves && workOrder.technicalInspection.leaves.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-navy mb-4">Vistoria Técnica - Folhas</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
+              {workOrder.technicalInspection.leaves.map((leaf) => {
+                const getStatusColor = () => {
+                  switch (leaf.status) {
+                    case 'perfect':
+                      return 'bg-green-100 border-green-500 text-green-700';
+                    case 'attention':
+                      return 'bg-yellow-100 border-yellow-500 text-yellow-700';
+                    case 'damaged':
+                      return 'bg-red-100 border-red-500 text-red-700';
+                    default:
+                      return 'bg-slate-100 border-slate-300 text-slate-700';
+                  }
+                };
+
+                const getStatusLabel = () => {
+                  switch (leaf.status) {
+                    case 'perfect':
+                      return 'Perfeito';
+                    case 'attention':
+                      return 'Atenção';
+                    case 'damaged':
+                      return 'Danificado';
+                    default:
+                      return '';
+                  }
+                };
+
+                return (
+                  <div
+                    key={leaf.id}
+                    className={`p-4 border-2 rounded-lg ${getStatusColor()}`}
+                  >
+                    <p className="font-bold text-center mb-2">Folha {leaf.id}</p>
+                    <p className="text-xs text-center mb-2">{getStatusLabel()}</p>
+                    {leaf.defects.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium mb-1">Defeitos:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {leaf.defects.map((defect, idx) => (
+                            <span key={idx} className="text-xs bg-white/50 px-2 py-1 rounded">
+                              {defect}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {leaf.photo && (
+                      <img
+                        src={leaf.photo}
+                        alt={`Folha ${leaf.id}`}
+                        className="mt-2 w-full h-24 object-cover rounded"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar';
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Technical Inspection - General Checklist */}
+        {workOrder.technicalInspection && workOrder.technicalInspection.generalChecklist && workOrder.technicalInspection.generalChecklist.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-navy mb-4">Checklist Geral</h2>
+            <div className="space-y-3">
+              {workOrder.technicalInspection.generalChecklist.map((item, index) => {
+                // Itens simples (sem valor)
+                if (!item.value && item.task !== 'Guia' && !item.task.includes('Trilhos')) {
+                  return (
+                    <div key={index} className="flex items-center gap-3 p-2">
+                      {item.completed ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-slate-300" />
+                      )}
+                      <span className={item.completed ? 'text-slate-600' : 'text-slate-700'}>
+                        {item.task}
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Guia
+                if (item.task === 'Guia' && item.value) {
+                  return (
+                    <div key={index} className="p-3 bg-navy-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-navy">Guia:</span>
+                        <span className="text-navy">
+                          {item.value === 'com-guia' ? 'Com Guia' : item.value === 'sem-guia' ? 'Sem Guia' : `${item.value} unidades`}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Trilhos
+                if (item.task.includes('Trilhos') && item.value) {
+                  const getTrilhoLabel = () => {
+                    if (item.task.includes('Amassado')) return 'Amassado';
+                    if (item.task.includes('Ressecado')) return 'Ressecado';
+                    if (item.task.includes('Sujo')) return 'Sujo';
+                    return '';
+                  };
+
+                  const getLevelLabel = (value: string) => {
+                    switch (value) {
+                      case 'leve':
+                        return 'Leve';
+                      case 'moderado':
+                        return 'Moderado';
+                      case 'intenso':
+                        return 'Intenso';
+                      default:
+                        return value;
+                    }
+                  };
+
+                  return (
+                    <div key={index} className="p-3 bg-navy-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-navy">Trilhos - {getTrilhoLabel()}:</span>
+                        <span className="text-navy font-bold">{getLevelLabel(item.value)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return null;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Photos from Technical Inspection */}
+        {workOrder.technicalInspection && workOrder.technicalInspection.leaves && (
+          (() => {
+            const photosWithLabels = workOrder.technicalInspection.leaves
+              .filter(leaf => leaf.photo)
+              .map(leaf => ({
+                url: leaf.photo!,
+                label: `Folha ${leaf.id}${leaf.defects.length > 0 ? ` - ${leaf.defects.join(', ')}` : ''}`
+              }));
+
+            return photosWithLabels.length > 0 ? (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-xl font-bold text-navy mb-4">Fotos da Vistoria</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {photosWithLabels.map((photo, index) => (
+                    <div key={index} className="space-y-2">
+                      <img
+                        src={photo.url}
+                        alt={photo.label}
+                        className="w-full h-48 object-cover rounded-lg border border-slate-200"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar';
+                        }}
+                      />
+                      <p className="text-xs text-slate-600 text-center">{photo.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })()
+        )}
+
+        {/* General Photos */}
         {workOrder.photos && workOrder.photos.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-navy mb-4">Fotos</h2>
+            <h2 className="text-xl font-bold text-navy mb-4">Fotos do Serviço</h2>
             <div className="grid grid-cols-2 gap-4">
               {workOrder.photos.map((photo, index) => (
                 <img
@@ -235,6 +431,9 @@ export function PublicWorkOrder() {
                   src={photo}
                   alt={`Foto ${index + 1}`}
                   className="w-full h-48 object-cover rounded-lg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar';
+                  }}
                 />
               ))}
             </div>

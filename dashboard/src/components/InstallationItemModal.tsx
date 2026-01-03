@@ -19,6 +19,7 @@ interface InstallationItemModalProps {
       area?: number;
     };
     glassColor?: string;
+    glassThickness?: string;
     profileColor?: string;
     isInstallation: boolean;
   }) => void;
@@ -40,7 +41,20 @@ export function InstallationItemModal({
   const [quantity, setQuantity] = useState(1);
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [glassColor, setGlassColor] = useState('');
+  const [glassThickness, setGlassThickness] = useState('');
   const [profileColor, setProfileColor] = useState('');
+  const [customServiceName, setCustomServiceName] = useState('');
+
+  // Installation service options
+  const installationServices = [
+    { value: 'Cortina de Vidro', label: 'Cortina de Vidro' },
+    { value: 'Box Padrão', label: 'Box Padrão' },
+    { value: 'Guarda-corpo', label: 'Guarda-corpo' },
+    { value: 'Porta de Vidro', label: 'Porta de Vidro' },
+    { value: 'Janela de Vidro', label: 'Janela de Vidro' },
+    { value: 'Divisória de Vidro', label: 'Divisória de Vidro' },
+    { value: 'Outro', label: 'Outro (especificar)' },
+  ];
 
   useEffect(() => {
     if (initialItem) {
@@ -52,7 +66,9 @@ export function InstallationItemModal({
       setTotalPrice(initialItem.total || 0);
       setQuantity(initialItem.quantity || 1);
       setGlassColor(initialItem.glassColor || '');
+      setGlassThickness(initialItem.glassThickness || '');
       setProfileColor(initialItem.profileColor || '');
+      setCustomServiceName(initialItem.serviceName && !installationServices.find(s => s.value === initialItem.serviceName) ? initialItem.serviceName : '');
       setIsManualOverride(initialItem.pricingMethod === 'fixed' || false);
     } else {
       // Reset form
@@ -64,7 +80,9 @@ export function InstallationItemModal({
       setTotalPrice(0);
       setQuantity(1);
       setGlassColor('');
+      setGlassThickness('');
       setProfileColor('');
+      setCustomServiceName('');
       setIsManualOverride(false);
     }
   }, [initialItem, isOpen]);
@@ -105,8 +123,10 @@ export function InstallationItemModal({
   }, [pricingMethod, width, height, unitPrice, quantity, isManualOverride]);
 
   const handleSave = () => {
-    if (!serviceName.trim()) {
-      alert('Digite o nome do serviço');
+    const finalServiceName = serviceName === 'Outro' ? customServiceName : serviceName;
+    
+    if (!finalServiceName.trim()) {
+      alert('Selecione ou digite o nome do serviço');
       return;
     }
 
@@ -133,7 +153,7 @@ export function InstallationItemModal({
     const area = pricingMethod === 'm2' ? width * height : undefined;
 
     onSave({
-      serviceName,
+      serviceName: finalServiceName,
       quantity,
       unitPrice: pricingMethod === 'fixed' ? totalPrice : unitPrice,
       total: totalPrice,
@@ -144,6 +164,7 @@ export function InstallationItemModal({
         area,
       },
       glassColor,
+      glassThickness,
       profileColor,
       isInstallation: true,
     });
@@ -171,16 +192,27 @@ export function InstallationItemModal({
           {/* Service Name */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Nome do Serviço *
+              Tipo de Serviço *
             </label>
-            <input
-              type="text"
+            <Select
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
-              placeholder="Ex: Cortina de Vidro, Box Padrão, Guarda-corpo..."
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+              options={[
+                { value: '', label: 'Selecione o tipo de serviço...' },
+                ...installationServices,
+              ]}
               required
             />
+            {serviceName === 'Outro' && (
+              <input
+                type="text"
+                placeholder="Especifique o tipo de serviço"
+                value={customServiceName}
+                onChange={(e) => setCustomServiceName(e.target.value)}
+                className="w-full mt-2 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                required
+              />
+            )}
           </div>
 
           {/* Pricing Method */}
@@ -350,30 +382,62 @@ export function InstallationItemModal({
           </div>
 
           {/* Installation-specific fields */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Cor do Vidro
-              </label>
-              <input
-                type="text"
-                value={glassColor}
-                onChange={(e) => setGlassColor(e.target.value)}
-                placeholder="Ex: Incolor, Fumé, Verde..."
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Cor do Perfil
-              </label>
-              <input
-                type="text"
-                value={profileColor}
-                onChange={(e) => setProfileColor(e.target.value)}
-                placeholder="Ex: Branco, Preto, Prata..."
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-              />
+          <div className="pt-4 border-t border-slate-200">
+            <h3 className="text-sm font-medium text-navy mb-3">Especificações do Vidro</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cor do Vidro
+                </label>
+                <input
+                  type="text"
+                  value={glassColor}
+                  onChange={(e) => setGlassColor(e.target.value)}
+                  placeholder="Ex: Incolor, Fumé, Verde..."
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Espessura do Vidro
+                </label>
+                <Select
+                  value={glassThickness}
+                  onChange={(e) => setGlassThickness(e.target.value)}
+                  options={[
+                    { value: '', label: 'Selecione...' },
+                    { value: '4mm', label: '4mm' },
+                    { value: '5mm', label: '5mm' },
+                    { value: '6mm', label: '6mm' },
+                    { value: '8mm', label: '8mm' },
+                    { value: '10mm', label: '10mm' },
+                    { value: '12mm', label: '12mm' },
+                    { value: '15mm', label: '15mm' },
+                    { value: 'Outro', label: 'Outro' },
+                  ]}
+                />
+                {glassThickness === 'Outro' && (
+                  <input
+                    type="text"
+                    placeholder="Especifique a espessura (ex: 6.5mm)"
+                    value={glassThickness}
+                    onChange={(e) => setGlassThickness(e.target.value)}
+                    className="w-full mt-2 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cor do Perfil
+                </label>
+                <input
+                  type="text"
+                  value={profileColor}
+                  onChange={(e) => setProfileColor(e.target.value)}
+                  placeholder="Ex: Branco, Preto, Prata..."
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                />
+              </div>
             </div>
           </div>
 

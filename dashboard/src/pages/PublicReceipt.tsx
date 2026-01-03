@@ -85,6 +85,7 @@ export function PublicReceipt() {
           items={receipt.items || []}
           total={receipt.amount}
           warranty={workOrder.warranty}
+          cnpj="42.721.809/0001-52"
         />
       );
 

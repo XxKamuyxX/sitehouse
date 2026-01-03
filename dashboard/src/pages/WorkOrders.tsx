@@ -78,6 +78,7 @@ export function WorkOrders() {
           items={quoteData?.items || []}
           total={quoteData?.total || 0}
           warranty={quoteData?.warranty || '90 dias'}
+          cnpj="42.721.809/0001-52"
         />
       );
 

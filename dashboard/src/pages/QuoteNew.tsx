@@ -98,6 +98,7 @@ interface QuoteItem {
   };
   // Installation-specific fields
   glassColor?: string;
+  glassThickness?: string;
   profileColor?: string;
   isInstallation?: boolean;
 }
@@ -317,6 +318,7 @@ export function QuoteNew() {
           if (item.pricingMethod) sanitized.pricingMethod = item.pricingMethod;
           if (item.dimensions) sanitized.dimensions = item.dimensions;
           if (item.glassColor) sanitized.glassColor = item.glassColor;
+          if (item.glassThickness) sanitized.glassThickness = item.glassThickness;
           if (item.profileColor) sanitized.profileColor = item.profileColor;
         }
         
@@ -401,7 +403,7 @@ export function QuoteNew() {
           observations={observations || undefined}
           photos={diagnosis?.beforePhotos || diagnosis?.afterPhotos || []}
           hasRisk={false}
-          cnpj="00.000.000/0001-00"
+          cnpj="42.721.809/0001-52"
         />
       );
 
@@ -498,9 +500,9 @@ export function QuoteNew() {
 
               {/* Add Service */}
               <div className="mb-4 p-4 border-2 border-dashed border-slate-300 rounded-lg">
-                <div className="flex justify-between items-center mb-3">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
                   <p className="text-sm font-medium text-slate-700">Adicionar Serviço:</p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-3">
                     <Button
                       variant="primary"
                       size="sm"
@@ -508,7 +510,7 @@ export function QuoteNew() {
                         setEditingItemIndex(null);
                         setShowInstallationModal(true);
                       }}
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 whitespace-nowrap"
                     >
                       <Plus className="w-4 h-4" />
                       Instalação/Vidro
@@ -517,6 +519,7 @@ export function QuoteNew() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowCustomService(!showCustomService)}
+                      className="whitespace-nowrap"
                     >
                       {showCustomService ? 'Cancelar' : '+ Serviço Manual'}
                     </Button>
@@ -534,17 +537,22 @@ export function QuoteNew() {
                         onChange={(e) => setCustomServiceName(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                       />
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="number"
-                          placeholder="Preço unitário"
+                          placeholder="Preço unitário (R$)"
                           min="0"
                           step="0.01"
                           value={customServicePrice}
                           onChange={(e) => setCustomServicePrice(parseFloat(e.target.value) || 0)}
                           className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                         />
-                        <Button variant="primary" size="sm" onClick={addCustomService}>
+                        <Button 
+                          variant="primary" 
+                          size="sm" 
+                          onClick={addCustomService}
+                          className="w-full sm:w-auto whitespace-nowrap"
+                        >
                           Adicionar
                         </Button>
                       </div>
