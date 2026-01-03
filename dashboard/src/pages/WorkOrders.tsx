@@ -1,9 +1,9 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { CheckCircle2, Circle, Download } from 'lucide-react';
+import { CheckCircle2, Circle, Download, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Link } from 'react-router-dom';
 import { pdf } from '@react-pdf/renderer';
@@ -97,6 +97,21 @@ export function WorkOrders() {
     }
   };
 
+  const handleDeleteWorkOrder = async (order: WorkOrder) => {
+    if (!confirm(`Tem certeza que deseja excluir a ordem de serviço de ${order.clientName}?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'workOrders', order.id));
+      alert('Ordem de serviço excluída com sucesso!');
+      loadWorkOrders(); // Reload the list
+    } catch (error) {
+      console.error('Error deleting work order:', error);
+      alert('Erro ao excluir ordem de serviço');
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -133,7 +148,7 @@ export function WorkOrders() {
                         <p>Técnico: {order.technician}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Link to={`/work-orders/${order.id}`}>
                         <Button variant="outline">Ver Detalhes</Button>
                       </Link>
@@ -147,6 +162,14 @@ export function WorkOrders() {
                           Gerar Recibo
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        onClick={() => handleDeleteWorkOrder(order)}
+                        className="flex items-center gap-2 border-red-600 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Excluir
+                      </Button>
                     </div>
                   </div>
 

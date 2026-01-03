@@ -1,9 +1,9 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Plus, FileText, ClipboardList, MessageCircle } from 'lucide-react';
+import { Plus, FileText, ClipboardList, MessageCircle, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { DatePickerModal } from '../components/DatePickerModal';
@@ -161,6 +161,21 @@ export function Quotes() {
     }
   };
 
+  const handleDeleteQuote = async (quote: Quote) => {
+    if (!confirm(`Tem certeza que deseja excluir o orçamento de ${quote.clientName}?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'quotes', quote.id));
+      alert('Orçamento excluído com sucesso!');
+      loadQuotes(); // Reload the list
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      alert('Erro ao excluir orçamento');
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -203,7 +218,7 @@ export function Quotes() {
                       Total: <span className="font-bold text-navy">{formatCurrency(quote.total)}</span>
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Link to={`/quotes/${quote.id}`}>
                       <Button variant="outline" size="sm">
                         <FileText className="w-4 h-4 mr-1" />
@@ -230,6 +245,15 @@ export function Quotes() {
                         Criar OS
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteQuote(quote)}
+                      className="flex items-center gap-1 border-red-600 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
+                    </Button>
                   </div>
                 </div>
               </Card>
