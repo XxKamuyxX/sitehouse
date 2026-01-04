@@ -96,10 +96,16 @@ export default function ProblemsSolutions() {
         
         <div className="mt-12 text-center">
           <button 
-            onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppModal'))}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg uppercase tracking-wider transition-colors shadow-lg hover:shadow-xl"
+            onClick={() => {
+              const formElement = document.getElementById('formulario-contato');
+              if (formElement) {
+                formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                window.scrollBy(0, -20);
+              }
+            }}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-lg font-semibold text-lg uppercase tracking-wider transition-colors shadow-lg hover:shadow-xl"
           >
-            Solicitar Orçamento
+            Quero Resolver Meu Problema Agora
           </button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
-import MagneticButton from './ui/MagneticButton';
-import { Shield, Award, Clock, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Shield, Award, Clock, CheckCircle2 } from 'lucide-react';
+import ContactForm from './ContactForm';
 
 export default function Hero() {
   // Parallax disabled for better performance
@@ -11,10 +11,6 @@ export default function Hero() {
   //   offset: ['start start', 'end start'],
   // });
   // const y = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
-
-  const openModal = () => {
-    window.dispatchEvent(new CustomEvent('openWhatsAppModal'));
-  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-amber-50">
@@ -37,7 +33,7 @@ export default function Hero() {
       </div>
       
       {/* Content */}
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl relative z-20 pt-24 md:pt-32 pb-12 md:pb-16">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl relative z-20 pt-24 md:pt-32 pb-24 md:pb-16">
         <div className="max-w-5xl">
           <div className="inline-block mb-4 md:mb-6 px-3 md:px-4 py-1.5 md:py-2 bg-amber-100 text-amber-800 rounded-full text-xs md:text-sm font-semibold">
             ⭐ Especialistas Certificados em Cortinas de Vidro
@@ -51,14 +47,9 @@ export default function Hero() {
             Especialistas exclusivos em manutenção de Cortinas de Vidro em Belo Horizonte e Região. Tecnologia de blindagem e higienização com atendimento premium.
           </p>
           
-          <div className="mb-6 md:mb-8 flex flex-col sm:flex-row gap-3 md:gap-4">
-            <MagneticButton onClick={openModal} variant="primary">
-              <MessageCircle className="w-5 h-5 mr-2 inline" />
-              Solicitar Orçamento no WhatsApp
-            </MagneticButton>
-            <MagneticButton onClick={openModal} variant="outline">
-              Falar com Especialista
-            </MagneticButton>
+          {/* Contact Form - Incorporated directly in page */}
+          <div className="mb-6 md:mb-8">
+            <ContactForm />
           </div>
 
           {/* Diferenciais */}
