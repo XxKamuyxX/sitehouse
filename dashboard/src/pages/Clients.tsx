@@ -61,32 +61,36 @@ export function Clients() {
   };
 
   const handleSave = async (clientData: Omit<Client, 'id'>) => {
+    // CRITICAL: Validate companyId before attempting any operation
     if (!companyId) {
-      alert('Erro: companyId não encontrado. Por favor, recarregue a página.');
+      alert('Erro: Empresa não identificada. Por favor, recarregue a página.');
       return;
     }
     
     try {
-      const dataWithCompany = { 
-        ...clientData, 
-        companyId,
-      };
-      
       if (editingClient) {
-        await updateDoc(doc(db, 'clients', editingClient.id), dataWithCompany);
+        // Update existing client
+        const updateData = {
+          ...clientData,
+          companyId: companyId, // MANDATORY: Explicitly include companyId
+        };
+        await updateDoc(doc(db, 'clients', editingClient.id), updateData);
       } else {
-        // Add createdAt only for new clients
-        await addDoc(collection(db, 'clients'), {
-          ...dataWithCompany,
+        // Create new client - CRITICAL: companyId MUST be in the payload
+        const newClientData = {
+          ...clientData,
+          companyId: companyId, // MANDATORY: Explicitly include companyId
           createdAt: new Date(),
-        });
+        };
+        await addDoc(collection(db, 'clients'), newClientData);
       }
       await loadClients();
       setShowForm(false);
       setEditingClient(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving client:', error);
-      alert('Erro ao salvar cliente');
+      const errorMessage = error?.message || 'Erro desconhecido';
+      alert(`Erro ao salvar cliente: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
     }
   };
 

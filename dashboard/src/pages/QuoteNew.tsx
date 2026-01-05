@@ -311,11 +311,20 @@ export function QuoteNew() {
   };
 
   const handleCreateClient = async (clientData: Omit<Client, 'id'>) => {
-    if (!companyId) return;
+    // CRITICAL: Validate companyId before attempting any operation
+    if (!companyId) {
+      alert('Erro: Empresa não identificada. Por favor, recarregue a página.');
+      return;
+    }
     
     try {
-      const dataWithCompany = { ...clientData, companyId };
-      const docRef = await addDoc(collection(db, 'clients'), dataWithCompany);
+      // CRITICAL: companyId MUST be explicitly included in the payload
+      const newClientData = {
+        ...clientData,
+        companyId: companyId, // MANDATORY: Explicitly include companyId
+        createdAt: new Date(),
+      };
+      const docRef = await addDoc(collection(db, 'clients'), newClientData);
       
       // Reload clients list
       await loadClients();
@@ -325,9 +334,10 @@ export function QuoteNew() {
       
       // Close modal
       setShowClientModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating client:', error);
-      alert('Erro ao criar cliente');
+      const errorMessage = error?.message || 'Erro desconhecido';
+      alert(`Erro ao criar cliente: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
     }
   };
 

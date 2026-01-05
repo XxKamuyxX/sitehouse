@@ -31,22 +31,25 @@ export function ClientNew() {
   const companyId = useCompanyId();
 
   const handleSave = async (clientData: Omit<Client, 'id'>) => {
+    // CRITICAL: Validate companyId before attempting any operation
     if (!companyId) {
-      alert('Erro: companyId não encontrado. Por favor, recarregue a página.');
+      alert('Erro: Empresa não identificada. Por favor, recarregue a página.');
       return;
     }
 
     try {
-      const dataWithCompany = {
+      // CRITICAL: companyId MUST be explicitly included in the payload
+      const newClientData = {
         ...clientData,
-        companyId,
+        companyId: companyId, // MANDATORY: Explicitly include companyId
         createdAt: new Date(),
       };
-      await addDoc(collection(db, 'clients'), dataWithCompany);
+      await addDoc(collection(db, 'clients'), newClientData);
       navigate('/clients');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving client:', error);
-      alert('Erro ao salvar cliente');
+      const errorMessage = error?.message || 'Erro desconhecido';
+      alert(`Erro ao salvar cliente: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
     }
   };
 
