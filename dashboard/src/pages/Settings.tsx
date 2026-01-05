@@ -6,7 +6,8 @@ import { Save, Database } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ServiceConfig {
   id: string;
@@ -25,7 +26,8 @@ interface PDFConfig {
 }
 
 export function Settings() {
-  const companyId = useCompanyId();
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [pdfConfig, setPdfConfig] = useState<PDFConfig>({
     companyName: 'House Manutenção',
     address: 'Rua Rio Grande do Norte, 726, Savassi',

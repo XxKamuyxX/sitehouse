@@ -1,12 +1,13 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDocs } from 'firebase/firestore';
 import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { queryWithCompanyId } from '../lib/queries';
 
 const localizer = momentLocalizer(moment);
 
@@ -30,17 +31,25 @@ interface CalendarEvent {
 }
 
 export function Calendar() {
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   useEffect(() => {
-    loadWorkOrders();
-  }, []);
+    if (companyId) {
+      loadWorkOrders();
+    }
+  }, [companyId]);
 
   const loadWorkOrders = async () => {
+    if (!companyId) return;
+    
     try {
-      const snapshot = await getDocs(collection(db, 'workOrders'));
+      // CRITICAL: Use queryWithCompanyId to filter by companyId
+      const q = queryWithCompanyId('workOrders', companyId);
+      const snapshot = await getDocs(q);
       const workOrders = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),

@@ -8,7 +8,8 @@ import { db } from '../lib/firebase';
 import { Link } from 'react-router-dom';
 import { pdf } from '@react-pdf/renderer';
 import { ReceiptPDF } from '../components/ReceiptPDF';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
+import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../hooks/useCompany';
 
 interface WorkOrder {
@@ -23,7 +24,8 @@ interface WorkOrder {
 }
 
 export function WorkOrders() {
-  const companyId = useCompanyId();
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const { company } = useCompany();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);

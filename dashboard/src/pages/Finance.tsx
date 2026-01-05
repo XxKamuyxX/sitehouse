@@ -7,7 +7,8 @@ import { getDocs, addDoc, Timestamp, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ExpenseModal } from '../components/ExpenseModal';
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
+import { useAuth } from '../contexts/AuthContext';
 
 interface FinanceStats {
   faturamento: number;
@@ -34,7 +35,8 @@ interface FinanceStats {
 }
 
 export function Finance() {
-  const companyId = useCompanyId();
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [stats, setStats] = useState<FinanceStats>({
     faturamento: 0,
     contasAPagar: 0,

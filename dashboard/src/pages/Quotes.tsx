@@ -7,7 +7,8 @@ import { getDocs, addDoc, doc, getDoc, deleteDoc, collection } from 'firebase/fi
 import { db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { DatePickerModal } from '../components/DatePickerModal';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Quote {
   id: string;
@@ -32,7 +33,8 @@ const statusColors = {
 };
 
 export function Quotes() {
-  const companyId = useCompanyId();
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);

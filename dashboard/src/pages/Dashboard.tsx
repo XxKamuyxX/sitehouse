@@ -5,10 +5,12 @@ import { Button } from '../components/ui/Button';
 import { FileText, Users, ClipboardList, Plus, DollarSign, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getDocs } from 'firebase/firestore';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Dashboard() {
-  const companyId = useCompanyId();
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [stats, setStats] = useState({
     openQuotes: 0,
     monthlyRevenue: 0,

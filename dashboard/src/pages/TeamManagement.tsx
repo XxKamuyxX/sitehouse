@@ -7,7 +7,7 @@ import { Plus, Mail, Shield, UserCog } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
 
 interface TeamMember {
   id: string;
@@ -18,8 +18,8 @@ interface TeamMember {
 }
 
 export function TeamManagement() {
-  const { createUser } = useAuth();
-  const companyId = useCompanyId();
+  const { createUser, userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -35,6 +35,8 @@ export function TeamManagement() {
   }, [companyId]);
 
   const loadMembers = async () => {
+    if (!companyId) return;
+    
     try {
       const q = queryWithCompanyId('users', companyId);
       const snapshot = await getDocs(q);
@@ -53,6 +55,11 @@ export function TeamManagement() {
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!companyId) {
+      alert('Erro: Empresa não identificada. Por favor, recarregue a página.');
+      return;
+    }
     
     if (!newMember.email || !newMember.password) {
       alert('Preencha email e senha');

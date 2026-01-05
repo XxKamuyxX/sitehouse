@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { getDocs, where, Timestamp, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { queryWithCompanyId } from '../lib/queries';
 
 interface WorkOrder {
   id: string;
@@ -22,18 +22,20 @@ interface WorkOrder {
 
 export function TechDashboard() {
   const { user, userMetadata } = useAuth();
-  const companyId = useCompanyId();
+  const companyId = userMetadata?.companyId;
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [cashReceived, setCashReceived] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
-    if (user?.uid) {
+    if (user?.uid && companyId) {
       loadTodayWorkOrders();
     }
   }, [user, companyId]);
 
   const loadTodayWorkOrders = async () => {
+    if (!companyId || !user?.uid) return;
+    
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -43,7 +45,7 @@ export function TechDashboard() {
       const q = queryWithCompanyId(
         'workOrders',
         companyId,
-        where('technician', '==', user?.uid || ''),
+        where('technician', '==', user.uid),
         where('scheduledDate', '>=', Timestamp.fromDate(today)),
         where('scheduledDate', '<', Timestamp.fromDate(tomorrow))
       );
