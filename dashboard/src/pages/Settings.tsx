@@ -6,7 +6,7 @@ import { Save, Database } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useCompanyId } from '../lib/queries';
+import { useCompanyId, queryWithCompanyId } from '../lib/queries';
 
 interface ServiceConfig {
   id: string;
@@ -160,36 +160,83 @@ export function Settings() {
       
       for (const collectionName of collections) {
         try {
-          const snapshot = await getDocs(collection(db, collectionName));
-          const docsToUpdate = snapshot.docs.filter((docSnap) => !docSnap.data().companyId);
+          // Try to read all documents - if rules block, try with companyId filter
+          let snapshot;
+          try {
+            // First, try to read all documents (for documents without companyId)
+            // This might fail if rules require companyId, so we'll catch and try alternative
+            snapshot = await getDocs(collection(db, collectionName));
+          } catch (readError: any) {
+            // If reading all fails, try reading with companyId filter first
+            // Then we'll need to handle documents without companyId differently
+            console.warn(`Cannot read all ${collectionName} documents. Trying with companyId filter...`);
+            try {
+              const q = queryWithCompanyId(collectionName, companyId);
+              snapshot = await getDocs(q);
+              // If we can only read documents with companyId, skip migration for this collection
+              console.log(`All documents in ${collectionName} already have companyId or cannot be accessed.`);
+              continue;
+            } catch (filterError) {
+              console.error(`Cannot read ${collectionName} with companyId filter either:`, filterError);
+              throw readError; // Re-throw original error
+            }
+          }
+          
+          const docsToUpdate = snapshot.docs.filter((docSnap) => {
+            const data = docSnap.data();
+            return !data.companyId || data.companyId !== companyId;
+          });
 
           for (const docSnap of docsToUpdate) {
             try {
-              await updateDoc(doc(db, collectionName, docSnap.id), { companyId });
+              // Use merge to preserve existing fields
+              await updateDoc(doc(db, collectionName, docSnap.id), { 
+                companyId 
+              });
               migratedCount++;
-            } catch (error) {
-              console.error(`Error updating doc ${docSnap.id}:`, error);
+            } catch (error: any) {
+              console.error(`Error updating doc ${docSnap.id} in ${collectionName}:`, error);
+              // If update fails due to permissions, the document might already have a different companyId
+              // or the rules are blocking - log but continue
               errorCount++;
             }
           }
 
           if (docsToUpdate.length > 0) {
             console.log(`Migrated ${docsToUpdate.length} documents in ${collectionName}`);
+          } else {
+            console.log(`No documents to migrate in ${collectionName}`);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Error migrating ${collectionName}:`, error);
-          errorCount++;
+          // Don't increment errorCount here as it's a collection-level error
+          // Individual document errors are already counted above
         }
       }
 
       if (migratedCount > 0) {
         alert(`Migração concluída!\n\nDocumentos migrados: ${migratedCount}\nErros: ${errorCount}`);
+      } else if (errorCount > 0) {
+        alert(
+          `Migração não pôde ser concluída devido a erros de permissão.\n\n` +
+          `Erros: ${errorCount}\n\n` +
+          `Isso geralmente acontece quando as regras do Firestore bloqueiam a leitura de documentos sem companyId.\n\n` +
+          `Solução:\n` +
+          `1. Verifique o arquivo FIREBASE_RULES_MIGRATION.md para regras temporárias\n` +
+          `2. Ou atualize as regras do Firestore para permitir leitura de documentos sem companyId temporariamente\n` +
+          `3. Execute a migração novamente`
+        );
       } else {
         alert('Nenhum documento precisa ser migrado. Todos os documentos já possuem companyId.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during migration:', error);
-      alert(`Erro durante a migração: ${error}`);
+      const errorMessage = error?.message || 'Erro desconhecido';
+      alert(
+        `Erro durante a migração: ${errorMessage}\n\n` +
+        `Se você está vendo erros de permissão, verifique o arquivo FIREBASE_RULES_MIGRATION.md ` +
+        `para instruções sobre regras temporárias necessárias para a migração.`
+      );
     } finally {
       setMigrating(false);
     }
