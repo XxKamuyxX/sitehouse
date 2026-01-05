@@ -13,7 +13,9 @@ import {
   X,
   DollarSign,
   Settings as SettingsIcon,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  UserCog,
+  Building2
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,7 +24,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { signOut } = useAuth();
+  const { signOut, userMetadata } = useAuth();
   const { branding } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,6 +40,8 @@ export function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
+  const isAdmin = userMetadata?.role === 'admin';
+  
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/clients', icon: Users, label: 'Clientes' },
@@ -45,6 +49,10 @@ export function Layout({ children }: LayoutProps) {
     { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
     { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
     { path: '/finance', icon: DollarSign, label: 'Financeiro' },
+    ...(isAdmin ? [
+      { path: '/admin/team', icon: UserCog, label: 'Equipe' },
+      { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
+    ] : []),
     { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
   ];
 

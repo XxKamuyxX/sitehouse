@@ -11,6 +11,7 @@ export interface CompanyData {
   phone: string;
   email?: string;
   logoUrl?: string;
+  signatureUrl?: string;
   primaryColor?: string;
   createdAt?: any;
   updatedAt?: any;
