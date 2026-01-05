@@ -12,6 +12,15 @@ interface ChecklistItem {
   completed: boolean;
 }
 
+interface CompanyData {
+  name: string;
+  address: string;
+  phone: string;
+  email?: string;
+  logoUrl?: string;
+  cnpj?: string;
+}
+
 interface ReceiptPDFProps {
   clientName: string;
   workOrderId: string;
@@ -26,7 +35,7 @@ interface ReceiptPDFProps {
   warranty: string;
   photos?: string[];
   hasRisk?: boolean;
-  cnpj?: string;
+  companyData?: CompanyData;
 }
 
 const styles = StyleSheet.create({
@@ -254,8 +263,16 @@ export function ReceiptPDF({
   warranty,
   photos = [],
   hasRisk = false,
-  cnpj = '42.721.809/0001-52',
+  companyData,
 }: ReceiptPDFProps) {
+  // Fallback to default values if companyData is not provided
+  const company = companyData || {
+    name: 'House Manutenção',
+    address: 'Rua Rio Grande do Norte, 726, Savassi',
+    phone: '(31) 98279-8513',
+    email: 'contato@housemanutencao.com.br',
+    cnpj: '42.721.809/0001-52',
+  };
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -278,17 +295,20 @@ export function ReceiptPDF({
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.logoContainer, { alignItems: 'center' }]}>
-            <Image
-              src="/logo.png"
-              style={{ width: 80, height: 80, marginBottom: 10 }}
-            />
-            <Text style={[styles.companyName, { textAlign: 'center' }]}>House Manutenção</Text>
+            {company.logoUrl ? (
+              <Image
+                src={company.logoUrl}
+                style={{ width: 80, height: 80, marginBottom: 10 }}
+              />
+            ) : null}
+            {!company.logoUrl && (
+              <Text style={[styles.companyName, { textAlign: 'center' }]}>{company.name}</Text>
+            )}
           </View>
           <Text style={styles.companyInfo}>
-            Rua Rio Grande do Norte, 726, Savassi{'\n'}
-            Belo Horizonte - MG{'\n'}
-            Telefone: (31) 98279-8513{'\n'}
-            Email: contato@housemanutencao.com.br
+            {company.address}{'\n'}
+            Telefone: {company.phone}{'\n'}
+            {company.email && `Email: ${company.email}`}
           </Text>
         </View>
 
@@ -400,15 +420,13 @@ export function ReceiptPDF({
         </View>
 
         {/* Company Signature & CNPJ */}
-        <View style={styles.companySignature}>
-          <Image
-            src="/signature.png"
-            style={styles.signatureImage}
-          />
-          <Text style={styles.cnpjText}>
-            House Manutenção - CNPJ: {cnpj}
-          </Text>
-        </View>
+        {company.cnpj && (
+          <View style={styles.companySignature}>
+            <Text style={styles.cnpjText}>
+              {company.name} - CNPJ: {company.cnpj}
+            </Text>
+          </View>
+        )}
       </Page>
 
       {/* Photo Report Page */}

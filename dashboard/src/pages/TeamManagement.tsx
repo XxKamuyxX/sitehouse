@@ -169,8 +169,8 @@ export function TeamManagement() {
                   value={newMember.role}
                   onChange={(e) => setNewMember({ ...newMember, role: e.target.value as 'admin' | 'tech' })}
                   options={[
-                    { value: 'tech', label: 'Técnico' },
                     { value: 'admin', label: 'Administrador' },
+                    { value: 'tech', label: 'Técnico/Instalador' },
                   ]}
                 />
                 <div className="flex gap-2">

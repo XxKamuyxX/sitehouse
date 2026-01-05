@@ -17,12 +17,13 @@ interface QuoteItem {
   isInstallation?: boolean;
 }
 
-interface PDFConfig {
-  companyName: string;
+interface CompanyData {
+  name: string;
   address: string;
-  city: string;
   phone: string;
-  email: string;
+  email?: string;
+  logoUrl?: string;
+  cnpj?: string;
 }
 
 interface QuotePDFProps {
@@ -39,10 +40,9 @@ interface QuotePDFProps {
   createdAt?: Date;
   warranty?: string;
   observations?: string;
-  pdfConfig?: PDFConfig;
+  companyData?: CompanyData;
   photos?: string[];
   hasRisk?: boolean;
-  cnpj?: string;
 }
 
 const styles = StyleSheet.create({
@@ -266,18 +266,17 @@ export function QuotePDF({
   createdAt,
   warranty,
   observations,
-  pdfConfig,
+  companyData,
   photos = [],
   hasRisk = false,
-  cnpj = '42.721.809/0001-52',
 }: QuotePDFProps) {
-  // photos, hasRisk, and cnpj are used in the JSX below
-  const config = pdfConfig || {
-    companyName: 'House Manutenção',
+  // Fallback to default values if companyData is not provided
+  const company = companyData || {
+    name: 'House Manutenção',
     address: 'Rua Rio Grande do Norte, 726, Savassi',
-    city: 'Belo Horizonte - MG',
     phone: '(31) 98279-8513',
     email: 'contato@housemanutencao.com.br',
+    cnpj: '42.721.809/0001-52',
   };
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -301,17 +300,18 @@ export function QuotePDF({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Image
-              src="/logo.png"
-              style={{ width: 80, height: 80, marginBottom: 10 }}
-            />
-            <Text style={styles.companyName}>{config.companyName}</Text>
+            {company.logoUrl ? (
+              <Image
+                src={company.logoUrl}
+                style={{ width: 80, height: 80, marginBottom: 10 }}
+              />
+            ) : null}
+            {!company.logoUrl && <Text style={styles.companyName}>{company.name}</Text>}
           </View>
           <Text style={styles.companyInfo}>
-            {config.address}{'\n'}
-            {config.city}{'\n'}
-            Telefone: {config.phone}{'\n'}
-            Email: {config.email}
+            {company.address}{'\n'}
+            Telefone: {company.phone}{'\n'}
+            {company.email && `Email: ${company.email}`}
           </Text>
         </View>
 
@@ -472,15 +472,13 @@ export function QuotePDF({
         </View>
 
         {/* Company Signature & CNPJ */}
-        <View style={styles.companySignature}>
-          <Image
-            src="/signature.png"
-            style={styles.signatureImage}
-          />
-          <Text style={styles.cnpjText}>
-            House Manutenção - CNPJ: {cnpj}
-          </Text>
-        </View>
+        {company.cnpj && (
+          <View style={styles.companySignature}>
+            <Text style={styles.cnpjText}>
+              {company.name} - CNPJ: {company.cnpj}
+            </Text>
+          </View>
+        )}
       </Page>
 
       {/* Photo Report Page */}

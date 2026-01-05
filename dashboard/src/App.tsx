@@ -18,6 +18,7 @@ import { Feedback } from './pages/Feedback';
 import { TeamManagement } from './pages/TeamManagement';
 import { TechDashboard } from './pages/TechDashboard';
 import { AdminCalendar } from './pages/AdminCalendar';
+import { CompanySettings } from './pages/CompanySettings';
 import { RootRedirect } from './components/RootRedirect';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -195,6 +196,14 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Settings />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/company"
+        element={
+          <AdminRoute>
+            <CompanySettings />
           </AdminRoute>
         }
       />

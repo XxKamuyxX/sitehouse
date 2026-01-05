@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { pdf } from '@react-pdf/renderer';
 import { ReceiptPDF } from '../components/ReceiptPDF';
 import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { useCompany } from '../hooks/useCompany';
 
 interface WorkOrder {
   id: string;
@@ -23,6 +24,7 @@ interface WorkOrder {
 
 export function WorkOrders() {
   const companyId = useCompanyId();
+  const { company } = useCompany();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +87,14 @@ export function WorkOrders() {
           items={quoteData?.items || []}
           total={quoteData?.total || 0}
           warranty={quoteData?.warranty || '90 dias'}
-          cnpj="42.721.809/0001-52"
+          companyData={company ? {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email,
+            logoUrl: company.logoUrl,
+            cnpj: company.cnpj,
+          } : undefined}
         />
       );
 

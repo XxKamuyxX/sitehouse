@@ -14,6 +14,7 @@ interface Receipt {
   paymentDate: any;
   items?: any[];
   notes?: string;
+  companyId?: string;
 }
 
 export function PublicReceipt() {
@@ -73,7 +74,26 @@ export function PublicReceipt() {
     if (!receipt || !workOrder) return;
 
     try {
-      const doc = (
+      // Load company data if companyId exists
+      let companyData = undefined;
+      if (receipt.companyId || (workOrder as any).companyId) {
+        const companyId = receipt.companyId || (workOrder as any).companyId;
+        const companyDocRef = doc(db, 'companies', companyId);
+        const companyDoc = await getDoc(companyDocRef);
+        if (companyDoc.exists()) {
+          const company = companyDoc.data();
+          companyData = {
+            name: company.name as string,
+            address: company.address as string,
+            phone: company.phone as string,
+            email: company.email as string | undefined,
+            logoUrl: company.logoUrl as string | undefined,
+            cnpj: company.cnpj as string | undefined,
+          };
+        }
+      }
+
+      const pdfDoc = (
         <ReceiptPDF
           clientName={receipt.clientName}
           workOrderId={workOrder.id || receipt.workOrderId}
@@ -85,11 +105,11 @@ export function PublicReceipt() {
           items={receipt.items || []}
           total={receipt.amount}
           warranty={workOrder.warranty}
-          cnpj="42.721.809/0001-52"
+          companyData={companyData}
         />
       );
 
-      const blob = await pdf(doc).toBlob();
+      const blob = await pdf(pdfDoc).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

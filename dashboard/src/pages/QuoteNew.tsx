@@ -13,6 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useCompanyId, queryWithCompanyId } from '../lib/queries';
+import { useCompany } from '../hooks/useCompany';
 
 interface Service {
   id: string;
@@ -120,6 +121,7 @@ export function QuoteNew() {
   const { id } = useParams();
   const navigate = useNavigate();
   const companyId = useCompanyId();
+  const { company } = useCompany();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -484,7 +486,14 @@ export function QuoteNew() {
           observations={observations || undefined}
           photos={diagnosis?.beforePhotos || diagnosis?.afterPhotos || []}
           hasRisk={false}
-          cnpj="42.721.809/0001-52"
+          companyData={company ? {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email,
+            logoUrl: company.logoUrl,
+            cnpj: company.cnpj,
+          } : undefined}
         />
       );
 

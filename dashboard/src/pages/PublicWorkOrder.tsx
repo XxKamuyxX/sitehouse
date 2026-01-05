@@ -30,6 +30,7 @@ interface WorkOrder {
   checklist: { task: string; completed: boolean }[];
   notes: string;
   photos?: string[];
+  companyId?: string;
   technicalInspection?: {
     leaves: Leaf[];
     generalChecklist: GeneralChecklistItem[];
@@ -101,7 +102,26 @@ export function PublicWorkOrder() {
     if (!workOrder || !quote) return;
 
     try {
-      const doc = (
+      // Load company data if companyId exists
+      let companyData = undefined;
+      if (workOrder.companyId || (quote as any).companyId) {
+        const companyId = workOrder.companyId || (quote as any).companyId;
+        const companyDocRef = doc(db, 'companies', companyId);
+        const companyDoc = await getDoc(companyDocRef);
+        if (companyDoc.exists()) {
+          const company = companyDoc.data();
+          companyData = {
+            name: company.name as string,
+            address: company.address as string,
+            phone: company.phone as string,
+            email: company.email as string | undefined,
+            logoUrl: company.logoUrl as string | undefined,
+            cnpj: company.cnpj as string | undefined,
+          };
+        }
+      }
+
+      const pdfDoc = (
         <ReceiptPDF
           clientName={workOrder.clientName}
           workOrderId={workOrder.id}
@@ -113,11 +133,11 @@ export function PublicWorkOrder() {
           items={quote.items || []}
           total={quote.total || 0}
           warranty={quote.warranty}
-          cnpj="42.721.809/0001-52"
+          companyData={companyData}
         />
       );
 
-      const blob = await pdf(doc).toBlob();
+      const blob = await pdf(pdfDoc).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
