@@ -3,6 +3,7 @@ import { ClientForm } from '../components/ClientForm';
 import { useNavigate } from 'react-router-dom';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useCompanyId } from '../lib/queries';
 
 const VIP_CONDOMINIUMS = [
   'Belvedere',
@@ -27,10 +28,21 @@ interface Client {
 
 export function ClientNew() {
   const navigate = useNavigate();
+  const companyId = useCompanyId();
 
   const handleSave = async (clientData: Omit<Client, 'id'>) => {
+    if (!companyId) {
+      alert('Erro: companyId não encontrado. Por favor, recarregue a página.');
+      return;
+    }
+
     try {
-      await addDoc(collection(db, 'clients'), clientData);
+      const dataWithCompany = {
+        ...clientData,
+        companyId,
+        createdAt: new Date(),
+      };
+      await addDoc(collection(db, 'clients'), dataWithCompany);
       navigate('/clients');
     } catch (error) {
       console.error('Error saving client:', error);

@@ -61,14 +61,25 @@ export function Clients() {
   };
 
   const handleSave = async (clientData: Omit<Client, 'id'>) => {
-    if (!companyId) return;
+    if (!companyId) {
+      alert('Erro: companyId não encontrado. Por favor, recarregue a página.');
+      return;
+    }
     
     try {
-      const dataWithCompany = { ...clientData, companyId };
+      const dataWithCompany = { 
+        ...clientData, 
+        companyId,
+      };
+      
       if (editingClient) {
         await updateDoc(doc(db, 'clients', editingClient.id), dataWithCompany);
       } else {
-        await addDoc(collection(db, 'clients'), dataWithCompany);
+        // Add createdAt only for new clients
+        await addDoc(collection(db, 'clients'), {
+          ...dataWithCompany,
+          createdAt: new Date(),
+        });
       }
       await loadClients();
       setShowForm(false);

@@ -149,6 +149,13 @@ export function WorkOrderDetails() {
         }
       }
 
+      // Get companyId from workOrder or quote
+      const receiptCompanyId = (workOrder as any).companyId || quoteData?.companyId;
+      if (!receiptCompanyId) {
+        alert('Erro: companyId não encontrado. Não é possível criar o recibo.');
+        return;
+      }
+
       const receiptData = {
         workOrderId: id,
         clientName: workOrder.clientName,
@@ -159,6 +166,7 @@ export function WorkOrderDetails() {
         photos: workOrder.photos || [],
         hasRisk: workOrder.hasRisk || false,
         scheduledTime: workOrder.scheduledTime || '',
+        companyId: receiptCompanyId,
         createdAt: new Date(),
       };
 

@@ -414,9 +414,14 @@ export function QuoteNew() {
         quoteData.diagnosis = sanitizedDiagnosis;
       }
 
-      // Only add createdAt for new quotes
+      // Only add createdAt and companyId for new quotes
       if (!id) {
+        if (!companyId) {
+          alert('Erro: companyId não encontrado. Por favor, recarregue a página.');
+          return;
+        }
         quoteData.createdAt = new Date();
+        quoteData.companyId = companyId;
       }
 
       // Validate data before saving
@@ -554,7 +559,12 @@ export function QuoteNew() {
               <Download className="w-5 h-5" />
               Gerar PDF
             </Button>
-            <Button variant="primary" onClick={handleSave} className="flex items-center gap-2">
+            <Button 
+              variant="primary" 
+              onClick={handleSave} 
+              className="flex items-center gap-2"
+              disabled={!companyId}
+            >
               <Save className="w-5 h-5" />
               Salvar
             </Button>
