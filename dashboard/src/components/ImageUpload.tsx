@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Upload, X, Camera, Loader2 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
+import { compressFile } from '../utils/compressImage';
 
 interface ImageUploadProps {
   onUploadComplete: (url: string) => void;
@@ -12,6 +13,7 @@ interface ImageUploadProps {
 export function ImageUpload({ onUploadComplete, path, label = 'Upload de Imagem', multiple = false }: ImageUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadImage, uploading, progress } = useStorage();
 
@@ -55,17 +57,25 @@ export function ImageUpload({ onUploadComplete, path, label = 'Upload de Imagem'
     reader.readAsDataURL(file);
 
     try {
+      // Compress image before upload
+      setCompressing(true);
+      console.log(`Original size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      const compressedFile = await compressFile(file);
+      console.log(`Compressed size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+      setCompressing(false);
+
       const timestamp = Date.now();
-      const fileName = `${timestamp}_${file.name}`;
+      const fileName = `${timestamp}_${compressedFile.name}`;
       const fullPath = `${path}/${fileName}`;
       
-      const url = await uploadImage(file, fullPath);
+      const url = await uploadImage(compressedFile, fullPath);
       onUploadComplete(url);
       setPreview(null);
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Erro ao fazer upload da imagem');
       setPreview(null);
+      setCompressing(false);
     }
   };
 
@@ -86,7 +96,7 @@ export function ImageUpload({ onUploadComplete, path, label = 'Upload de Imagem'
           dragActive
             ? 'border-navy bg-navy-50'
             : 'border-slate-300 hover:border-navy hover:bg-slate-50'
-        } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+        } ${uploading || compressing ? 'opacity-50 pointer-events-none' : ''}`}
       >
         <input
           ref={fileInputRef}
@@ -98,7 +108,12 @@ export function ImageUpload({ onUploadComplete, path, label = 'Upload de Imagem'
           capture="environment"
         />
 
-        {uploading ? (
+        {compressing ? (
+          <div className="space-y-2">
+            <Loader2 className="w-8 h-8 text-navy animate-spin mx-auto" />
+            <p className="text-sm text-slate-600">Comprimindo imagem...</p>
+          </div>
+        ) : uploading ? (
           <div className="space-y-2">
             <Loader2 className="w-8 h-8 text-navy animate-spin mx-auto" />
             <p className="text-sm text-slate-600">Enviando... {progress}%</p>

@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../hooks/useCompany';
 import { useStorage } from '../hooks/useStorage';
 import { useCompanyId } from '../lib/queries';
+import { compressFile } from '../utils/compressImage';
 
 export function CompanySettings() {
   const { company, loading, updateCompany } = useCompany();
@@ -24,6 +25,7 @@ export function CompanySettings() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [compressing, setCompressing] = useState(false);
 
   useEffect(() => {
     if (company) {
@@ -56,14 +58,22 @@ export function CompanySettings() {
     reader.readAsDataURL(file);
 
     try {
+      // Compress image before upload
+      setCompressing(true);
+      console.log(`Original logo size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      const compressedFile = await compressFile(file);
+      console.log(`Compressed logo size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+      setCompressing(false);
+
       // Upload to Firebase Storage
       const storagePath = `logos/${companyId}/logo.png`;
-      const url = await uploadImage(file, storagePath);
+      const url = await uploadImage(compressedFile, storagePath);
       setLogoUrl(url);
     } catch (error) {
       console.error('Error uploading logo:', error);
       alert('Erro ao fazer upload do logo');
       setLogoPreview(null);
+      setCompressing(false);
     }
   };
 
@@ -183,7 +193,7 @@ export function CompanySettings() {
                   className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <Upload className="w-5 h-5" />
-                  {uploading ? 'Enviando...' : 'Selecionar Logo'}
+                  {compressing ? 'Comprimindo...' : uploading ? 'Enviando...' : 'Selecionar Logo'}
                 </label>
                 {logoPreview && (
                   <Button
@@ -233,7 +243,7 @@ export function CompanySettings() {
             variant="primary"
             size="lg"
             onClick={handleSave}
-            disabled={saving || uploading}
+            disabled={saving || uploading || compressing}
             className="flex items-center gap-2"
           >
             <Save className="w-5 h-5" />
