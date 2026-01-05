@@ -7,10 +7,12 @@ import { WhatsAppButton } from '../components/WhatsAppButton';
 import { pdf } from '@react-pdf/renderer';
 import { QuotePDF } from '../components/QuotePDF';
 import { InstallationItemModal } from '../components/InstallationItemModal';
+import { ClientForm } from '../components/ClientForm';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useCompanyId, queryWithCompanyId } from '../lib/queries';
 
 interface Service {
   id: string;
@@ -103,9 +105,21 @@ interface QuoteItem {
   isInstallation?: boolean;
 }
 
+const VIP_CONDOMINIUMS = [
+  'Belvedere',
+  'Vila da Serra',
+  'Nova Lima',
+  'Alphaville Lagoa dos Ingleses',
+  'Vale dos Cristais',
+  'Olympus',
+  'Four Seasons',
+  'Beverly Hills',
+];
+
 export function QuoteNew() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const companyId = useCompanyId();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -117,6 +131,7 @@ export function QuoteNew() {
   const [customServicePrice, setCustomServicePrice] = useState(0);
   const [showCustomService, setShowCustomService] = useState(false);
   const [showInstallationModal, setShowInstallationModal] = useState(false);
+  const [showClientModal, setShowClientModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [services, setServices] = useState<Service[]>(DEFAULT_SERVICES);
   const [diagnosis, setDiagnosis] = useState({
@@ -128,20 +143,25 @@ export function QuoteNew() {
 
   useEffect(() => {
     const init = async () => {
-      await loadClients();
-      await loadServices();
-      if (id) {
-        await loadQuote(id);
-      } else {
-        setLoading(false);
+      if (companyId) {
+        await loadClients();
+        await loadServices();
+        if (id) {
+          await loadQuote(id);
+        } else {
+          setLoading(false);
+        }
       }
     };
     init();
-  }, [id]);
+  }, [id, companyId]);
 
   const loadClients = async () => {
+    if (!companyId) return;
+    
     try {
-      const snapshot = await getDocs(collection(db, 'clients'));
+      const q = queryWithCompanyId('clients', companyId);
+      const snapshot = await getDocs(q);
       const clientsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -286,6 +306,27 @@ export function QuoteNew() {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleCreateClient = async (clientData: Omit<Client, 'id'>) => {
+    if (!companyId) return;
+    
+    try {
+      const dataWithCompany = { ...clientData, companyId };
+      const docRef = await addDoc(collection(db, 'clients'), dataWithCompany);
+      
+      // Reload clients list
+      await loadClients();
+      
+      // Auto-select the new client
+      setSelectedClientId(docRef.id);
+      
+      // Close modal
+      setShowClientModal(false);
+    } catch (error) {
+      console.error('Error creating client:', error);
+      alert('Erro ao criar cliente');
+    }
   };
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
@@ -516,7 +557,18 @@ export function QuoteNew() {
           <div className="lg:col-span-2 space-y-6">
             {/* Client Selection */}
             <Card>
-              <h2 className="text-xl font-bold text-navy mb-4">Cliente</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-navy">Cliente</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowClientModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Novo Cliente
+                </Button>
+              </div>
               <Select
                 label="Selecione o Cliente"
                 value={selectedClientId}
@@ -846,6 +898,15 @@ export function QuoteNew() {
           onSave={handleSaveInstallationItem}
           initialItem={editingItemIndex !== null ? items[editingItemIndex] : undefined}
         />
+
+        {/* Client Form Modal */}
+        {showClientModal && (
+          <ClientForm
+            onSave={handleCreateClient}
+            onCancel={() => setShowClientModal(false)}
+            vipCondominiums={VIP_CONDOMINIUMS}
+          />
+        )}
       </div>
     </Layout>
   );
