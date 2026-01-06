@@ -44,19 +44,22 @@ export function Layout({ children }: LayoutProps) {
   const isAdmin = userMetadata?.role === 'admin';
   const isMaster = userMetadata?.role === 'master';
   
-  const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/clients', icon: Users, label: 'Clientes' },
-    { path: '/quotes', icon: FileText, label: 'Orçamentos' },
-    { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
-    { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
-    { path: '/finance', icon: DollarSign, label: 'Financeiro' },
-    ...(isAdmin ? [
-      { path: '/admin/team', icon: UserCog, label: 'Equipe' },
-      { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
-    ] : []),
-    { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
-  ];
+  // Master users only see Gestão SaaS, regular users see standard nav
+  const navItems = isMaster 
+    ? [] // Master users see no standard nav items
+    : [
+        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { path: '/clients', icon: Users, label: 'Clientes' },
+        { path: '/quotes', icon: FileText, label: 'Orçamentos' },
+        { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
+        { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
+        { path: '/finance', icon: DollarSign, label: 'Financeiro' },
+        ...(isAdmin ? [
+          { path: '/admin/team', icon: UserCog, label: 'Equipe' },
+          { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
+        ] : []),
+        { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
+      ];
 
   const masterNavItem = isMaster ? { path: '/master', icon: Crown, label: '👑 Gestão SaaS' } : null;
 
@@ -69,7 +72,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/dashboard" className="flex items-center gap-3">
+            <Link to={isMaster ? "/master" : "/dashboard"} className="flex items-center gap-3">
               {branding.logoUrl ? (
                 <img src={branding.logoUrl} alt={branding.name} className="h-8 w-auto" />
               ) : (
@@ -79,7 +82,7 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
+              {!isMaster && navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -138,7 +141,7 @@ export function Layout({ children }: LayoutProps) {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-200 bg-white">
             <nav className="container mx-auto px-4 py-4 space-y-2">
-              {navItems.map((item) => {
+              {!isMaster && navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link

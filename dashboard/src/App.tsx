@@ -76,6 +76,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
+  // Master users should only access /master
+  if (userMetadata?.role === 'master') {
+    return <Navigate to="/master" replace />;
+  }
+
   // Check subscription status
   if (userMetadata && isSubscriptionExpired(userMetadata)) {
     return <Navigate to="/subscription-expired" replace />;
@@ -100,6 +105,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  // Master users should only access /master
+  if (userMetadata?.role === 'master') {
+    return <Navigate to="/master" replace />;
   }
 
   if (!userMetadata || userMetadata.role !== 'admin') {
