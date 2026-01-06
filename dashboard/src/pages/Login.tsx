@@ -1,10 +1,10 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
-import { LogIn } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -98,6 +98,23 @@ export function Login() {
               <LogIn className="w-5 h-5 inline mr-2" />
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
+
+            <div className="pt-4 border-t border-slate-200">
+              <p className="text-center text-sm text-slate-600 mb-3">
+                Não tem uma conta?
+              </p>
+              <Link to="/signup">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  Criar Conta Grátis
+                </Button>
+              </Link>
+            </div>
           </form>
         </Card>
 
