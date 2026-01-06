@@ -21,10 +21,45 @@ import { TechDashboard } from './pages/TechDashboard';
 import { AdminCalendar } from './pages/AdminCalendar';
 import { CompanySettings } from './pages/CompanySettings';
 import { MasterDashboard } from './pages/MasterDashboard';
+import { SignUp } from './pages/SignUp';
+import { Expired } from './pages/Expired';
 import { RootRedirect } from './components/RootRedirect';
 
+// Helper function to check if subscription is expired
+function isSubscriptionExpired(userMetadata: any): boolean {
+  // Master users bypass all checks
+  if (userMetadata?.role === 'master') {
+    return false;
+  }
+
+  // If subscription is active, not expired
+  if (userMetadata?.subscriptionStatus === 'active') {
+    return false;
+  }
+
+  // If user is inactive, consider expired
+  if (userMetadata?.isActive === false) {
+    return true;
+  }
+
+  // Check trial end date
+  if (userMetadata?.trialEndsAt) {
+    const trialEndDate = userMetadata.trialEndsAt.toDate 
+      ? userMetadata.trialEndsAt.toDate() 
+      : new Date(userMetadata.trialEndsAt);
+    const now = new Date();
+    
+    // If trial ended and status is not active, it's expired
+    if (now > trialEndDate && userMetadata?.subscriptionStatus !== 'active') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, userMetadata, loading } = useAuth();
 
   if (loading) {
     return (
@@ -39,6 +74,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  // Check subscription status
+  if (userMetadata && isSubscriptionExpired(userMetadata)) {
+    return <Navigate to="/subscription-expired" replace />;
   }
 
   return <>{children}</>;
@@ -66,6 +106,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/tech/dashboard" />;
   }
 
+  // Check subscription status
+  if (isSubscriptionExpired(userMetadata)) {
+    return <Navigate to="/subscription-expired" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -89,6 +134,11 @@ function TechRoute({ children }: { children: React.ReactNode }) {
 
   if (!userMetadata || userMetadata.role !== 'tech') {
     return <Navigate to="/admin/dashboard" />;
+  }
+
+  // Check subscription status (tech users depend on company subscription)
+  if (isSubscriptionExpired(userMetadata)) {
+    return <Navigate to="/subscription-expired" replace />;
   }
 
   return <>{children}</>;
@@ -119,10 +169,42 @@ function MasterRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Special route for expired subscription page - allows expired users to access it
+function ExpiredRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+          <p className="mt-4 text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // Allow access even if expired - this is the page they're redirected to
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route 
+        path="/subscription-expired" 
+        element={
+          <ExpiredRoute>
+            <Expired />
+          </ExpiredRoute>
+        } 
+      />
       <Route path="/p/quote/:quoteId" element={<PublicQuote />} />
       <Route path="/p/:quoteId" element={<PublicQuote />} />
       <Route path="/p/os/:osId" element={<PublicWorkOrder />} />
