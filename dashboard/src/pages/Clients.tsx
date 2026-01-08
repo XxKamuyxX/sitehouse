@@ -1,8 +1,9 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getDocs, addDoc, updateDoc, deleteDoc, doc, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ClientForm } from '../components/ClientForm';
@@ -30,6 +31,7 @@ const VIP_CONDOMINIUMS = [
 ];
 
 export function Clients() {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -193,24 +195,35 @@ export function Clients() {
                     <p>{client.phone}</p>
                     <p>{client.email}</p>
                   </div>
-                  <div className="flex gap-2 pt-2 border-t border-slate-200">
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-200">
                     <Button
-                      variant="outline"
+                      variant="primary"
                       size="sm"
-                      onClick={() => handleEdit(client)}
-                      className="flex-1"
+                      onClick={() => navigate(`/admin/quotes/new?clientId=${client.id}`)}
+                      className="w-full flex items-center justify-center gap-2"
                     >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Editar
+                      <FileText className="w-4 h-4" />
+                      Fazer Orçamento
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(client.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(client)}
+                        className="flex-1"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(client.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Card>

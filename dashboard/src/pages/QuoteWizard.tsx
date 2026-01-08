@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -58,6 +58,7 @@ const VIP_CONDOMINIUMS = [
 
 export function QuoteWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { company } = useCompany();
@@ -87,6 +88,14 @@ export function QuoteWizard() {
       setLoading(false);
     }
   }, [companyId]);
+
+  // Pre-select client from URL parameter
+  useEffect(() => {
+    const clientIdFromUrl = searchParams.get('clientId');
+    if (clientIdFromUrl && clients.length > 0) {
+      setSelectedClientId(clientIdFromUrl);
+    }
+  }, [searchParams, clients]);
 
   const loadClients = async () => {
     if (!companyId) return;
@@ -334,7 +343,15 @@ export function QuoteWizard() {
                             ? 'border-2 border-navy bg-navy-50'
                             : 'hover:bg-slate-50'
                         }`}
-                        onClick={() => setSelectedClientId(client.id)}
+                        onClick={() => {
+                          setSelectedClientId(client.id);
+                          // Auto-advance to next step after a short delay for visual feedback
+                          setTimeout(() => {
+                            if (canGoNext()) {
+                              setCurrentStep(2);
+                            }
+                          }, 300);
+                        }}
                       >
                         <h3 className="font-bold text-navy">{client.name}</h3>
                         <p className="text-sm text-slate-600">{client.phone}</p>

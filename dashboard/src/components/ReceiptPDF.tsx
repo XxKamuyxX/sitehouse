@@ -296,10 +296,10 @@ export function ReceiptPDF({
         <View style={styles.header}>
           <View style={[styles.logoContainer, { alignItems: 'center' }]}>
             {company.logoUrl ? (
-              <Image
+            <Image
                 src={company.logoUrl}
-                style={{ width: 80, height: 80, marginBottom: 10 }}
-              />
+              style={{ width: 80, height: 80, marginBottom: 10 }}
+            />
             ) : null}
             {!company.logoUrl && (
               <Text style={[styles.companyName, { textAlign: 'center' }]}>{company.name}</Text>
@@ -421,11 +421,11 @@ export function ReceiptPDF({
 
         {/* Company Signature & CNPJ */}
         {company.cnpj && (
-          <View style={styles.companySignature}>
-            <Text style={styles.cnpjText}>
+        <View style={styles.companySignature}>
+          <Text style={styles.cnpjText}>
               {company.name} - CNPJ: {company.cnpj}
-            </Text>
-          </View>
+          </Text>
+        </View>
         )}
       </Page>
 
