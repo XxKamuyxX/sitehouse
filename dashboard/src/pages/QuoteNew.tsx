@@ -720,6 +720,17 @@ export function QuoteNew() {
               <Download className="w-5 h-5" />
               Gerar PDF
             </Button>
+            {id && (
+              <Button
+                variant="outline"
+                onClick={() => setShowContractModal(true)}
+                className="flex items-center gap-2"
+                disabled={!selectedClientId || items.length === 0}
+              >
+                <FileText className="w-5 h-5" />
+                Gerar Contrato
+              </Button>
+            )}
             {id && status === 'approved' && (
               <>
                 <Button

@@ -210,17 +210,17 @@ export function InstallationItemModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+      <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div className="flex justify-between items-center mb-6 px-6 pt-6 flex-shrink-0">
           <h2 className="text-2xl font-bold text-secondary">
-            {initialItem ? 'Editar Item de Instalação' : 'Adicionar Item de Instalação'}
+            {initialItem ? 'Editar Item' : isInstallation ? 'Adicionar Item de Instalação' : 'Adicionar Item de Manutenção'}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
           {/* Service Name */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -419,47 +419,44 @@ export function InstallationItemModal({
             )}
           </div>
 
-          {/* Installation-specific fields */}
-          <div className="pt-4 border-t border-slate-200 space-y-4">
-            <h3 className="text-sm font-medium text-navy mb-3">Especificações do Vidro</h3>
-            
-            {isInstallation && (
-              <>
-                <ChipSelector
-                  label="Cor do Vidro"
-                  options={['Incolor', 'Verde', 'Fumê', 'Bronze']}
-                  selected={glassColor}
-                  onChange={(value) => setGlassColor(typeof value === 'string' ? value : value[0] || '')}
-                />
+          {/* Installation-specific fields - Only show for installation */}
+          {isInstallation && (
+            <div className="pt-4 border-t border-slate-200 space-y-4">
+              <h3 className="text-sm font-medium text-navy mb-3">Especificações do Vidro</h3>
+              
+              <ChipSelector
+                label="Cor do Vidro"
+                options={['Incolor', 'Verde', 'Fumê', 'Bronze']}
+                selected={glassColor}
+                onChange={(value) => setGlassColor(typeof value === 'string' ? value : value[0] || '')}
+              />
 
-                <ChipSelector
-                  label="Espessura do Vidro"
-                  options={['4mm', '6mm', '8mm', '10mm', '12mm']}
-                  selected={glassThickness}
-                  onChange={(value) => setGlassThickness(typeof value === 'string' ? value : value[0] || '')}
-                />
-              </>
-            )}
+              <ChipSelector
+                label="Espessura do Vidro"
+                options={['4mm', '6mm', '8mm', '10mm', '12mm']}
+                selected={glassThickness}
+                onChange={(value) => setGlassThickness(typeof value === 'string' ? value : value[0] || '')}
+              />
 
-            {isInstallation && (
               <ChipSelector
                 label="Cor do Perfil"
                 options={['Branco', 'Preto', 'Fosco', 'Bronze', 'Cromado']}
                 selected={profileColor}
                 onChange={(value) => setProfileColor(typeof value === 'string' ? value : value[0] || '')}
               />
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-4 pt-4">
-            <Button variant="primary" onClick={handleSave} className="flex-1">
-              {initialItem ? 'Salvar Alterações' : 'Adicionar Item'}
-            </Button>
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancelar
-            </Button>
-          </div>
+        </div>
+        
+        {/* Sticky Footer with Action Buttons */}
+        <div className="px-6 pb-6 pt-4 border-t border-slate-200 bg-white flex-shrink-0 flex gap-4">
+          <Button variant="primary" onClick={handleSave} className="flex-1" disabled={!serviceName || totalPrice <= 0}>
+            {initialItem ? 'Salvar Alterações' : 'Adicionar Item'}
+          </Button>
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Cancelar
+          </Button>
         </div>
       </Card>
     </div>

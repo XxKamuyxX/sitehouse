@@ -13,6 +13,7 @@ export interface CompanyData {
   logoUrl?: string;
   signatureUrl?: string;
   primaryColor?: string;
+  contractTemplate?: string;
   createdAt?: any;
   updatedAt?: any;
 }

@@ -15,7 +15,7 @@ interface Template {
 interface TemplateSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTemplate: (template: Template | { id: 'manual'; name: 'Personalizado / Manual'; category: 'manual'; imageUrl: '' }) => void;
+  onSelectTemplate: (template: Template | { id: 'manual'; name: string; category: 'manual'; imageUrl: '' }) => void;
 }
 
 export function TemplateSelectorModal({ isOpen, onClose, onSelectTemplate }: TemplateSelectorModalProps) {
@@ -141,10 +141,10 @@ export function TemplateSelectorModal({ isOpen, onClose, onSelectTemplate }: Tem
                     onClick={() => {
                       onSelectTemplate({
                         id: 'manual',
-                        name: 'Personalizado / Manual',
-                        category: 'manual',
-                        imageUrl: '',
-                      });
+                        name: '➕ Item Manual / Sem Projeto',
+                        category: 'manual' as const,
+                        imageUrl: '' as const,
+                      } as { id: 'manual'; name: string; category: 'manual'; imageUrl: '' });
                       onClose();
                     }}
                     className="group relative p-4 rounded-lg border-2 border-dashed border-primary hover:border-primary-dark transition-all bg-gradient-to-br from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20 text-left"
@@ -153,7 +153,7 @@ export function TemplateSelectorModal({ isOpen, onClose, onSelectTemplate }: Tem
                       <Pencil className="w-12 h-12 text-primary group-hover:scale-110 transition-transform" />
                     </div>
                     <h3 className="font-bold text-secondary text-sm line-clamp-2">
-                      Personalizado / Manual
+                      ➕ Item Manual / Sem Projeto
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">Criar item personalizado</p>
                   </button>

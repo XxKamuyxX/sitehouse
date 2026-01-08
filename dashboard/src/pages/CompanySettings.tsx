@@ -27,6 +27,7 @@ export function CompanySettings() {
     email: '',
     primaryColor: '#0F172A',
     googleReviewUrl: '',
+    contractTemplate: '',
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export function CompanySettings() {
         email: company.email || '',
         primaryColor: (company as any).primaryColor || '#0F172A',
         googleReviewUrl: (company as any).googleReviewUrl || '',
+        contractTemplate: (company as any).contractTemplate || '',
       });
       setLogoUrl(company.logoUrl || null);
       setLogoPreview(company.logoUrl || null);
@@ -585,7 +587,7 @@ export function CompanySettings() {
                       Preço padrão: R$ {service.defaultPrice.toFixed(2)}
                     </p>
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
@@ -593,22 +595,77 @@ export function CompanySettings() {
                       className="flex items-center gap-1"
                     >
                       <Edit2 className="w-4 h-4" />
-                      Editar
+                      <span className="hidden sm:inline">Editar</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDeleteService(service.id)}
                       className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      title="Excluir"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Excluir
+                      <span className="hidden sm:inline">Excluir</span>
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </Card>
+
+        {/* Contract Template */}
+        <Card>
+          <h2 className="text-xl font-bold text-secondary mb-4">Contrato Padrão</h2>
+          <p className="text-sm text-slate-600 mb-4">
+            Defina o texto padrão do contrato. Use variáveis como {'{CLIENT_NAME}'}, {'{CLIENT_ADDRESS}'}, {'{DELIVERY_DATE}'}, {'{TOTAL}'} que serão substituídas automaticamente.
+          </p>
+          <textarea
+            value={formData.contractTemplate}
+            onChange={(e) => setFormData({ ...formData, contractTemplate: e.target.value })}
+            placeholder="CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+Pelo presente instrumento particular de contrato de prestação de serviços, de um lado {'{COMPANY_NAME}'}, inscrita no CNPJ sob o nº {'{COMPANY_CNPJ}'}, com sede em {'{COMPANY_ADDRESS}'}, doravante denominada CONTRATADA, e de outro lado {'{CLIENT_NAME}'}, {'{CLIENT_CPF_CNPJ}'}, RG {'{CLIENT_RG}'}, residente e domiciliado em {'{CLIENT_ADDRESS}'}, doravante denominado CONTRATANTE, têm entre si justo e contratado o seguinte:
+
+CLÁUSULA 1ª - DO OBJETO
+O presente contrato tem por objeto a prestação de serviços de instalação/manutenção de vidros conforme especificado no orçamento anexo, no valor total de R$ {'{TOTAL}'}.
+
+CLÁUSULA 2ª - DO PRAZO
+O serviço terá início em {'{START_DATE}'} e será concluído até {'{DELIVERY_DATE}'}.
+
+CLÁUSULA 3ª - DO PAGAMENTO
+O pagamento será efetuado da seguinte forma: {'{PAYMENT_DETAILS}'} através de {'{PAYMENT_METHOD}'}.
+
+CLÁUSULA 4ª - DAS OBRIGAÇÕES DA CONTRATADA
+A CONTRATADA se compromete a executar os serviços com qualidade e dentro do prazo estabelecido.
+
+CLÁUSULA 5ª - DAS OBRIGAÇÕES DO CONTRATANTE
+O CONTRATANTE se compromete a fornecer acesso ao local e condições adequadas para a execução dos serviços.
+
+CLÁUSULA 6ª - DA GARANTIA
+Os serviços executados terão garantia de 90 (noventa) dias contra defeitos de execução.
+
+E, por estarem assim justos e contratados, firmam o presente contrato em duas vias de igual teor e forma, na presença das testemunhas abaixo assinadas.
+
+{'{CITY}'}, {'{DATE}'}
+
+_________________________________
+{'{COMPANY_NAME}'}
+CNPJ: {'{COMPANY_CNPJ}'}
+
+_________________________________
+{'{CLIENT_NAME}'}
+CPF/CNPJ: {'{CLIENT_CPF_CNPJ}'}
+
+Testemunhas:
+{'{WITNESS1_NAME}'} - CPF: {'{WITNESS1_CPF}'}
+{'{WITNESS2_NAME}'} - CPF: {'{WITNESS2_CPF}'}"
+            rows={20}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+          />
+          <p className="text-xs text-slate-500 mt-2">
+            Variáveis disponíveis: {'{CLIENT_NAME}'}, {'{CLIENT_CPF_CNPJ}'}, {'{CLIENT_RG}'}, {'{CLIENT_ADDRESS}'}, {'{START_DATE}'}, {'{DELIVERY_DATE}'}, {'{PAYMENT_METHOD}'}, {'{PAYMENT_DETAILS}'}, {'{TOTAL}'}, {'{COMPANY_NAME}'}, {'{COMPANY_CNPJ}'}, {'{COMPANY_ADDRESS}'}, {'{WITNESS1_NAME}'}, {'{WITNESS1_CPF}'}, {'{WITNESS2_NAME}'}, {'{WITNESS2_CPF}'}, {'{DATE}'}, {'{CITY}'}
+          </p>
         </Card>
 
         <Card>

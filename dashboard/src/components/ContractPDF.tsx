@@ -32,6 +32,7 @@ interface ContractData {
   witness1Cpf?: string;
   witness2Name?: string;
   witness2Cpf?: string;
+  contractText?: string;
 }
 
 interface ContractPDFProps {
@@ -219,172 +220,214 @@ export function ContractPDF({
           </Text>
         </View>
 
-        {/* Title */}
-        <Text style={styles.title}>CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE VIDRAÇARIA</Text>
+        {/* Contract Text - Use custom template if provided, otherwise use default */}
+        {contractData.contractText ? (() => {
+          // Replace variables in contract text
+          const today = new Date();
+          const formattedDate = today.toLocaleDateString('pt-BR');
+          const city = company.address?.split(',')?.[company.address.split(',').length - 2]?.trim() || 'Belo Horizonte';
+          
+          const replacedText = contractData.contractText
+            .replace(/{CLIENT_NAME}/g, contractData.clientName)
+            .replace(/{CLIENT_CPF_CNPJ}/g, contractData.clientCpfCnpj || '_________________')
+            .replace(/{CLIENT_RG}/g, contractData.clientRg || '_________________')
+            .replace(/{CLIENT_ADDRESS}/g, contractData.clientAddress)
+            .replace(/{START_DATE}/g, contractData.startDate ? formatDate(contractData.startDate) : '_________________')
+            .replace(/{DELIVERY_DATE}/g, contractData.deliveryDate ? formatDate(contractData.deliveryDate) : '_________________')
+            .replace(/{PAYMENT_METHOD}/g, paymentMethodLabels[contractData.paymentMethod] || contractData.paymentMethod)
+            .replace(/{PAYMENT_DETAILS}/g, contractData.paymentDetails || '_________________')
+            .replace(/{TOTAL}/g, formatCurrency(total))
+            .replace(/{COMPANY_NAME}/g, company.name)
+            .replace(/{COMPANY_CNPJ}/g, company.cnpj || '_________________')
+            .replace(/{COMPANY_ADDRESS}/g, company.address)
+            .replace(/{WITNESS1_NAME}/g, contractData.witness1Name || '_________________')
+            .replace(/{WITNESS1_CPF}/g, contractData.witness1Cpf || '_________________')
+            .replace(/{WITNESS2_NAME}/g, contractData.witness2Name || '_________________')
+            .replace(/{WITNESS2_CPF}/g, contractData.witness2Cpf || '_________________')
+            .replace(/{DATE}/g, formattedDate)
+            .replace(/{CITY}/g, city);
+          
+          // Split by newlines and render each line
+          const lines = replacedText.split('\n');
+          return (
+            <View style={styles.section}>
+              {lines.map((line, index) => (
+                <Text key={index} style={styles.paragraph}>
+                  {line || ' '}
+                </Text>
+              ))}
+            </View>
+          );
+        })() : (
+          <>
+            {/* Title */}
+            <Text style={styles.title}>CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE VIDRAÇARIA</Text>
 
-        {/* Identification */}
-        <View style={styles.identification}>
-          <Text style={styles.identificationText}>
-            DE UM LADO, <Text style={{ fontWeight: 'bold' }}>{company.name}</Text>, 
-            {company.cnpj && ` CNPJ ${company.cnpj},`} estabelecida em {company.address}, 
-            doravante denominada CONTRATADA;
-          </Text>
-          <Text style={styles.identificationText}>
-            E DE OUTRO LADO, <Text style={{ fontWeight: 'bold' }}>{contractData.clientName}</Text>, 
-            {contractData.clientCpfCnpj.length <= 14 ? ' CPF' : ' CNPJ'} {contractData.clientCpfCnpj}, 
-            RG {contractData.clientRg}, residente e domiciliado em {contractData.clientAddress}, 
-            doravante denominado CONTRATANTE;
-          </Text>
-          <Text style={styles.identificationText}>
-            Têm entre si justo e contratado o seguinte:
-          </Text>
-        </View>
-
-        {/* Cláusula 1 - Objeto */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Text style={styles.clauseNumber}>CLÁUSULA 1ª - DO OBJETO</Text>
-          </Text>
-          <Text style={styles.paragraph}>
-            O presente contrato tem por objeto a prestação de serviços de vidraçaria, 
-            conforme especificações abaixo:
-          </Text>
-          <View style={styles.servicesList}>
-            {quoteItems.map((item, index) => (
-              <Text key={index} style={styles.serviceItem}>
-                • {item.serviceName}
-                {item.quantity > 1 && ` (Quantidade: ${item.quantity})`}
-                {item.dimensions?.width && item.dimensions?.height && 
-                  ` - Dimensões: ${item.dimensions.width}m x ${item.dimensions.height}m`}
-                {` - Valor: ${formatCurrency(item.total)}`}
+            {/* Identification */}
+            <View style={styles.identification}>
+              <Text style={styles.identificationText}>
+                DE UM LADO, <Text style={{ fontWeight: 'bold' }}>{company.name}</Text>, 
+                {company.cnpj && ` CNPJ ${company.cnpj},`} estabelecida em {company.address}, 
+                doravante denominada CONTRATADA;
               </Text>
-            ))}
-          </View>
-        </View>
+              <Text style={styles.identificationText}>
+                E DE OUTRO LADO, <Text style={{ fontWeight: 'bold' }}>{contractData.clientName}</Text>, 
+                {contractData.clientCpfCnpj.length <= 14 ? ' CPF' : ' CNPJ'} {contractData.clientCpfCnpj}, 
+                RG {contractData.clientRg}, residente e domiciliado em {contractData.clientAddress}, 
+                doravante denominado CONTRATANTE;
+              </Text>
+              <Text style={styles.identificationText}>
+                Têm entre si justo e contratado o seguinte:
+              </Text>
+            </View>
 
-        {/* Cláusula 2 - Valor */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Text style={styles.clauseNumber}>CLÁUSULA 2ª - DO VALOR E FORMA DE PAGAMENTO</Text>
-          </Text>
-          <Text style={styles.paragraph}>
-            O valor total dos serviços é de <Text style={{ fontWeight: 'bold' }}>
-              {formatCurrency(total)}
-            </Text>, a ser pago via <Text style={{ fontWeight: 'bold' }}>
-              {paymentMethodLabels[contractData.paymentMethod]}
-            </Text>, conforme condições: {contractData.paymentDetails}.
-          </Text>
-        </View>
+            {/* Cláusula 1 - Objeto */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                <Text style={styles.clauseNumber}>CLÁUSULA 1ª - DO OBJETO</Text>
+              </Text>
+              <Text style={styles.paragraph}>
+                O presente contrato tem por objeto a prestação de serviços de vidraçaria, 
+                conforme especificações abaixo:
+              </Text>
+              <View style={styles.servicesList}>
+                {quoteItems.map((item, index) => (
+                  <Text key={index} style={styles.serviceItem}>
+                    • {item.serviceName}
+                    {item.quantity > 1 && ` (Quantidade: ${item.quantity})`}
+                    {item.dimensions?.width && item.dimensions?.height && 
+                      ` - Dimensões: ${item.dimensions.width}m x ${item.dimensions.height}m`}
+                    {` - Valor: ${formatCurrency(item.total)}`}
+                  </Text>
+                ))}
+              </View>
+            </View>
 
-        {/* Cláusula 3 - Prazos */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Text style={styles.clauseNumber}>CLÁUSULA 3ª - DOS PRAZOS</Text>
-          </Text>
-          <Text style={styles.paragraph}>
-            O serviço terá início em <Text style={{ fontWeight: 'bold' }}>
-              {formatDate(contractData.startDate)}
-            </Text> e será entregue até o dia <Text style={{ fontWeight: 'bold' }}>
-              {formatDate(contractData.deliveryDate)}
-            </Text>.
-          </Text>
-        </View>
+            {/* Cláusula 2 - Valor */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                <Text style={styles.clauseNumber}>CLÁUSULA 2ª - DO VALOR E FORMA DE PAGAMENTO</Text>
+              </Text>
+              <Text style={styles.paragraph}>
+                O valor total dos serviços é de <Text style={{ fontWeight: 'bold' }}>
+                  {formatCurrency(total)}
+                </Text>, a ser pago via <Text style={{ fontWeight: 'bold' }}>
+                  {paymentMethodLabels[contractData.paymentMethod]}
+                </Text>, conforme condições: {contractData.paymentDetails}.
+              </Text>
+            </View>
 
-        {/* Cláusula 4 - Garantia */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Text style={styles.clauseNumber}>CLÁUSULA 4ª - DA GARANTIA</Text>
-          </Text>
-          <Text style={styles.paragraph}>
-            A CONTRATADA oferece garantia de 90 (noventa) dias para instalação e defeitos 
+            {/* Cláusula 3 - Prazos */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                <Text style={styles.clauseNumber}>CLÁUSULA 3ª - DOS PRAZOS</Text>
+              </Text>
+              <Text style={styles.paragraph}>
+                O serviço terá início em <Text style={{ fontWeight: 'bold' }}>
+                  {formatDate(contractData.startDate)}
+                </Text> e será entregue até o dia <Text style={{ fontWeight: 'bold' }}>
+                  {formatDate(contractData.deliveryDate)}
+                </Text>.
+              </Text>
+            </View>
+
+            {/* Cláusula 4 - Garantia */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                <Text style={styles.clauseNumber}>CLÁUSULA 4ª - DA GARANTIA</Text>
+              </Text>
+              <Text style={styles.paragraph}>
+                A CONTRATADA oferece garantia de 90 (noventa) dias para instalação e defeitos 
             de fabricação, contados a partir da data de entrega dos serviços. A garantia 
             não cobre quebras por mau uso, acidentes ou desgaste natural dos materiais.
           </Text>
         </View>
 
-        {/* Cláusula 5 - Disposições Gerais */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Text style={styles.clauseNumber}>CLÁUSULA 5ª - DAS DISPOSIÇÕES GERAIS</Text>
-          </Text>
-          <Text style={styles.paragraph}>
-            O CONTRATANTE se compromete a fornecer acesso adequado ao local da execução 
-            dos serviços, bem como disponibilizar energia elétrica e demais condições 
-            necessárias para a realização dos trabalhos.
-          </Text>
-          <Text style={styles.paragraph}>
-            A CONTRATADA se compromete a executar os serviços com qualidade e dentro 
-            dos prazos estabelecidos, utilizando materiais de primeira linha e mão de 
-            obra especializada.
-          </Text>
-          <Text style={styles.paragraph}>
-            Em caso de descumprimento de qualquer cláusula deste contrato, a parte 
-            inadimplente ficará sujeita às penalidades previstas em lei.
-          </Text>
-        </View>
+            {/* Cláusula 5 - Disposições Gerais */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                <Text style={styles.clauseNumber}>CLÁUSULA 5ª - DAS DISPOSIÇÕES GERAIS</Text>
+              </Text>
+              <Text style={styles.paragraph}>
+                O CONTRATANTE se compromete a fornecer acesso adequado ao local da execução 
+                dos serviços, bem como disponibilizar energia elétrica e demais condições 
+                necessárias para a realização dos trabalhos.
+              </Text>
+              <Text style={styles.paragraph}>
+                A CONTRATADA se compromete a executar os serviços com qualidade e dentro 
+                dos prazos estabelecidos, utilizando materiais de primeira linha e mão de 
+                obra especializada.
+              </Text>
+              <Text style={styles.paragraph}>
+                Em caso de descumprimento de qualquer cláusula deste contrato, a parte 
+                inadimplente ficará sujeita às penalidades previstas em lei.
+              </Text>
+            </View>
 
-        {/* Signatures */}
-        <View style={styles.signatures}>
-          <View style={styles.signatureBox}>
-            <Text style={styles.signatureName}>{company.name}</Text>
-            <Text style={styles.signatureCpf}>
-              {company.cnpj && `CNPJ: ${company.cnpj}`}
-            </Text>
-            <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
-              ___________________________
-            </Text>
-            <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
-              CONTRATADA
-            </Text>
-          </View>
-          
-          <View style={styles.signatureBox}>
-            <Text style={styles.signatureName}>{contractData.clientName}</Text>
-            <Text style={styles.signatureCpf}>
-              {contractData.clientCpfCnpj.length <= 14 ? 'CPF' : 'CNPJ'}: {contractData.clientCpfCnpj}
-            </Text>
-            <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
-              ___________________________
-            </Text>
-            <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
-              CONTRATANTE
-            </Text>
-          </View>
-        </View>
-
-        {/* Witnesses */}
-        {(contractData.witness1Name || contractData.witness2Name) && (
-          <View style={styles.witnessSection}>
-            {contractData.witness1Name && (
-              <View style={styles.witnessBox}>
-                <Text style={styles.signatureName}>{contractData.witness1Name}</Text>
-                {contractData.witness1Cpf && (
-                  <Text style={styles.signatureCpf}>CPF: {contractData.witness1Cpf}</Text>
-                )}
+            {/* Signatures */}
+            <View style={styles.signatures}>
+              <View style={styles.signatureBox}>
+                <Text style={styles.signatureName}>{company.name}</Text>
+                <Text style={styles.signatureCpf}>
+                  {company.cnpj && `CNPJ: ${company.cnpj}`}
+                </Text>
                 <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
                   ___________________________
                 </Text>
                 <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
-                  TESTEMUNHA 1
+                  CONTRATADA
                 </Text>
               </View>
-            )}
-            
-            {contractData.witness2Name && (
-              <View style={styles.witnessBox}>
-                <Text style={styles.signatureName}>{contractData.witness2Name}</Text>
-                {contractData.witness2Cpf && (
-                  <Text style={styles.signatureCpf}>CPF: {contractData.witness2Cpf}</Text>
-                )}
+              
+              <View style={styles.signatureBox}>
+                <Text style={styles.signatureName}>{contractData.clientName}</Text>
+                <Text style={styles.signatureCpf}>
+                  {contractData.clientCpfCnpj.length <= 14 ? 'CPF' : 'CNPJ'}: {contractData.clientCpfCnpj}
+                </Text>
                 <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
                   ___________________________
                 </Text>
                 <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
-                  TESTEMUNHA 2
+                  CONTRATANTE
                 </Text>
               </View>
+            </View>
+
+            {/* Witnesses */}
+            {(contractData.witness1Name || contractData.witness2Name) && (
+              <View style={styles.witnessSection}>
+                {contractData.witness1Name && (
+                  <View style={styles.witnessBox}>
+                    <Text style={styles.signatureName}>{contractData.witness1Name}</Text>
+                    {contractData.witness1Cpf && (
+                      <Text style={styles.signatureCpf}>CPF: {contractData.witness1Cpf}</Text>
+                    )}
+                    <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
+                      ___________________________
+                    </Text>
+                    <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
+                      TESTEMUNHA 1
+                    </Text>
+                  </View>
+                )}
+                
+                {contractData.witness2Name && (
+                  <View style={styles.witnessBox}>
+                    <Text style={styles.signatureName}>{contractData.witness2Name}</Text>
+                    {contractData.witness2Cpf && (
+                      <Text style={styles.signatureCpf}>CPF: {contractData.witness2Cpf}</Text>
+                    )}
+                    <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
+                      ___________________________
+                    </Text>
+                    <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
+                      TESTEMUNHA 2
+                    </Text>
+                  </View>
+                )}
+              </View>
             )}
-          </View>
+          </>
         )}
 
         {/* Footer */}

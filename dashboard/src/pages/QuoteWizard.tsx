@@ -8,6 +8,8 @@ import { InstallationItemModal } from '../components/InstallationItemModal';
 import { TemplateSelectorModal } from '../components/TemplateSelectorModal';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { ClientForm } from '../components/ClientForm';
+import { MaintenanceCategorySelector } from '../components/MaintenanceCategorySelector';
+import { MaintenanceServiceSelector } from '../components/MaintenanceServiceSelector';
 import { Search, Plus, Square, Wrench, ArrowLeft, ArrowRight, Save, Download, X, Trash2 } from 'lucide-react';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -85,6 +87,8 @@ export function QuoteWizard() {
   const [showPDFOptionsModal, setShowPDFOptionsModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [maintenanceCategory, setMaintenanceCategory] = useState<string | null>(null);
+  const [maintenanceService, setMaintenanceService] = useState<{ name: string; description: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -144,18 +148,25 @@ export function QuoteWizard() {
       newItems[editingItemIndex] = {
         ...newItems[editingItemIndex],
         ...itemData,
-        serviceId: newItems[editingItemIndex].serviceId || `installation-${Date.now()}`,
+        serviceId: newItems[editingItemIndex].serviceId || `${itemData.isInstallation ? 'installation' : 'maintenance'}-${Date.now()}`,
+        isInstallation: serviceType === 'installation', // Ensure isInstallation is set correctly
       };
       setItems(newItems);
       setEditingItemIndex(null);
     } else {
       const newItem: QuoteItem = {
         ...itemData,
-        serviceId: `installation-${Date.now()}`,
+        serviceId: `${itemData.isInstallation ? 'installation' : 'maintenance'}-${Date.now()}`,
+        isInstallation: serviceType === 'installation', // Ensure isInstallation is set correctly
       };
       setItems([...items, newItem]);
     }
     setShowInstallationModal(false);
+    // Reset maintenance flow after adding item
+    if (serviceType === 'maintenance') {
+      setMaintenanceCategory(null);
+      setMaintenanceService(null);
+    }
   };
 
   const handleRemoveItem = (index: number) => {
@@ -376,7 +387,7 @@ export function QuoteWizard() {
         </div>
 
         {/* Step Content - Takes remaining space with padding for fixed footer */}
-        <div className="flex-1 overflow-y-auto pb-24">
+        <div className="flex-1 overflow-y-auto pb-40">
           {/* STEP 1: CLIENT SELECTION */}
           {currentStep === 1 && (
             <div className="p-4 space-y-4">
@@ -517,71 +528,116 @@ export function QuoteWizard() {
 
           {/* STEP 3: ITEMS */}
           {currentStep === 3 && (
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-secondary">Itens do Orçamento</h2>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (serviceType === 'installation') {
-                      setEditingItemIndex(null);
-                      setShowTemplateSelectorModal(true);
-                    } else {
+            <div className="p-4 space-y-4 pb-40">
+              {/* Maintenance Flow: Category Selection */}
+              {serviceType === 'maintenance' && !maintenanceCategory && (
+                <div>
+                  <h2 className="text-xl font-bold text-secondary mb-4">Selecione a Categoria</h2>
+                  <MaintenanceCategorySelector
+                    onSelectCategory={(category) => {
+                      setMaintenanceCategory(category);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Maintenance Flow: Service Selection */}
+              {serviceType === 'maintenance' && maintenanceCategory && !maintenanceService && (
+                <div>
+                  <MaintenanceServiceSelector
+                    category={maintenanceCategory}
+                    onSelectService={(service) => {
+                      setMaintenanceService(service);
+                      // Auto-open modal with pre-filled service
                       setEditingItemIndex(null);
                       setShowInstallationModal(true);
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Adicionar Item
-                </Button>
-              </div>
-
-              {items.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <p className="text-slate-600 mb-4">Nenhum item adicionado ainda</p>
-                  <p className="text-sm text-slate-500">Clique em "Adicionar Item" para começar</p>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <Card key={index} className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-secondary mb-1">{item.serviceName}</h3>
-                          {item.glassColor && (
-                            <p className="text-sm text-slate-600">Vidro: {item.glassColor}</p>
-                          )}
-                          {item.profileColor && (
-                            <p className="text-sm text-slate-600">Perfil: {item.profileColor}</p>
-                          )}
-                          <p className="text-sm font-medium text-secondary mt-2">
-                            R$ {item.total.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              setEditingItemIndex(index);
-                              setShowInstallationModal(true);
-                            }}
-                            className="text-slate-600 hover:text-secondary"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleRemoveItem(index)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                    }}
+                    onBack={() => setMaintenanceCategory(null)}
+                  />
                 </div>
+              )}
+
+              {/* Items List (shown when not in category/service selection) */}
+              {!(serviceType === 'maintenance' && (!maintenanceCategory || !maintenanceService)) && (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-secondary">Itens do Orçamento</h2>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        if (serviceType === 'installation') {
+                          setEditingItemIndex(null);
+                          setShowTemplateSelectorModal(true);
+                        } else {
+                          // Reset maintenance flow
+                          setMaintenanceCategory(null);
+                          setMaintenanceService(null);
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Item
+                    </Button>
+                  </div>
+
+                  {items.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <p className="text-slate-600 mb-4">Nenhum item adicionado ainda</p>
+                      <p className="text-sm text-slate-500">Clique em "Adicionar Item" para começar</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((item, index) => (
+                        <Card key={index} className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-secondary mb-1">{item.serviceName}</h3>
+                              {item.isInstallation && item.glassColor && (
+                                <p className="text-sm text-slate-600">Vidro: {item.glassColor}</p>
+                              )}
+                              {item.isInstallation && item.profileColor && (
+                                <p className="text-sm text-slate-600">Perfil: {item.profileColor}</p>
+                              )}
+                              {item.isInstallation && item.dimensions && (
+                                <p className="text-sm text-slate-600">
+                                  {item.dimensions.width}mm × {item.dimensions.height}mm
+                                </p>
+                              )}
+                              <p className="text-sm font-medium text-secondary mt-2">
+                                Qtd: {item.quantity} × R$ {item.unitPrice.toFixed(2)} = R$ {item.total.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingItemIndex(index);
+                                  if (item.isInstallation) {
+                                    setSelectedTemplate(null);
+                                  } else {
+                                    setMaintenanceCategory(null);
+                                    setMaintenanceService(null);
+                                  }
+                                  setShowInstallationModal(true);
+                                }}
+                                className="text-slate-600 hover:text-secondary"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleRemoveItem(index)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -744,18 +800,31 @@ export function QuoteWizard() {
               setShowInstallationModal(false);
               setEditingItemIndex(null);
               setSelectedTemplate(null);
+              if (serviceType === 'maintenance') {
+                setMaintenanceCategory(null);
+                setMaintenanceService(null);
+              }
             }}
             onSave={handleSaveInstallationItem}
             initialItem={
               editingItemIndex !== null
                 ? items[editingItemIndex]
-                : selectedTemplate
+                : serviceType === 'maintenance' && maintenanceService
                   ? {
-                      serviceName: selectedTemplate.serviceName,
-                      isInstallation: true,
-                      pricingMethod: 'm2',
+                      serviceName: `Manutenção de ${maintenanceCategory ? maintenanceCategory.charAt(0).toUpperCase() + maintenanceCategory.slice(1) : ''} - ${maintenanceService.name}`,
+                      isInstallation: false,
+                      pricingMethod: 'unit',
+                      quantity: 1,
+                      unitPrice: 0,
+                      total: 0,
                     }
-                  : undefined
+                  : selectedTemplate
+                    ? {
+                        serviceName: selectedTemplate.serviceName || selectedTemplate.name || '',
+                        isInstallation: true,
+                        pricingMethod: 'm2',
+                      }
+                    : undefined
             }
             isInstallation={serviceType === 'installation'}
           />
