@@ -28,16 +28,27 @@ service cloud.firestore {
     }
     
     match /workOrders/{workOrderId} {
+      // Allow public read for client viewing
       allow read: if true;
+      
+      // Only authenticated users from the same company can create
       allow create: if isAuthenticated() && 
                        request.resource.data.companyId == getUserCompanyId();
+      
+      // Allow updates in two scenarios:
+      // 1. Authenticated users from the same company (full access)
+      // 2. Public users (unauthenticated) can only update approval/feedback fields
       allow update: if (isAuthenticated() && 
                         resource.data.companyId == getUserCompanyId() &&
                         request.resource.data.companyId == getUserCompanyId()) ||
-                      (request.resource.data.diff(resource.data).unchangedKeys()
-                        .hasAll(['quoteId', 'clientName', 'scheduledDate', 'technician', 'status', 'checklist', 'notes', 'photos', 'technicalInspection', 'createdAt', 'companyId'])
-                        && (request.resource.data.keys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate'])
-                            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate'])));
+                      // Public update: only allow changes to approval/feedback fields
+                      (!isAuthenticated() &&
+                       request.resource.data.diff(resource.data).unchangedKeys()
+                         .hasAll(['quoteId', 'clientName', 'clientId', 'scheduledDate', 'scheduledTime', 'technician', 'status', 'checklist', 'notes', 'photos', 'technicalInspection', 'createdAt', 'companyId', 'items', 'total']) &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate', 'feedbackComment']));
+      
+      // Only authenticated users from the same company can delete
       allow delete: if isAuthenticated() && 
                        resource.data.companyId == getUserCompanyId();
     }

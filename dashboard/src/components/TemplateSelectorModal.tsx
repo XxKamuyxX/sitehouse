@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Pencil } from 'lucide-react';
 import { Card } from './ui/Card';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -15,7 +15,7 @@ interface Template {
 interface TemplateSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTemplate: (template: Template) => void;
+  onSelectTemplate: (template: Template | { id: 'manual'; name: 'Personalizado / Manual'; category: 'manual'; imageUrl: '' }) => void;
 }
 
 export function TemplateSelectorModal({ isOpen, onClose, onSelectTemplate }: TemplateSelectorModalProps) {
@@ -136,6 +136,29 @@ export function TemplateSelectorModal({ isOpen, onClose, onSelectTemplate }: Tem
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {/* Manual / Custom Option - Always first */}
+                  <button
+                    onClick={() => {
+                      onSelectTemplate({
+                        id: 'manual',
+                        name: 'Personalizado / Manual',
+                        category: 'manual',
+                        imageUrl: '',
+                      });
+                      onClose();
+                    }}
+                    className="group relative p-4 rounded-lg border-2 border-dashed border-primary hover:border-primary-dark transition-all bg-gradient-to-br from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20 text-left"
+                  >
+                    <div className="aspect-video bg-white/50 rounded-lg mb-3 overflow-hidden flex items-center justify-center">
+                      <Pencil className="w-12 h-12 text-primary group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h3 className="font-bold text-secondary text-sm line-clamp-2">
+                      Personalizado / Manual
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Criar item personalizado</p>
+                  </button>
+
+                  {/* Template Cards */}
                   {displayTemplates.map((template) => (
                     <button
                       key={template.id}

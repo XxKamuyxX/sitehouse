@@ -163,6 +163,51 @@ export function QuoteWizard() {
     setItems(newItems);
   };
 
+  // Sanitize item data to remove undefined values
+  const sanitizeItem = (item: QuoteItem): any => {
+    const cleanItem: any = {
+      serviceId: item.serviceId || '',
+      serviceName: item.serviceName || '',
+      quantity: item.quantity || 1,
+      unitPrice: item.unitPrice || 0,
+      total: item.total || 0,
+      pricingMethod: item.pricingMethod || 'unit',
+      isInstallation: item.isInstallation || false,
+    };
+
+    // Only include dimensions if they exist and are valid
+    if (item.dimensions && (item.dimensions.width > 0 || item.dimensions.height > 0)) {
+      cleanItem.dimensions = {
+        width: item.dimensions.width || 0,
+        height: item.dimensions.height || 0,
+      };
+      if (item.dimensions.area) {
+        cleanItem.dimensions.area = item.dimensions.area;
+      }
+    }
+
+    // Only include glass specs if they exist (for installation items)
+    if (item.isInstallation) {
+      cleanItem.glassColor = item.glassColor || '';
+      cleanItem.glassThickness = item.glassThickness || '';
+      cleanItem.profileColor = item.profileColor || '';
+    } else {
+      // For maintenance, ensure these fields are empty strings, not undefined
+      cleanItem.glassColor = '';
+      cleanItem.glassThickness = '';
+      cleanItem.profileColor = '';
+    }
+
+    // Remove any undefined values
+    Object.keys(cleanItem).forEach(key => {
+      if (cleanItem[key] === undefined) {
+        delete cleanItem[key];
+      }
+    });
+
+    return cleanItem;
+  };
+
   const handleSave = async () => {
     if (!companyId || !selectedClientId || items.length === 0) {
       alert('Complete todos os campos obrigatórios');
@@ -170,18 +215,28 @@ export function QuoteWizard() {
     }
 
     try {
+      // Sanitize all items before saving
+      const sanitizedItems = items.map(item => sanitizeItem(item));
+
       const quoteData = {
         clientId: selectedClientId,
-        items,
-        subtotal: items.reduce((sum, item) => sum + item.total, 0),
+        items: sanitizedItems,
+        subtotal: sanitizedItems.reduce((sum, item) => sum + (item.total || 0), 0),
         discount: parseFloat(discount) || 0,
-        total: items.reduce((sum, item) => sum + item.total, 0) - (parseFloat(discount) || 0),
+        total: sanitizedItems.reduce((sum, item) => sum + (item.total || 0), 0) - (parseFloat(discount) || 0),
         status: 'draft',
         warranty: warranty || '',
         observations: observations || '',
         companyId,
         createdAt: new Date(),
       };
+
+      // Remove any undefined values from quoteData
+      Object.keys(quoteData).forEach(key => {
+        if ((quoteData as any)[key] === undefined) {
+          delete (quoteData as any)[key];
+        }
+      });
 
       await addDoc(collection(db, 'quotes'), quoteData);
       alert('Orçamento salvo com sucesso!');
@@ -661,11 +716,21 @@ export function QuoteWizard() {
               setShowTemplateSelectorModal(false);
             }}
             onSelectTemplate={(template: any) => {
-              setSelectedTemplate({
-                serviceName: template.name,
-                isInstallation: true,
-                pricingMethod: 'm2',
-              });
+              // If manual option selected, open modal with empty fields
+              if (template.id === 'manual') {
+                setSelectedTemplate({
+                  serviceName: '',
+                  isInstallation: true,
+                  pricingMethod: 'm2',
+                });
+              } else {
+                // If template selected, pre-fill with template data
+                setSelectedTemplate({
+                  serviceName: template.name,
+                  isInstallation: true,
+                  pricingMethod: 'm2',
+                });
+              }
               setShowTemplateSelectorModal(false);
               setShowInstallationModal(true);
             }}
