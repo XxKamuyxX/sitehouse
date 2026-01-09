@@ -11,6 +11,12 @@ import { TechnicalInspection } from '../components/TechnicalInspection';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { useCompany } from '../hooks/useCompany';
 
+interface ManualService {
+  id: string;
+  description: string;
+  price?: number;
+}
+
 interface WorkOrder {
   id: string;
   quoteId: string;
@@ -29,6 +35,8 @@ interface WorkOrder {
   };
   clientPhone?: string;
   hasRisk?: boolean;
+  manualServices?: ManualService[];
+  totalPrice?: number;
 }
 
 export function WorkOrderDetails() {
@@ -45,6 +53,10 @@ export function WorkOrderDetails() {
   const [clientPhone, setClientPhone] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [hasRisk, setHasRisk] = useState(false);
+  const [manualServices, setManualServices] = useState<ManualService[]>([]);
+  const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [newService, setNewService] = useState({ description: '', price: '' });
 
   useEffect(() => {
     if (id) {
@@ -74,6 +86,8 @@ export function WorkOrderDetails() {
       } as WorkOrder);
       setNotes(data.notes || '');
       setClientPhone(data.clientPhone || '');
+      setManualServices(data.manualServices || []);
+      setTotalPrice(data.totalPrice || 0);
 
       // Load client phone from quote if not in workOrder
       if (!data.clientPhone && data.quoteId) {
@@ -470,6 +484,82 @@ export function WorkOrderDetails() {
               </div>
             </div>
           </Card>
+
+          {/* Manual Services */}
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-navy">Serviços</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddServiceModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Adicionar Serviço
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {manualServices.length > 0 ? (
+                <>
+                  {manualServices.map((service) => (
+                    <div key={service.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-navy">{service.description}</p>
+                        {service.price !== undefined && service.price > 0 && (
+                          <p className="text-sm text-slate-600">
+                            R$ {service.price.toFixed(2).replace('.', ',')}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const updated = manualServices.filter(s => s.id !== service.id);
+                          setManualServices(updated);
+                          if (id) {
+                            updateDoc(doc(db, 'workOrders', id), {
+                              manualServices: updated,
+                            });
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-700 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  Nenhum serviço adicionado
+                </p>
+              )}
+              
+              <div className="pt-3 border-t border-slate-200">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Total (R$)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={totalPrice}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    setTotalPrice(value);
+                    if (id) {
+                      updateDoc(doc(db, 'workOrders', id), {
+                        totalPrice: value,
+                      });
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Tabs */}
@@ -641,6 +731,92 @@ export function WorkOrderDetails() {
             </Button>
           </div>
         </Card>
+
+        {/* Add Service Modal */}
+        {showAddServiceModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-navy">Adicionar Serviço</h2>
+                <button
+                  onClick={() => {
+                    setShowAddServiceModal(false);
+                    setNewService({ description: '', price: '' });
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Descrição do Serviço *
+                  </label>
+                  <input
+                    type="text"
+                    value={newService.description}
+                    onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                    placeholder="Ex: Troca de roldanas, Limpeza, etc."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Preço (R$) - Opcional
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newService.price}
+                    onChange={(e) => setNewService({ ...newService, price: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                    placeholder="0,00"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      if (!newService.description.trim()) {
+                        alert('Digite a descrição do serviço');
+                        return;
+                      }
+                      const service: ManualService = {
+                        id: Date.now().toString(),
+                        description: newService.description,
+                        price: newService.price ? parseFloat(newService.price) : undefined,
+                      };
+                      const updated = [...manualServices, service];
+                      setManualServices(updated);
+                      if (id) {
+                        updateDoc(doc(db, 'workOrders', id), {
+                          manualServices: updated,
+                        });
+                      }
+                      setShowAddServiceModal(false);
+                      setNewService({ description: '', price: '' });
+                    }}
+                    className="flex-1"
+                  >
+                    Adicionar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddServiceModal(false);
+                      setNewService({ description: '', price: '' });
+                    }}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Receipt Modal */}
         {showReceiptModal && (

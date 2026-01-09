@@ -17,6 +17,12 @@ interface GeneralChecklistItem {
   value?: string;
 }
 
+interface ManualService {
+  id: string;
+  description: string;
+  price?: number;
+}
+
 interface WorkOrder {
   id: string;
   quoteId: string;
@@ -33,6 +39,8 @@ interface WorkOrder {
     leaves: Leaf[];
     generalChecklist: GeneralChecklistItem[];
   };
+  manualServices?: ManualService[];
+  totalPrice?: number;
 }
 
 export function PublicWorkOrderApprove() {
@@ -327,6 +335,35 @@ export function PublicWorkOrderApprove() {
           </div>
         )}
 
+        {/* Manual Services */}
+        {workOrder.manualServices && workOrder.manualServices.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-navy mb-4">Serviços Realizados</h2>
+            <div className="space-y-3">
+              {workOrder.manualServices.map((service) => (
+                <div key={service.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium text-navy">{service.description}</p>
+                    {service.price !== undefined && service.price > 0 && (
+                      <p className="text-sm text-slate-600">
+                        R$ {service.price.toFixed(2).replace('.', ',')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {workOrder.totalPrice !== undefined && workOrder.totalPrice > 0 && (
+              <div className="pt-3 border-t-2 border-navy flex justify-between mt-4">
+                <span className="text-xl font-bold text-navy">Total:</span>
+                <span className="text-xl font-bold text-navy">
+                  R$ {workOrder.totalPrice.toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Photos from Technical Inspection */}
         {workOrder.technicalInspection && workOrder.technicalInspection.leaves && (
           (() => {
@@ -358,6 +395,26 @@ export function PublicWorkOrderApprove() {
               </div>
             ) : null;
           })()
+        )}
+
+        {/* General Photos */}
+        {workOrder.photos && workOrder.photos.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-navy mb-4">Fotos do Serviço</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {workOrder.photos.map((photo, index) => (
+                <img
+                  key={index}
+                  src={photo}
+                  alt={`Foto ${index + 1}`}
+                  className="w-full h-48 object-cover rounded-lg border border-slate-200"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar';
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Checklist */}

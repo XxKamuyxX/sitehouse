@@ -19,6 +19,12 @@ interface GeneralChecklistItem {
   value?: string;
 }
 
+interface ManualService {
+  id: string;
+  description: string;
+  price?: number;
+}
+
 interface WorkOrder {
   id: string;
   quoteId: string;
@@ -35,6 +41,8 @@ interface WorkOrder {
     leaves: Leaf[];
     generalChecklist: GeneralChecklistItem[];
   };
+  manualServices?: ManualService[];
+  totalPrice?: number;
 }
 
 export function PublicWorkOrder() {
@@ -225,10 +233,10 @@ export function PublicWorkOrder() {
           <p className="text-lg text-slate-700">{workOrder.clientName}</p>
         </div>
 
-        {/* Services */}
+        {/* Services from Quote */}
         {quote && quote.items && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-navy mb-4">Serviços</h2>
+            <h2 className="text-xl font-bold text-navy mb-4">Serviços do Orçamento</h2>
             <div className="space-y-4">
               {quote.items.map((item: any, index: number) => (
                 <div key={index} className="border-b border-slate-200 pb-4 last:border-0">
@@ -245,9 +253,38 @@ export function PublicWorkOrder() {
               ))}
             </div>
             <div className="pt-4 border-t-2 border-navy flex justify-between mt-4">
-              <span className="text-xl font-bold text-navy">Total:</span>
+              <span className="text-xl font-bold text-navy">Total do Orçamento:</span>
               <span className="text-xl font-bold text-navy">{formatCurrency(quote.total || 0)}</span>
             </div>
+          </div>
+        )}
+
+        {/* Manual Services */}
+        {workOrder.manualServices && workOrder.manualServices.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-navy mb-4">Serviços Realizados</h2>
+            <div className="space-y-3">
+              {workOrder.manualServices.map((service) => (
+                <div key={service.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium text-navy">{service.description}</p>
+                    {service.price !== undefined && service.price > 0 && (
+                      <p className="text-sm text-slate-600">
+                        R$ {service.price.toFixed(2).replace('.', ',')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {workOrder.totalPrice !== undefined && workOrder.totalPrice > 0 && (
+              <div className="pt-4 border-t-2 border-navy flex justify-between mt-4">
+                <span className="text-xl font-bold text-navy">Total dos Serviços:</span>
+                <span className="text-xl font-bold text-navy">
+                  R$ {workOrder.totalPrice.toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
