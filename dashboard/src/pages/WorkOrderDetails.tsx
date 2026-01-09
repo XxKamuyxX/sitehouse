@@ -809,30 +809,60 @@ export function WorkOrderDetails() {
                       try {
                         if (editingServiceId) {
                           // Edit existing service
-                          const updated = manualServices.map(s => 
-                            s.id === editingServiceId 
-                              ? {
-                                  ...s,
-                                  description: newService.description,
-                                  price: newService.price > 0 ? newService.price : undefined,
-                                }
-                              : s
-                          );
+                          const updated = manualServices.map(s => {
+                            if (s.id === editingServiceId) {
+                              const updatedService: ManualService = {
+                                id: s.id,
+                                description: newService.description,
+                              };
+                              // Only include price if it's greater than 0
+                              if (newService.price > 0) {
+                                updatedService.price = newService.price;
+                              }
+                              return updatedService;
+                            }
+                            return s;
+                          });
                           setManualServices(updated);
+                          // Remove undefined values before saving
+                          const cleanedServices = updated.map(s => {
+                            const cleaned: any = {
+                              id: s.id,
+                              description: s.description,
+                            };
+                            if (s.price !== undefined && s.price > 0) {
+                              cleaned.price = s.price;
+                            }
+                            return cleaned;
+                          });
                           await updateDoc(doc(db, 'workOrders', id), {
-                            manualServices: updated,
+                            manualServices: cleanedServices,
                           });
                         } else {
                           // Add new service
                           const service: ManualService = {
                             id: Date.now().toString(),
                             description: newService.description,
-                            price: newService.price > 0 ? newService.price : undefined,
                           };
+                          // Only include price if it's greater than 0
+                          if (newService.price > 0) {
+                            service.price = newService.price;
+                          }
                           const updated = [...manualServices, service];
                           setManualServices(updated);
+                          // Remove undefined values before saving
+                          const cleanedServices = updated.map(s => {
+                            const cleaned: any = {
+                              id: s.id,
+                              description: s.description,
+                            };
+                            if (s.price !== undefined && s.price > 0) {
+                              cleaned.price = s.price;
+                            }
+                            return cleaned;
+                          });
                           await updateDoc(doc(db, 'workOrders', id), {
-                            manualServices: updated,
+                            manualServices: cleanedServices,
                           });
                         }
                         

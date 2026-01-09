@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { InstallationItemModal } from '../components/InstallationItemModal';
 import { TemplateSelectorModal } from '../components/TemplateSelectorModal';
+import { VisualQuoteBuilder } from '../components/VisualQuoteBuilder';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { ClientForm } from '../components/ClientForm';
 import { MaintenanceCategorySelector } from '../components/MaintenanceCategorySelector';
@@ -83,6 +84,7 @@ export function QuoteWizard() {
   // UI state
   const [showClientModal, setShowClientModal] = useState(false);
   const [showTemplateSelectorModal, setShowTemplateSelectorModal] = useState(false);
+  const [showVisualBuilder, setShowVisualBuilder] = useState(false);
   const [showInstallationModal, setShowInstallationModal] = useState(false);
   const [showPDFOptionsModal, setShowPDFOptionsModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
@@ -142,6 +144,17 @@ export function QuoteWizard() {
       console.error('Client data attempted:', { ...clientData, companyId, createdAt: '[serverTimestamp]' });
       alert(`Erro ao criar cliente: ${error.message}\n\nVerifique o console para mais detalhes.`);
     }
+  };
+
+  const handleSaveVisualItem = (itemData: any) => {
+    const newItem: QuoteItem = {
+      ...itemData,
+      serviceId: `installation-${Date.now()}`,
+      isInstallation: true,
+      pricingMethod: itemData.dimensions?.width && itemData.dimensions?.height ? 'm2' : 'unit',
+    };
+    setItems([...items, newItem]);
+    setShowVisualBuilder(false);
   };
 
   const handleSaveInstallationItem = (itemData: any) => {
@@ -577,7 +590,7 @@ export function QuoteWizard() {
                       onClick={() => {
                         if (serviceType === 'installation') {
                           setEditingItemIndex(null);
-                          setShowTemplateSelectorModal(true);
+                          setShowVisualBuilder(true);
                         } else {
                           // Reset maintenance flow
                           setMaintenanceCategory(null);
@@ -771,6 +784,16 @@ export function QuoteWizard() {
             onSave={handleCreateClient}
             onCancel={() => setShowClientModal(false)}
             vipCondominiums={VIP_CONDOMINIUMS}
+          />
+        )}
+
+        {showVisualBuilder && (
+          <VisualQuoteBuilder
+            isOpen={showVisualBuilder}
+            onClose={() => {
+              setShowVisualBuilder(false);
+            }}
+            onSave={handleSaveVisualItem}
           />
         )}
 

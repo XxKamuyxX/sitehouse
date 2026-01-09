@@ -32,7 +32,6 @@ export interface ContractData {
   // Contratante
   clientName: string;
   clientCpfCnpj: string;
-  clientRg: string;
   clientAddress: string;
   
   // Execução
@@ -78,7 +77,6 @@ export function ContractModal({ quote, onClose, onGenerate }: ContractModalProps
   const [formData, setFormData] = useState<ContractData>({
     clientName: quote.clientName,
     clientCpfCnpj: '',
-    clientRg: '',
     clientAddress: quote.clientAddress || '',
     startDate: '',
     deliveryDate: '',
@@ -105,7 +103,7 @@ export function ContractModal({ quote, onClose, onGenerate }: ContractModalProps
         ...prev,
         contractText: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 
-Pelo presente instrumento particular de contrato de prestação de serviços, de um lado {COMPANY_NAME}, inscrita no CNPJ sob o nº {COMPANY_CNPJ}, com sede em {COMPANY_ADDRESS}, doravante denominada CONTRATADA, e de outro lado {CLIENT_NAME}, {CLIENT_CPF_CNPJ}, RG {CLIENT_RG}, residente e domiciliado em {CLIENT_ADDRESS}, doravante denominado CONTRATANTE, têm entre si justo e contratado o seguinte:
+Pelo presente instrumento particular de contrato de prestação de serviços, de um lado {COMPANY_NAME}, inscrita no CNPJ sob o nº {COMPANY_CNPJ}, com sede em {COMPANY_ADDRESS}, doravante denominada CONTRATADA, e de outro lado {CLIENT_NAME}, {CLIENT_CPF_CNPJ}, residente e domiciliado em {CLIENT_ADDRESS}, doravante denominado CONTRATANTE, têm entre si justo e contratado o seguinte:
 
 CLÁUSULA 1ª - DO OBJETO
 O presente contrato tem por objeto a prestação de serviços de instalação/manutenção de vidros conforme especificado no orçamento anexo, no valor total de R$ {TOTAL}.
@@ -155,7 +153,6 @@ Testemunhas:
     return text
       .replace(/{CLIENT_NAME}/g, formData.clientName)
       .replace(/{CLIENT_CPF_CNPJ}/g, formData.clientCpfCnpj || '_________________')
-      .replace(/{CLIENT_RG}/g, formData.clientRg || '_________________')
       .replace(/{CLIENT_ADDRESS}/g, formData.clientAddress)
       .replace(/{START_DATE}/g, formData.startDate ? new Date(formData.startDate).toLocaleDateString('pt-BR') : '_________________')
       .replace(/{DELIVERY_DATE}/g, formData.deliveryDate ? new Date(formData.deliveryDate).toLocaleDateString('pt-BR') : '_________________')
@@ -195,9 +192,9 @@ Testemunhas:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
-    if (!formData.clientCpfCnpj || !formData.clientRg || !formData.clientAddress) {
-      alert('Preencha todos os campos obrigatórios do Contratante');
+    // Validation - Only name, CPF/CNPJ and address are required
+    if (!formData.clientName || !formData.clientCpfCnpj || !formData.clientAddress) {
+      alert('Preencha todos os campos obrigatórios (Nome, CPF/CNPJ e Endereço)');
       return;
     }
     
@@ -257,14 +254,6 @@ Testemunhas:
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 required
                 maxLength={18}
-              />
-              
-              <Input
-                label="RG *"
-                value={formData.clientRg}
-                onChange={(e) => setFormData({ ...formData, clientRg: e.target.value })}
-                placeholder="00.000.000-0"
-                required
               />
               
               <Input

@@ -658,6 +658,17 @@ export function QuoteNew() {
         dimensions: item.dimensions,
       }));
 
+      // Convert signature to base64 if available
+      let signatureBase64: string | null = null;
+      if ((company as any)?.signatureUrl) {
+        try {
+          const { getBase64ImageFromUrl } = await import('../utils/imageToBase64');
+          signatureBase64 = await getBase64ImageFromUrl((company as any).signatureUrl);
+        } catch (err) {
+          console.warn('Could not convert signature to base64:', err);
+        }
+      }
+
       const contractDoc = (
         <ContractPDF
           quoteItems={contractItems}
@@ -671,6 +682,7 @@ export function QuoteNew() {
             logoUrl: logoBase64 || company.logoUrl || undefined,
             cnpj: company.cnpj || '',
           } : undefined}
+          companySignatureUrl={signatureBase64 || (company as any)?.signatureUrl || undefined}
         />
       );
 

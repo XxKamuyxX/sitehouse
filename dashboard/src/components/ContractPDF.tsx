@@ -22,7 +22,6 @@ interface CompanyData {
 interface ContractData {
   clientName: string;
   clientCpfCnpj: string;
-  clientRg: string;
   clientAddress: string;
   startDate: string;
   deliveryDate: string;
@@ -40,6 +39,7 @@ interface ContractPDFProps {
   total: number;
   contractData: ContractData;
   companyData?: CompanyData;
+  companySignatureUrl?: string;
 }
 
 const styles = StyleSheet.create({
@@ -170,6 +170,7 @@ export function ContractPDF({
   total,
   contractData,
   companyData,
+  companySignatureUrl,
 }: ContractPDFProps) {
   const company = companyData || {
     name: 'House Manutenção',
@@ -230,7 +231,6 @@ export function ContractPDF({
           const replacedText = contractData.contractText
             .replace(/{CLIENT_NAME}/g, contractData.clientName)
             .replace(/{CLIENT_CPF_CNPJ}/g, contractData.clientCpfCnpj || '_________________')
-            .replace(/{CLIENT_RG}/g, contractData.clientRg || '_________________')
             .replace(/{CLIENT_ADDRESS}/g, contractData.clientAddress)
             .replace(/{START_DATE}/g, contractData.startDate ? formatDate(contractData.startDate) : '_________________')
             .replace(/{DELIVERY_DATE}/g, contractData.deliveryDate ? formatDate(contractData.deliveryDate) : '_________________')
@@ -273,7 +273,7 @@ export function ContractPDF({
               <Text style={styles.identificationText}>
                 E DE OUTRO LADO, <Text style={{ fontWeight: 'bold' }}>{contractData.clientName}</Text>, 
                 {contractData.clientCpfCnpj.length <= 14 ? ' CPF' : ' CNPJ'} {contractData.clientCpfCnpj}, 
-                RG {contractData.clientRg}, residente e domiciliado em {contractData.clientAddress}, 
+                residente e domiciliado em {contractData.clientAddress}, 
                 doravante denominado CONTRATANTE;
               </Text>
               <Text style={styles.identificationText}>
@@ -371,9 +371,16 @@ export function ContractPDF({
                 <Text style={styles.signatureCpf}>
                   {company.cnpj && `CNPJ: ${company.cnpj}`}
                 </Text>
-                <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
-                  ___________________________
-                </Text>
+                {companySignatureUrl ? (
+                  <Image
+                    src={companySignatureUrl}
+                    style={{ width: 150, height: 60, marginTop: 10, objectFit: 'contain' }}
+                  />
+                ) : (
+                  <Text style={{ fontSize: 9, color: '#64748B', marginTop: 20 }}>
+                    ___________________________
+                  </Text>
+                )}
                 <Text style={{ fontSize: 9, color: '#64748B', marginTop: 5 }}>
                   CONTRATADA
                 </Text>
