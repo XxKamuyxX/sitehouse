@@ -22,9 +22,14 @@ service cloud.firestore {
       return hasCompanyId() ? getUserDoc().data.companyId : null;
     }
     
-    // Users - own document access
+    // Users - own document access OR master can read all
     match /users/{userId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
+      function isMaster() {
+        return isAuthenticated() && 
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               getUserDoc().data.role == 'master';
+      }
+      allow read: if (isAuthenticated() && request.auth.uid == userId) || isMaster();
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
     
@@ -45,18 +50,23 @@ service cloud.firestore {
                        resource.data.companyId == getUserCompanyId();
     }
     
-    // Companies - own company document
+    // Companies - own company document OR master can read all
     match /companies/{companyId} {
-      allow read: if isAuthenticated() && 
-                     hasCompanyId() && 
-                     resource.id == getUserCompanyId();
+      function isMaster() {
+        return isAuthenticated() && 
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               getUserDoc().data.role == 'master';
+      }
+      allow read: if (isAuthenticated() && 
+                       hasCompanyId() && 
+                       resource.id == getUserCompanyId()) || isMaster();
       allow create: if isAuthenticated() && 
                        hasCompanyId() && 
                        request.resource.id == getUserCompanyId();
-      allow update: if isAuthenticated() && 
+      allow update: if (isAuthenticated() && 
                        hasCompanyId() && 
                        resource.id == getUserCompanyId() &&
-                       request.resource.id == getUserCompanyId();
+                       request.resource.id == getUserCompanyId()) || isMaster();
       allow delete: if isAuthenticated() && 
                        hasCompanyId() && 
                        resource.id == getUserCompanyId();

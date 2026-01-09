@@ -7,6 +7,7 @@ interface WhatsAppButtonProps {
   docType: 'Orçamento' | 'OS' | 'Recibo';
   docLink: string;
   googleReviewUrl?: string;
+  approvalLink?: string; // Link de aprovação para OS
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -18,6 +19,7 @@ export function WhatsAppButton({
   docType,
   docLink,
   googleReviewUrl,
+  approvalLink,
   variant = 'primary',
   size = 'md',
   className = '',
@@ -41,13 +43,19 @@ export function WhatsAppButton({
   };
 
   const getMessage = (): string => {
-    const templates = {
-      'Orçamento': `Olá ${clientName}, segue o link do seu Orçamento: ${docLink}`,
-      'OS': `Olá ${clientName}, segue sua Ordem de Serviço digital: ${docLink}`,
-      'Recibo': `Olá ${clientName}, confirmamos seu pagamento. Segue o Recibo: ${docLink}`,
-    };
+    let message = '';
     
-    let message = templates[docType];
+    if (docType === 'OS' && approvalLink) {
+      // Para OS com link de aprovação, incluir ambos os links
+      message = `Olá ${clientName}, segue sua Ordem de Serviço digital:\n\n📋 Ver OS: ${docLink}\n\n✅ Aprovar/Rejeitar: ${approvalLink}`;
+    } else {
+      const templates = {
+        'Orçamento': `Olá ${clientName}, segue o link do seu Orçamento: ${docLink}`,
+        'OS': `Olá ${clientName}, segue sua Ordem de Serviço digital: ${docLink}`,
+        'Recibo': `Olá ${clientName}, confirmamos seu pagamento. Segue o Recibo: ${docLink}`,
+      };
+      message = templates[docType];
+    }
     
     // Append review link if available
     if (googleReviewUrl && googleReviewUrl.trim()) {

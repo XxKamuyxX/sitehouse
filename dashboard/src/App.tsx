@@ -465,9 +465,9 @@ function App() {
   return (
     <AuthProvider>
       <BrandingProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
       </BrandingProvider>
     </AuthProvider>
   );

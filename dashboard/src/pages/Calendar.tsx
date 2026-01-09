@@ -39,7 +39,7 @@ export function Calendar() {
 
   useEffect(() => {
     if (companyId) {
-      loadWorkOrders();
+    loadWorkOrders();
     }
   }, [companyId]);
 

@@ -354,7 +354,7 @@ export function QuotePDF({
             <Text style={[styles.tableCell, { flex: 3 }]}>SERVIÇO</Text>
             <Text style={styles.tableCellCenter}>QTD</Text>
             {!hideUnitPrice && (
-              <Text style={styles.tableCellRight}>PREÇO UNIT.</Text>
+            <Text style={styles.tableCellRight}>PREÇO UNIT.</Text>
             )}
             <Text style={styles.tableCellRight}>TOTAL</Text>
           </View>
@@ -427,9 +427,9 @@ export function QuotePDF({
                 </View>
                 <Text style={styles.tableCellCenter}>{item.quantity}</Text>
                 {!hideUnitPrice && (
-                  <Text style={styles.tableCellRight}>
-                    {item.pricingMethod === 'fixed' ? '-' : formatCurrency(item.unitPrice)}
-                  </Text>
+                <Text style={styles.tableCellRight}>
+                  {item.pricingMethod === 'fixed' ? '-' : formatCurrency(item.unitPrice)}
+                </Text>
                 )}
                 <Text style={styles.tableCellRight}>{formatCurrency(item.total)}</Text>
               </View>

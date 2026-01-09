@@ -102,32 +102,32 @@ export function ClientForm({ client, onSave, onCancel, vipCondominiums }: Client
           {/* Advanced Fields */}
           {showAdvanced && (
             <div className="space-y-4 pt-2 border-t border-slate-200">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Condomínio
-                </label>
-                <input
-                  type="text"
-                  list="condominiums"
-                  value={formData.condominium}
-                  onChange={(e) => setFormData({ ...formData, condominium: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Condomínio
+            </label>
+            <input
+              type="text"
+              list="condominiums"
+              value={formData.condominium}
+              onChange={(e) => setFormData({ ...formData, condominium: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Nome do condomínio (opcional)"
-                />
-                <datalist id="condominiums">
-                  {vipCondominiums.map((condo) => (
-                    <option key={condo} value={condo} />
-                  ))}
-                </datalist>
-              </div>
+            />
+            <datalist id="condominiums">
+              {vipCondominiums.map((condo) => (
+                <option key={condo} value={condo} />
+              ))}
+            </datalist>
+          </div>
 
-              <Input
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          <Input
+            label="Email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="email@exemplo.com (opcional)"
-              />
+          />
             </div>
           )}
 

@@ -153,12 +153,12 @@ export function QuoteNew() {
   useEffect(() => {
     const init = async () => {
       if (companyId) {
-        await loadClients();
-        await loadServices();
-        if (id) {
-          await loadQuote(id);
-        } else {
-          setLoading(false);
+      await loadClients();
+      await loadServices();
+      if (id) {
+        await loadQuote(id);
+      } else {
+        setLoading(false);
         }
       }
     };
@@ -1087,39 +1087,39 @@ export function QuoteNew() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                  <label className="block text-xs text-slate-600 mb-1">
-                                    Quantidade
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    value={item.quantity}
-                                    onChange={(e) =>
-                                      updateItem(index, 'quantity', parseFloat(e.target.value) || 1)
-                                    }
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                                  />
-                                </div>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs text-slate-600 mb-1">
+                                Quantidade
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateItem(index, 'quantity', parseFloat(e.target.value) || 1)
+                                }
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                              />
+                            </div>
                                 {/* Hide unit price if service is from catalog (not custom) */}
                                 {item.isCustom ? (
-                                  <div>
-                                    <label className="block text-xs text-slate-600 mb-1">
-                                      Preço / Unidade
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={item.unitPrice}
-                                      onChange={(e) =>
-                                        updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
-                                      }
-                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                                    />
-                                  </div>
+                            <div>
+                              <label className="block text-xs text-slate-600 mb-1">
+                                Preço / Unidade
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
+                                }
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                              />
+                            </div>
                                 ) : (
                                   <div>
                                     <label className="block text-xs text-slate-600 mb-1">
@@ -1131,12 +1131,12 @@ export function QuoteNew() {
                                     </div>
                                   </div>
                                 )}
-                                <div>
-                                  <label className="block text-xs text-slate-600 mb-1">Total</label>
-                                  <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg font-medium text-navy">
-                                    R$ {item.total.toFixed(2)}
-                                  </div>
-                                </div>
+                            <div>
+                              <label className="block text-xs text-slate-600 mb-1">Total</label>
+                              <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg font-medium text-navy">
+                                R$ {item.total.toFixed(2)}
+                              </div>
+                            </div>
                               </div>
                             )}
                           </div>
