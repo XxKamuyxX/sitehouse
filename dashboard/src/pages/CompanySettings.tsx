@@ -2,6 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
 import { Save, Upload, X, Plus, Edit2, Trash2, Package } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../hooks/useCompany';
@@ -28,6 +29,7 @@ export function CompanySettings() {
     primaryColor: '#0F172A',
     googleReviewUrl: '',
     contractTemplate: '',
+    segment: 'glazier' as string,
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export function CompanySettings() {
         primaryColor: (company as any).primaryColor || '#0F172A',
         googleReviewUrl: (company as any).googleReviewUrl || '',
         contractTemplate: (company as any).contractTemplate || '',
+        segment: (company as any).segment || 'glazier', // Default to glazier if not set
       });
       setLogoUrl(company.logoUrl || null);
       setLogoPreview(company.logoUrl || null);
@@ -288,6 +291,7 @@ export function CompanySettings() {
         cnpj: formData.cnpj?.trim() || '',
         email: formData.email?.trim() || '',
         googleReviewUrl: formData.googleReviewUrl?.trim() || '',
+        segment: formData.segment || 'glazier', // Default to glazier if not set (migration)
       };
 
       // Only include logoUrl and signatureUrl if they exist
@@ -338,6 +342,22 @@ export function CompanySettings() {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Nome que aparecerá no sistema e nos PDFs"
               required
+            />
+
+            <Select
+              label="Ramo de Atividade"
+              value={formData.segment}
+              onChange={(e) => setFormData({ ...formData, segment: e.target.value })}
+              options={[
+                { value: 'glazier', label: 'Vidraçaria' },
+                { value: 'metalwork', label: 'Serralheria' },
+                { value: 'locksmith', label: 'Chaveiro' },
+                { value: 'painter', label: 'Pintura' },
+                { value: 'electrician', label: 'Elétrica' },
+                { value: 'plumber', label: 'Hidráulica' },
+                { value: 'handyman', label: 'Marido de Aluguel' },
+                { value: 'hvac', label: 'Climatização' },
+              ]}
             />
 
             <div>
