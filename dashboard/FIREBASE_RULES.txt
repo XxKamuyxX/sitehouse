@@ -22,15 +22,18 @@ service cloud.firestore {
       return hasCompanyId() ? getUserDoc().data.companyId : null;
     }
     
-    // Users - own document access OR master can read all
+    // Helper function for master check (must be at top level)
+    function isMaster() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserDoc().data.role == 'master';
+    }
+    
+    // Users - own document access OR master can read/write all
     match /users/{userId} {
-      function isMaster() {
-        return isAuthenticated() && 
-               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-               getUserDoc().data.role == 'master';
-      }
-      allow read: if (isAuthenticated() && request.auth.uid == userId) || isMaster();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      // Master can read/write ANY user. Regular users can only read/write their own.
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isMaster());
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isMaster());
     }
     
     // Clients - CRITICAL: Queries with companyId filter are allowed via allow read
@@ -50,42 +53,45 @@ service cloud.firestore {
                        resource.data.companyId == getUserCompanyId();
     }
     
-    // Companies - own company document OR master can read all
+    // Companies - own company document OR master can read/write all
     match /companies/{companyId} {
-      function isMaster() {
-        return isAuthenticated() && 
-               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-               getUserDoc().data.role == 'master';
-      }
-      allow read: if (isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.id == getUserCompanyId()) || isMaster();
+      // Master can read/write any company. Regular users can only access their own.
+      allow read: if isAuthenticated() && 
+                     ((hasCompanyId() && resource.id == getUserCompanyId()) || isMaster());
       allow create: if isAuthenticated() && 
                        hasCompanyId() && 
                        request.resource.id == getUserCompanyId();
-      allow update: if (isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.id == getUserCompanyId() &&
-                       request.resource.id == getUserCompanyId()) || isMaster();
+      allow update: if isAuthenticated() && 
+                       ((hasCompanyId() && 
+                         resource.id == getUserCompanyId() &&
+                         request.resource.id == getUserCompanyId()) || isMaster());
       allow delete: if isAuthenticated() && 
                        hasCompanyId() && 
                        resource.id == getUserCompanyId();
     }
     
-    // Work Orders
+    // Work Orders - Public read and approval allowed
     match /workOrders/{workOrderId} {
+      // Public read access (for sharing links)
       allow read: if true;
+      
+      // Only authenticated users with companyId can create
       allow create: if isAuthenticated() && 
                        hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
+      
+      // Update rules:
+      // 1. Authenticated users can update their own company's work orders
+      // 2. Unauthenticated users can ONLY update approval/rejection fields
       allow update: if (isAuthenticated() && hasCompanyId() && 
                         resource.data.companyId == getUserCompanyId() &&
                         request.resource.data.companyId == getUserCompanyId()) ||
+                      // Public approval: allow unauthenticated updates ONLY for approval fields
                       (!isAuthenticated() &&
-                       request.resource.data.diff(resource.data).unchangedKeys()
-                         .hasAll(['quoteId', 'clientName', 'clientId', 'scheduledDate', 'scheduledTime', 'technician', 'status', 'checklist', 'notes', 'photos', 'technicalInspection', 'createdAt', 'companyId', 'items', 'total']) &&
                        request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate', 'feedbackComment']));
+                         .hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt']));
+      
+      // Only authenticated users with companyId can delete
       allow delete: if isAuthenticated() && 
                        hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
@@ -148,14 +154,10 @@ service cloud.firestore {
     
     // Templates
     match /templates/{templateId} {
+      // All authenticated users can read templates
       allow read: if isAuthenticated();
       
-      function isMaster() {
-        return isAuthenticated() && 
-               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-               getUserDoc().data.role == 'master';
-      }
-      
+      // Only master can create/update/delete templates
       allow create, update, delete: if isMaster();
     }
     
