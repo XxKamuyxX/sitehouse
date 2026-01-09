@@ -43,6 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
         const data = userDoc.data();
+        console.log('User metadata loaded:', { userId, companyId: data.companyId, role: data.role });
+        if (!data.companyId) {
+          console.error('User document exists but companyId is missing!', data);
+          setUserMetadata(null);
+          return;
+        }
         setUserMetadata({
           companyId: data.companyId,
           role: data.role,
@@ -53,12 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isActive: data.isActive !== false, // Default to true if not set
         });
       } else {
+        console.error('User document does not exist for userId:', userId);
         // If user document doesn't exist, create it with default values
         // This handles legacy users - they'll need to be migrated
         setUserMetadata(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading user metadata:', error);
+      if (error.code === 'permission-denied') {
+        console.error('Permission denied when loading user metadata. Check Firestore rules for users collection.');
+      }
       setUserMetadata(null);
     }
   };
