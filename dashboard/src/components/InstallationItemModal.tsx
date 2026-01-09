@@ -164,24 +164,36 @@ export function InstallationItemModal({
       return;
     }
 
-    if (pricingMethod === 'fixed' && totalPrice <= 0) {
+    // Validate total price (always required)
+    if (totalPrice <= 0) {
       alert('Digite um valor total válido');
       return;
     }
 
-    if (pricingMethod === 'm2' && (!widthDisplay || !heightDisplay || !unitPriceDisplay || width <= 0 || height <= 0 || unitPrice <= 0)) {
-      alert('Preencha largura, altura e preço por m²');
-      return;
-    }
-
-    if (pricingMethod === 'linear' && (!widthDisplay || !unitPriceDisplay || width <= 0 || unitPrice <= 0)) {
-      alert('Preencha largura e preço por metro linear');
-      return;
-    }
-
-    if (pricingMethod === 'unit' && (!unitPriceDisplay || !quantityDisplay || unitPrice <= 0 || quantity <= 0)) {
-      alert('Preencha quantidade e preço unitário');
-      return;
+    // If manual override is active, skip dimension/price validation
+    // User can set total manually even without dimensions
+    if (isManualOverride || pricingMethod === 'fixed') {
+      // Only validate that total is set (already checked above)
+      // Allow saving with manual total even if dimensions are missing
+    } else {
+      // Auto-calculation mode: validate required fields
+      if (pricingMethod === 'm2') {
+        // For m2, validate dimensions and unit price only if not manually overridden
+        if (width <= 0 || height <= 0 || unitPrice <= 0) {
+          alert('Para cálculo automático por m², preencha largura, altura e preço por m²');
+          return;
+        }
+      } else if (pricingMethod === 'linear') {
+        if (width <= 0 || unitPrice <= 0) {
+          alert('Para cálculo automático linear, preencha largura e preço por metro linear');
+          return;
+        }
+      } else if (pricingMethod === 'unit') {
+        if (unitPrice <= 0 || quantity <= 0) {
+          alert('Para cálculo automático por unidade, preencha quantidade e preço unitário');
+          return;
+        }
+      }
     }
 
     onSave({
@@ -273,41 +285,105 @@ export function InstallationItemModal({
 
           {/* Dimensions and Pricing Fields - Only show for installation */}
           {isInstallation && (
-            <div className="grid grid-cols-2 gap-4">
-              {/* Width - Always shown for m2, linear, and fixed */}
-              {(pricingMethod === 'm2' || pricingMethod === 'linear' || pricingMethod === 'fixed') && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Width - Always shown for m2, linear, and fixed */}
+                {(pricingMethod === 'm2' || pricingMethod === 'linear' || pricingMethod === 'fixed') && (
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Largura (mm)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={widthDisplay}
+                      onChange={(e) => setWidthDisplay(e.target.value)}
+                      placeholder="Largura (mm)"
+                      className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                )}
+
+                {/* Height - Only for m2 and fixed */}
+                {(pricingMethod === 'm2' || pricingMethod === 'fixed') && (
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Altura (mm)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={heightDisplay}
+                      onChange={(e) => setHeightDisplay(e.target.value)}
+                      placeholder="Altura (mm)"
+                      className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Preço por m² - Only for m2 method */}
+              {pricingMethod === 'm2' && (
                 <div>
-                  <label className="block text-xs text-slate-600 mb-1">Largura (mm)</label>
+                  <label className="block text-xs text-slate-600 mb-1">Preço do Vidro (R$/m²)</label>
                   <input
                     type="number"
                     min="0"
-                    step="1"
-                    value={widthDisplay}
-                    onChange={(e) => setWidthDisplay(e.target.value)}
-                    placeholder="Largura (mm)"
+                    step="0.01"
+                    value={unitPriceDisplay}
+                    onChange={(e) => setUnitPriceDisplay(e.target.value)}
+                    placeholder="Preço por m²"
                     className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
                   />
                 </div>
               )}
 
-              {/* Height - Only for m2 and fixed */}
-              {(pricingMethod === 'm2' || pricingMethod === 'fixed') && (
+              {/* Preço por metro linear - Only for linear method */}
+              {pricingMethod === 'linear' && (
                 <div>
-                  <label className="block text-xs text-slate-600 mb-1">Altura (mm)</label>
+                  <label className="block text-xs text-slate-600 mb-1">Preço por Metro Linear (R$/m)</label>
                   <input
                     type="number"
                     min="0"
-                    step="1"
-                    value={heightDisplay}
-                    onChange={(e) => setHeightDisplay(e.target.value)}
-                    placeholder="Altura (mm)"
+                    step="0.01"
+                    value={unitPriceDisplay}
+                    onChange={(e) => setUnitPriceDisplay(e.target.value)}
+                    placeholder="Preço por metro linear"
                     className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-                    required={pricingMethod === 'm2'}
                   />
                 </div>
               )}
-            </div>
+
+              {/* Preço unitário - For unit method */}
+              {pricingMethod === 'unit' && (
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Preço Unitário (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={unitPriceDisplay}
+                    onChange={(e) => setUnitPriceDisplay(e.target.value)}
+                    placeholder="Preço unitário"
+                    className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              )}
+
+              {/* Quantity - Show for all installation methods except fixed */}
+              {pricingMethod !== 'fixed' && (
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Quantidade</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={quantityDisplay}
+                    onChange={(e) => setQuantityDisplay(e.target.value)}
+                    placeholder="Quantidade"
+                    className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {/* For maintenance, show simplified fields */}
@@ -359,7 +435,7 @@ export function InstallationItemModal({
             </div>
           )}
 
-          {/* Total Price */}
+          {/* Total Price - Always editable */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-slate-700">
@@ -370,7 +446,7 @@ export function InstallationItemModal({
                   type="button"
                   onClick={() => setIsManualOverride(!isManualOverride)}
                   className="flex items-center gap-1 text-xs text-slate-600 hover:text-secondary"
-                  title={isManualOverride ? 'Desbloquear edição automática' : 'Editar manualmente'}
+                  title={isManualOverride ? 'Ativar cálculo automático' : 'Edição manual ativa'}
                 >
                   {isManualOverride ? (
                     <>
@@ -380,7 +456,7 @@ export function InstallationItemModal({
                   ) : (
                     <>
                       <Lock className="w-3 h-3" />
-                      Automático
+                      Auto
                     </>
                   )}
                 </button>
@@ -393,6 +469,7 @@ export function InstallationItemModal({
               value={totalPriceDisplay}
               onChange={(e) => {
                 setTotalPriceDisplay(e.target.value);
+                // When user types, enable manual override
                 if (pricingMethod !== 'fixed') {
                   setIsManualOverride(true);
                 }
@@ -400,21 +477,25 @@ export function InstallationItemModal({
               placeholder="0,00"
               className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-medium text-navy"
               required
-              readOnly={!isManualOverride && pricingMethod !== 'fixed'}
             />
             {pricingMethod === 'm2' && !isManualOverride && width > 0 && height > 0 && unitPrice > 0 && quantity > 0 && (
               <p className="text-xs text-slate-500 mt-1">
-                Cálculo: {widthDisplay || '0'}m × {heightDisplay || '0'}m × {quantityDisplay || '1'} × R$ {unitPriceDisplay || '0'}/m² = R$ {totalPrice.toFixed(2)}
+                Cálculo: ({widthDisplay || '0'}mm × {heightDisplay || '0'}mm) / 1.000.000 = {((width * height) / 1000000).toFixed(2)}m² × {quantityDisplay || '1'} × R$ {unitPriceDisplay || '0'}/m² = R$ {totalPrice.toFixed(2)}
               </p>
             )}
             {pricingMethod === 'linear' && !isManualOverride && width > 0 && unitPrice > 0 && quantity > 0 && (
               <p className="text-xs text-slate-500 mt-1">
-                Cálculo: {widthDisplay || '0'}m × {quantityDisplay || '1'} × R$ {unitPriceDisplay || '0'}/m = R$ {totalPrice.toFixed(2)}
+                Cálculo: {widthDisplay || '0'}mm × {quantityDisplay || '1'} × R$ {unitPriceDisplay || '0'}/m = R$ {totalPrice.toFixed(2)}
               </p>
             )}
             {pricingMethod === 'unit' && !isManualOverride && unitPrice > 0 && quantity > 0 && (
               <p className="text-xs text-slate-500 mt-1">
                 Cálculo: {quantityDisplay || '1'} × R$ {unitPriceDisplay || '0'} = R$ {totalPrice.toFixed(2)}
+              </p>
+            )}
+            {isManualOverride && (
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠️ Modo manual: Total editado manualmente
               </p>
             )}
           </div>
