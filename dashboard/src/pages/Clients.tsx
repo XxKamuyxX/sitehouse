@@ -47,9 +47,14 @@ export function Clients() {
   }, [companyId]);
 
   const loadClients = async () => {
-    if (!companyId) return;
+    if (!companyId) {
+      console.error('Cannot load clients: companyId is not available');
+      setLoading(false);
+      return;
+    }
     
     try {
+      setLoading(true);
       const q = queryWithCompanyId('clients', companyId);
       const snapshot = await getDocs(q);
       const clientsData = snapshot.docs.map((doc) => ({
@@ -57,8 +62,13 @@ export function Clients() {
         ...doc.data(),
       })) as Client[];
       setClients(clientsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading clients:', error);
+      if (error.code === 'permission-denied') {
+        alert('Erro de permissão ao carregar clientes. Verifique se você tem acesso a esta empresa.');
+      } else {
+        alert(`Erro ao carregar clientes: ${error.message || 'Erro desconhecido'}`);
+      }
     } finally {
       setLoading(false);
     }

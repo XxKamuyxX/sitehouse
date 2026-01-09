@@ -3,11 +3,21 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function getUserCompanyId() {
       return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId is string &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId != '' &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
     }
     
     function isAuthenticated() {
       return request.auth != null;
+    }
+    
+    function hasCompanyId() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId is string &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId != '';
     }
     
     match /users/{userId} {
@@ -16,14 +26,14 @@ service cloud.firestore {
     }
     
     match /clients/{clientId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() && hasCompanyId() &&
                      resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId() &&
                        request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
     }
     
@@ -32,13 +42,13 @@ service cloud.firestore {
       allow read: if true;
       
       // Only authenticated users from the same company can create
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
       
       // Allow updates in two scenarios:
       // 1. Authenticated users from the same company (full access)
       // 2. Public users (unauthenticated) can only update approval/feedback fields
-      allow update: if (isAuthenticated() && 
+      allow update: if (isAuthenticated() && hasCompanyId() && 
                         resource.data.companyId == getUserCompanyId() &&
                         request.resource.data.companyId == getUserCompanyId()) ||
                       // Public update: only allow changes to approval/feedback fields
@@ -49,45 +59,45 @@ service cloud.firestore {
                          .hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate', 'feedbackComment']));
       
       // Only authenticated users from the same company can delete
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
     }
     
     match /expenses/{expenseId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() && hasCompanyId() && 
                      resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId() &&
                        request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
     }
     
     match /quotes/{quoteId} {
       allow read: if true;
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
-      allow update: if (isAuthenticated() && 
+      allow update: if (isAuthenticated() && hasCompanyId() && 
                         resource.data.companyId == getUserCompanyId() &&
                         request.resource.data.companyId == getUserCompanyId()) ||
                       (request.resource.data.diff(resource.data).unchangedKeys()
                         .hasAll(['clientId', 'clientName', 'items', 'subtotal', 'discount', 'total', 'warranty', 'observations', 'diagnosis', 'createdAt', 'companyId'])
                         && request.resource.data.status in ['approved', 'rejected']
                         && request.resource.data.updatedAt is timestamp);
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
     }
     
     match /receipts/{receiptId} {
       allow read: if true;
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId() &&
                        request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
     }
     
@@ -96,14 +106,14 @@ service cloud.firestore {
     }
     
     match /companies/{companyId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() && hasCompanyId() && 
                      resource.id == getUserCompanyId();
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.id == getUserCompanyId();
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() && hasCompanyId() && 
                        resource.id == getUserCompanyId() &&
                        request.resource.id == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.id == getUserCompanyId();
     }
     
@@ -120,14 +130,14 @@ service cloud.firestore {
     }
     
     match /services/{serviceId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() && hasCompanyId() && 
                      resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() && hasCompanyId() && 
                        request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId() &&
                        request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() && hasCompanyId() && 
                        resource.data.companyId == getUserCompanyId();
     }
   }
