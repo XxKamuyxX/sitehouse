@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { generateAffiliateCode } from '../utils/affiliateCode';
 
 export interface CompanyData {
   id: string;
@@ -17,6 +18,24 @@ export interface CompanyData {
   segment?: string; // 'glazier' | 'locksmith' | 'plumber' | 'handyman'
   createdAt?: any;
   updatedAt?: any;
+  // Affiliate System Fields
+  affiliateCode?: string; // Unique code (e.g., "VID4829")
+  referredBy?: string | null; // ID of the company who referred this user
+  referralStats?: {
+    activeReferrals: number; // Count of paying users referred
+    totalEarnings: number; // Lifetime value
+    currentTier: 'bronze' | 'silver' | 'gold' | 'diamond';
+  };
+  wallet?: {
+    pending: number; // Funds < 30 days old
+    available: number; // Funds ready for withdrawal
+    totalPaid: number; // Total paid out
+  };
+  // Discount fields
+  firstMonthDiscount?: boolean; // 15% discount on first month
+  discountExpirationDate?: any; // Timestamp when discount expires (created_at + 30 days)
+  // Stripe Integration
+  stripeCustomerId?: string; // Stripe Customer ID (e.g., "cus_12345")
 }
 
 export function useCompany() {
@@ -55,13 +74,29 @@ export function useCompany() {
       } else {
         // Create default company document if it doesn't exist
         try {
+          // Generate affiliate code for default company
+          const affiliateCode = await generateAffiliateCode('Gestor Vitreo');
+          
           const defaultCompany: Omit<CompanyData, 'id'> = {
             name: 'Gestor Vitreo',
             address: '',
             phone: '',
             email: '',
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            affiliateCode,
+            referredBy: null,
+            referralStats: {
+              activeReferrals: 0,
+              totalEarnings: 0,
+              currentTier: 'bronze',
+            },
+            wallet: {
+              pending: 0,
+              available: 0,
+              totalPaid: 0,
+            },
+            segment: 'glazier',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
           };
           
           await setDoc(doc(db, 'companies', companyId), defaultCompany);
@@ -93,7 +128,7 @@ export function useCompany() {
     try {
       const updateData = {
         ...data,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       };
       
       await setDoc(

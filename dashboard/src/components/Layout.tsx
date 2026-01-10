@@ -1,8 +1,10 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { Button } from './ui/Button';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { 
   LayoutDashboard, 
   Users, 
@@ -17,9 +19,9 @@ import {
   UserCog,
   Building2,
   Crown,
-  BookOpen
+  BookOpen,
+  Gift
 } from 'lucide-react';
-import { useState } from 'react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -44,12 +46,31 @@ export function Layout({ children }: LayoutProps) {
 
   const isAdmin = userMetadata?.role === 'admin';
   const isMaster = userMetadata?.role === 'master';
+  const [pendingPayoutsCount, setPendingPayoutsCount] = useState(0);
+  
+  // Monitor pending payout requests for master users
+  useEffect(() => {
+    if (!isMaster) return;
+
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'payout_requests'), where('status', '==', 'pending')),
+      (snapshot: any) => {
+        setPendingPayoutsCount(snapshot.size);
+      },
+      (error: any) => {
+        console.error('Error monitoring payout requests:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [isMaster]);
   
   // Master users navigation items
   const masterNavItems = isMaster
     ? [
         { path: '/master', icon: Crown, label: '👑 Gestão SaaS' },
         { path: '/master/templates', icon: BookOpen, label: '📚 Biblioteca de Projetos' },
+        { path: '/master/payouts', icon: DollarSign, label: '💰 Saques', badge: pendingPayoutsCount },
       ]
     : [];
 
@@ -66,6 +87,7 @@ export function Layout({ children }: LayoutProps) {
         ...(isAdmin ? [
           { path: '/admin/team', icon: UserCog, label: 'Equipe' },
           { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
+          { path: '/admin/affiliates', icon: Gift, label: 'Indique e Ganhe' },
         ] : []),
         { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
       ];
@@ -108,11 +130,12 @@ export function Layout({ children }: LayoutProps) {
               })}
               {isMaster && masterNavItems.map((item) => {
                 const Icon = item.icon;
+                const badgeCount = (item as any).badge || 0;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors relative ${
                       isActive(item.path)
                         ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/20'
                         : 'text-slate-700 hover:bg-glass-blue'
@@ -120,6 +143,11 @@ export function Layout({ children }: LayoutProps) {
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.label}</span>
+                    {badgeCount > 0 && (
+                      <span className="absolute top-1 right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {badgeCount > 9 ? '9+' : badgeCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -172,12 +200,13 @@ export function Layout({ children }: LayoutProps) {
               })}
               {isMaster && masterNavItems.map((item) => {
                 const Icon = item.icon;
+                const badgeCount = (item as any).badge || 0;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
                       isActive(item.path)
                         ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/20'
                         : 'text-slate-700 hover:bg-glass-blue'
@@ -185,6 +214,11 @@ export function Layout({ children }: LayoutProps) {
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.label}</span>
+                    {badgeCount > 0 && (
+                      <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {badgeCount > 9 ? '9+' : badgeCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

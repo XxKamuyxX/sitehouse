@@ -23,9 +23,11 @@ import { AdminCalendar } from './pages/AdminCalendar';
 import { CompanySettings } from './pages/CompanySettings';
 import { MasterDashboard } from './pages/MasterDashboard';
 import { TemplateManager } from './pages/master/TemplateManager';
+import { PayoutManagement } from './pages/master/PayoutManagement';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { RootRedirect } from './components/RootRedirect';
+import { Affiliates } from './pages/Affiliates';
 
 // Helper function to check if subscription is expired
 function isSubscriptionExpired(userMetadata: any): boolean {
@@ -34,8 +36,8 @@ function isSubscriptionExpired(userMetadata: any): boolean {
     return false;
   }
 
-  // If subscription is active, not expired
-  if (userMetadata?.subscriptionStatus === 'active') {
+  // If subscription is active or trialing, not expired
+  if (userMetadata?.subscriptionStatus === 'active' || userMetadata?.subscriptionStatus === 'trialing') {
     return false;
   }
 
@@ -51,8 +53,10 @@ function isSubscriptionExpired(userMetadata: any): boolean {
       : new Date(userMetadata.trialEndsAt);
     const now = new Date();
     
-    // If trial ended and status is not active, it's expired
-    if (now > trialEndDate && userMetadata?.subscriptionStatus !== 'active') {
+    // If trial ended and status is not active/trialing, it's expired
+    if (now > trialEndDate && 
+        userMetadata?.subscriptionStatus !== 'active' && 
+        userMetadata?.subscriptionStatus !== 'trialing') {
       return true;
     }
   }
@@ -328,6 +332,14 @@ function AppRoutes() {
           </AdminRoute>
         }
       />
+      <Route
+        path="/admin/affiliates"
+        element={
+          <AdminRoute>
+            <Affiliates />
+          </AdminRoute>
+        }
+      />
       
       {/* Rotas Legacy (redirecionam para admin) */}
       <Route
@@ -451,6 +463,14 @@ function AppRoutes() {
         element={
           <MasterRoute>
             <TemplateManager />
+          </MasterRoute>
+        }
+      />
+      <Route
+        path="/master/payouts"
+        element={
+          <MasterRoute>
+            <PayoutManagement />
           </MasterRoute>
         }
       />

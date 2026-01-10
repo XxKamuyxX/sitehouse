@@ -3,10 +3,13 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { Edit2, Crown, RefreshCw, Pause, Play, Trash2, Plus } from 'lucide-react';
+import { Edit2, Crown, RefreshCw, Pause, Play, Trash2, Plus, Key } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, updateDoc, setDoc, getDoc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { generateAffiliateCode } from '../utils/affiliateCode';
+import { processPaymentCommission } from '../utils/referralCommission';
+import { syncStripeCustomer } from '../services/stripe';
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { firebaseConfig } from '../lib/firebase';
@@ -168,12 +171,23 @@ export function MasterDashboard() {
     try {
       const expirationTimestamp = Timestamp.fromDate(new Date(renewForm.expirationDate));
       
+      // Update user subscription status
       await updateDoc(doc(db, 'users', renewingOwner.id), {
         expirationDate: expirationTimestamp,
         subscriptionStatus: 'active',
         status: 'active',
         updatedAt: Timestamp.now(),
       });
+      
+      // Process commission for referrer if applicable
+      // Monthly subscription price is R$ 40.00 (can be adjusted)
+      const monthlySubscriptionPrice = 40.00;
+      try {
+        await processPaymentCommission(renewingOwner.companyId, monthlySubscriptionPrice);
+      } catch (commissionError) {
+        console.error('Error processing commission (non-blocking):', commissionError);
+        // Don't block subscription renewal if commission processing fails
+      }
       
       alert('Assinatura renovada com sucesso!');
       setRenewingOwner(null);
@@ -266,17 +280,41 @@ export function MasterDashboard() {
         createdAt: Timestamp.now(),
       });
 
-      // 4. Create company document
+      // 4. Generate affiliate code for new company
+      const affiliateCode = await generateAffiliateCode(newCompanyForm.companyName);
+      
+      // 5. Create company document with affiliate system fields
       await setDoc(doc(db, 'companies', companyId), {
         name: newCompanyForm.companyName,
         phone: newCompanyForm.phone,
         email: newCompanyForm.email,
         address: '',
+        affiliateCode,
+        referredBy: null,
+        referralStats: {
+          activeReferrals: 0,
+          totalEarnings: 0,
+          currentTier: 'bronze',
+        },
+        wallet: {
+          pending: 0,
+          available: 0,
+          totalPaid: 0,
+        },
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
 
-      // 5. Sign out the secondary user immediately
+      // 6. Sync with Stripe (create customer)
+      // This is non-blocking - if it fails, company is still created
+      try {
+        await syncStripeCustomer(companyId, newCompanyForm.email, newCompanyForm.companyName);
+      } catch (stripeError) {
+        console.error('Error syncing with Stripe (non-blocking):', stripeError);
+        // Don't throw - company creation should succeed even if Stripe sync fails
+      }
+
+      // 6. Sign out the secondary user immediately
       await signOut(secondaryAuth);
       
       alert('Empresa criada com sucesso!');
@@ -319,6 +357,103 @@ export function MasterDashboard() {
     );
   };
 
+  // Migration function: Generate missing affiliate codes
+  const [migrating, setMigrating] = useState(false);
+  const [migrationResults, setMigrationResults] = useState<{
+    total: number;
+    updated: number;
+    errors: number;
+    details: string[];
+  } | null>(null);
+
+  const handleGenerateMissingCodes = async () => {
+    if (!confirm('Esta operação irá gerar códigos de afiliado para todas as empresas que ainda não possuem. Continuar?')) {
+      return;
+    }
+
+    try {
+      setMigrating(true);
+      setMigrationResults(null);
+      
+      // Fetch all companies
+      const companiesSnapshot = await getDocs(collection(db, 'companies'));
+      const companies = companiesSnapshot.docs;
+      
+      let updated = 0;
+      let errors = 0;
+      const details: string[] = [];
+      
+      for (const companyDoc of companies) {
+        const companyData = companyDoc.data();
+        
+        // Skip if already has affiliate code
+        if (companyData.affiliateCode) {
+          continue;
+        }
+        
+        try {
+          const companyName = companyData.name || 'COMPANY';
+          const affiliateCode = await generateAffiliateCode(companyName);
+          
+          // Update company with affiliate code and initialize affiliate fields
+          const updateData: any = {
+            affiliateCode,
+            updatedAt: Timestamp.now(),
+          };
+          
+          // Initialize referralStats if not exists
+          if (!companyData.referralStats) {
+            updateData.referralStats = {
+              activeReferrals: 0,
+              totalEarnings: 0,
+              currentTier: 'bronze',
+            };
+          }
+          
+          // Initialize wallet if not exists
+          if (!companyData.wallet) {
+            updateData.wallet = {
+              pending: 0,
+              available: 0,
+              totalPaid: 0,
+            };
+          }
+          
+          // Initialize referredBy if not exists
+          if (companyData.referredBy === undefined) {
+            updateData.referredBy = null;
+          }
+          
+          await updateDoc(doc(db, 'companies', companyDoc.id), updateData);
+          
+          updated++;
+          details.push(`${companyName}: ${affiliateCode}`);
+        } catch (error: any) {
+          errors++;
+          details.push(`ERRO - ${companyData.name || companyDoc.id}: ${error.message}`);
+          console.error(`Error updating company ${companyDoc.id}:`, error);
+        }
+      }
+      
+      setMigrationResults({
+        total: companies.length,
+        updated,
+        errors,
+        details,
+      });
+      
+      alert(`Migração concluída!\n\nTotal de empresas: ${companies.length}\nAtualizadas: ${updated}\nErros: ${errors}`);
+      
+      // Reload owners to show updated data
+      await loadOwners();
+    } catch (error: any) {
+      console.error('Error during migration:', error);
+      alert(`Erro durante a migração: ${error.message}`);
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -341,15 +476,61 @@ export function MasterDashboard() {
               <p className="text-slate-600 mt-1">Gerencie assinaturas e acessos das empresas</p>
             </div>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => setShowNewCompanyModal(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Nova Empresa
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleGenerateMissingCodes}
+              disabled={migrating}
+              className="flex items-center gap-2"
+            >
+              <Key className="w-5 h-5" />
+              {migrating ? 'Gerando Códigos...' : 'Gerar Códigos de Afiliado'}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => setShowNewCompanyModal(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Nova Empresa
+            </Button>
+          </div>
         </div>
+
+        {/* Migration Results */}
+        {migrationResults && (
+          <Card>
+            <h2 className="text-xl font-bold text-navy mb-4">Resultados da Migração</h2>
+            <div className="space-y-2 mb-4">
+              <p className="text-slate-700">
+                <strong>Total de empresas:</strong> {migrationResults.total}
+              </p>
+              <p className="text-green-700">
+                <strong>Atualizadas:</strong> {migrationResults.updated}
+              </p>
+              {migrationResults.errors > 0 && (
+                <p className="text-red-700">
+                  <strong>Erros:</strong> {migrationResults.errors}
+                </p>
+              )}
+            </div>
+            {migrationResults.details.length > 0 && (
+              <div className="max-h-64 overflow-y-auto bg-slate-50 rounded-lg p-4">
+                <p className="text-sm font-semibold text-slate-700 mb-2">Detalhes:</p>
+                <ul className="text-sm text-slate-600 space-y-1">
+                  {migrationResults.details.slice(0, 50).map((detail, index) => (
+                    <li key={index}>{detail}</li>
+                  ))}
+                  {migrationResults.details.length > 50 && (
+                    <li className="text-slate-500 italic">
+                      ... e mais {migrationResults.details.length - 50} empresas
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Table */}
         <Card>

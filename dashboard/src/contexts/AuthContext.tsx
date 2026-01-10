@@ -8,6 +8,8 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { generateAffiliateCode } from '../utils/affiliateCode';
+import { syncStripeCustomer } from '../services/stripe';
 
 export type UserRole = 'admin' | 'tech' | 'master';
 
@@ -16,7 +18,7 @@ export interface UserMetadata {
   role: UserRole;
   name?: string;
   email: string;
-  subscriptionStatus?: 'trial' | 'active' | 'expired';
+  subscriptionStatus?: 'trial' | 'trialing' | 'active' | 'expired' | 'canceled' | 'past_due';
   trialEndsAt?: any;
   isActive?: boolean;
 }
@@ -28,7 +30,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   createUser: (email: string, password: string, companyId: string, role: UserRole, name?: string) => Promise<void>;
-  signUp: (email: string, password: string, companyName: string, ownerName: string, phone: string) => Promise<void>;
+  signUp: (email: string, password: string, companyName: string, ownerName: string, phone: string, referredBy?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const signUp = async (email: string, password: string, companyName: string, ownerName: string, phone: string) => {
+  const signUp = async (email: string, password: string, companyName: string, ownerName: string, phone: string, referredBy?: string) => {
     // Generate unique companyId (slugified name + random string)
     const slug = companyName
       .toLowerCase()
@@ -140,15 +142,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       createdAt: Timestamp.now(),
     });
 
-    // Create company document
+    // Generate affiliate code for new company
+    const affiliateCode = await generateAffiliateCode(companyName);
+    
+    // Calculate discount expiration date (30 days from now if referred)
+    const discountExpirationDate = referredBy
+      ? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+      : null;
+    
+    // Create company document with affiliate system fields
     await setDoc(doc(db, 'companies', companyId), {
       name: companyName,
       phone,
       email,
       address: '',
+      affiliateCode,
+      referredBy: referredBy || null,
+      firstMonthDiscount: referredBy ? true : false,
+      discountExpirationDate: discountExpirationDate || null,
+      referralStats: {
+        activeReferrals: 0,
+        totalEarnings: 0,
+        currentTier: 'bronze',
+      },
+      wallet: {
+        pending: 0,
+        available: 0,
+        totalPaid: 0,
+      },
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+
+    // Sync with Stripe (create customer)
+    // This is non-blocking - if it fails, company is still created
+    try {
+      await syncStripeCustomer(companyId, email, companyName);
+    } catch (stripeError) {
+      console.error('Error syncing with Stripe (non-blocking):', stripeError);
+      // Don't throw - company creation should succeed even if Stripe sync fails
+    }
   };
 
   return (

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { getDocs } from 'firebase/firestore';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
+import { maturePendingCommissions } from '../utils/referralCommission';
 
 export function Dashboard() {
   const { userMetadata } = useAuth();
@@ -24,6 +25,28 @@ export function Dashboard() {
       loadDashboardStats();
     }
   }, [companyId]);
+
+  // Mature pending commissions on dashboard load (runs once per session)
+  useEffect(() => {
+    let hasRun = false;
+    const runMaturation = async () => {
+      if (hasRun) return;
+      hasRun = true;
+      try {
+        // Only run for admin users (those who can have referrals)
+        if (userMetadata?.role === 'admin') {
+          await maturePendingCommissions();
+        }
+      } catch (error) {
+        console.error('Error maturing commissions (non-blocking):', error);
+        // Don't block dashboard load if maturation fails
+      }
+    };
+    
+    // Small delay to not block initial render
+    const timer = setTimeout(runMaturation, 2000);
+    return () => clearTimeout(timer);
+  }, [userMetadata?.role]);
 
   const loadDashboardStats = async () => {
     if (!companyId) return;

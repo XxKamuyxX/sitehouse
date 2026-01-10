@@ -1,10 +1,12 @@
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Save } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Save, CheckCircle2, XCircle } from 'lucide-react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { SubscribeButton } from '../components/SubscribeButton';
 
 interface ServiceConfig {
   id: string;
@@ -15,6 +17,17 @@ interface ServiceConfig {
 }
 
 export function Settings() {
+  const [searchParams] = useSearchParams();
+  const [checkoutStatus, setCheckoutStatus] = useState<'success' | 'cancel' | null>(null);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'success' || status === 'cancel') {
+      setCheckoutStatus(status);
+      // Clear URL parameter after showing message
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
 
   const [services, setServices] = useState<ServiceConfig[]>([
     {
@@ -129,6 +142,57 @@ export function Settings() {
           <p className="text-slate-600 mt-1">Configure os serviços disponíveis</p>
         </div>
 
+        {/* Checkout Status Messages */}
+        {checkoutStatus === 'success' && (
+          <Card className="mb-6 border-green-500 border-2 bg-green-50">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <div>
+                <h3 className="font-bold text-green-800">Pagamento processado com sucesso!</h3>
+                <p className="text-sm text-green-700">Sua assinatura foi ativada. Obrigado!</p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {checkoutStatus === 'cancel' && (
+          <Card className="mb-6 border-yellow-500 border-2 bg-yellow-50">
+            <div className="flex items-center gap-3">
+              <XCircle className="w-6 h-6 text-yellow-600" />
+              <div>
+                <h3 className="font-bold text-yellow-800">Pagamento cancelado</h3>
+                <p className="text-sm text-yellow-700">Você pode tentar novamente quando quiser.</p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Subscription Section */}
+        <Card className="mb-6">
+          <h2 className="text-xl font-bold text-navy mb-4">Assinatura</h2>
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <p className="text-sm font-semibold text-green-800 mb-1">
+                🎁 7 dias grátis para testar
+              </p>
+              <p className="text-xs text-green-700">
+                Após o período de teste, cobrança mensal automática
+              </p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-4 mb-4">
+              <p className="text-slate-700 mb-2">
+                <strong>Plano:</strong> Mensal - R$ 40,00/mês
+              </p>
+              <p className="text-sm text-slate-500">
+                Pagamento via Cartão (recomendado para período de teste), PIX ou Boleto. Renovação automática mensal.
+              </p>
+            </div>
+            <SubscribeButton
+              fullWidth={false}
+              className="w-full md:w-auto"
+            />
+          </div>
+        </Card>
 
         {/* Services Configuration */}
         <Card>

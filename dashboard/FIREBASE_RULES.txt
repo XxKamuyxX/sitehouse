@@ -161,21 +161,68 @@ service cloud.firestore {
       allow create, update, delete: if isMaster();
     }
     
-    // Services
-    match /services/{serviceId} {
-      allow read: if isAuthenticated() && 
-                     hasCompanyId() && 
-                     resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId() &&
-                       request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+        // Services
+        match /services/{serviceId} {
+          allow read: if isAuthenticated() && 
+                         hasCompanyId() && 
+                         resource.data.companyId == getUserCompanyId();
+          allow create: if isAuthenticated() && 
+                           hasCompanyId() && 
+                           request.resource.data.companyId == getUserCompanyId();
+          allow update: if isAuthenticated() && 
+                           hasCompanyId() && 
+                           resource.data.companyId == getUserCompanyId() &&
+                           request.resource.data.companyId == getUserCompanyId();
+          allow delete: if isAuthenticated() && 
+                           hasCompanyId() && 
+                           resource.data.companyId == getUserCompanyId();
+        }
+        
+        // Referral Ledger - Commission tracking
+        match /referral_ledger/{ledgerId} {
+          // Users can read their own referral ledger entries (where they are the referrer)
+          allow read: if isAuthenticated() && 
+                         hasCompanyId() && 
+                         resource.data.referrerId == getUserCompanyId();
+          
+          // Only server/admin can create ledger entries (via processPaymentCommission)
+          allow create: if isAuthenticated() && 
+                           hasCompanyId() && 
+                           request.resource.data.referrerId == getUserCompanyId();
+          
+          // Users can update their own ledger entries for status changes (pending -> released -> paid)
+          allow update: if isAuthenticated() && 
+                           hasCompanyId() && 
+                           resource.data.referrerId == getUserCompanyId() &&
+                           request.resource.data.referrerId == getUserCompanyId() &&
+                           // Only allow updating status, releasedAt, and paidAt fields
+                           request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['status', 'releasedAt', 'paidAt', 'updatedAt']);
+          
+          // No delete allowed for ledger entries (audit trail)
+          allow delete: if false;
+        }
+        
+        // Payout Requests - Withdrawal requests from affiliates
+        match /payout_requests/{requestId} {
+          // Users can read their own payout requests
+          allow read: if isAuthenticated() && 
+                         ((hasCompanyId() && resource.data.companyId == getUserCompanyId()) || isMaster());
+          
+          // Users can create their own payout requests
+          allow create: if isAuthenticated() && 
+                           hasCompanyId() && 
+                           request.resource.data.companyId == getUserCompanyId() &&
+                           request.resource.data.status == 'pending' &&
+                           request.resource.data.amount is number &&
+                           request.resource.data.pixKey is string;
+          
+          // Master can update any payout request (to approve/pay/reject)
+          // Users cannot update their own requests
+          allow update: if isMaster();
+          
+          // No delete allowed (audit trail)
+          allow delete: if false;
+        }
+      }
     }
-  }
-}
