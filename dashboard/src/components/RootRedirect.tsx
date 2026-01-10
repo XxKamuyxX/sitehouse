@@ -9,8 +9,10 @@ export function RootRedirect() {
   useEffect(() => {
     if (loading) return;
 
+    // If not authenticated, redirect to landing page (/)
+    // Landing page will show login/signup options
     if (!user) {
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
       return;
     }
 

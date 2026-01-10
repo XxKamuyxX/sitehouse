@@ -28,6 +28,8 @@ import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
+import { Landing } from './pages/Landing';
+import { MarketingLayout } from './components/MarketingLayout';
 
 // Helper function to check if subscription is expired
 function isSubscriptionExpired(userMetadata: any): boolean {
@@ -211,6 +213,20 @@ function ExpiredRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
+      {/* ============================================ */}
+      {/* MARKETING ROUTES (Public Landing Page) */}
+      {/* Simulates: src/app/(marketing)/page.tsx */}
+      {/* ============================================ */}
+      <Route 
+        path="/" 
+        element={
+          <MarketingLayout>
+            <Landing />
+          </MarketingLayout>
+        } 
+      />
+      
+      {/* Public Auth Routes - No Layout */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
       <Route 
@@ -227,7 +243,14 @@ function AppRoutes() {
       <Route path="/p/os/:osId/approve" element={<PublicWorkOrderApprove />} />
       <Route path="/p/receipt/:receiptId" element={<PublicReceipt />} />
       <Route path="/feedback/:osId" element={<Feedback />} />
-      {/* Rotas Admin */}
+      
+      {/* ============================================ */}
+      {/* DASHBOARD ROUTES (SaaS App with Sidebar) */}
+      {/* Simulates: src/app/(dashboard)/[route]/page.tsx */}
+      {/* Layout is applied inside each page component */}
+      {/* ============================================ */}
+      
+      {/* Admin Routes */}
       <Route
         path="/admin/dashboard"
         element={
@@ -475,8 +498,19 @@ function AppRoutes() {
         }
       />
       
-      {/* Redirect root based on role */}
-      <Route path="/" element={<RootRedirect />} />
+      {/* Marketing/Landing Page - Public (Route Group: marketing) */}
+      {/* This route should be checked first, but if user is authenticated, show dashboard */}
+      <Route 
+        path="/" 
+        element={
+          <MarketingLayout>
+            <Landing />
+          </MarketingLayout>
+        } 
+      />
+      
+      {/* Legacy redirect for authenticated users accessing root */}
+      <Route path="/dashboard" element={<RootRedirect />} />
     </Routes>
   );
 }
