@@ -68,7 +68,8 @@ export async function createStripeCustomerBackend(
  * 1. Create Product in Stripe Dashboard: "Mensalidade Gestor" - R$ 40.00/month
  * 2. Copy the Price ID (e.g., "price_1234567890")
  * 3. Create Coupon: 15% off (ID: e.g., "FIRST_MONTH_15")
- * 4. Enable PIX and Boleto in Stripe Dashboard > Settings > Payment methods
+ * 4. Enable Boleto in Stripe Dashboard > Settings > Payment methods
+ *    Note: PIX requires 60 days for new accounts in Brazil, so we launch with Card and Boleto only
  */
 export async function createSubscriptionCheckoutBackend(
   companyId: string,
@@ -90,12 +91,11 @@ export async function createSubscriptionCheckoutBackend(
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: stripeCustomerId,
       mode: 'subscription',
-      // For trials, prefer card to ensure seamless billing after trial ends
-      // PIX can still work but requires manual invoice handling after trial
-      // For trials, prefer card to ensure seamless billing after trial ends
-      // PIX can still work but requires manual invoice handling after trial
+      // Payment methods: Card (recommended for trials) and Boleto
+      // Note: PIX is not available for new Stripe accounts in Brazil (60-day restriction)
+      // We launch with Card and Boleto only
       // Stripe will require a payment method to be saved during trial for automatic billing
-      payment_method_types: ['card', 'boleto', 'pix'],
+      payment_method_types: ['card', 'boleto'],
       line_items: [
         {
           price: PRICE_ID,

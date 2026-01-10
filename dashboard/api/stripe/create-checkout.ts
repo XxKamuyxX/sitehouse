@@ -86,8 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: stripeCustomerId,
       mode: 'subscription',
-      // For trials, prefer card to ensure seamless billing after trial ends
-      // Boleto is also available; PIX is handled automatically by Stripe in subscription invoices
+      // Payment methods: Card (recommended for trials) and Boleto
+      // Note: PIX is not available for new Stripe accounts in Brazil (60-day restriction)
+      // We launch with Card and Boleto only
       payment_method_types: ['card', 'boleto'],
       line_items: [
         {

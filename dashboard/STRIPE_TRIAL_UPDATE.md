@@ -79,17 +79,17 @@ subscription_data: {
 
 ## 💳 Métodos de Pagamento
 
-- **Cartão (Recomendado para Trial)**
+- **Cartão de Crédito (Recomendado para Trial)**
   - Melhor experiência: cobrança automática após trial sem intervenção
-  - Sem necessidade de enviar código PIX manualmente
-
-- **PIX**
-  - Funciona, mas após o trial, o Stripe gerará um código PIX para pagamento
-  - Requer que o usuário pague manualmente o código gerado
-  - Pode causar atraso ou esquecimento
+  - Renovação automática mensal sem necessidade de ação do usuário
+  - Ideal para período de teste
 
 - **Boleto**
-  - Similar ao PIX - requer pagamento manual após o trial
+  - Disponível como alternativa
+  - Requer pagamento manual após o trial
+  - Renovação mensal também requer pagamento manual
+
+**Nota**: PIX não está disponível para contas novas no Stripe Brasil (restrição de 60 dias). Lançamos com Cartão e Boleto apenas.
 
 ## ⚙️ Configuração Necessária no Stripe Dashboard
 

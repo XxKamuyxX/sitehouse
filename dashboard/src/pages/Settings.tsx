@@ -184,7 +184,7 @@ export function Settings() {
                 <strong>Plano:</strong> Mensal - R$ 40,00/mês
               </p>
               <p className="text-sm text-slate-500">
-                Pagamento via Cartão (recomendado para período de teste), PIX ou Boleto. Renovação automática mensal.
+                Pagamento via Cartão de Crédito (recomendado para período de teste) ou Boleto. Renovação automática mensal.
               </p>
             </div>
             <SubscribeButton
