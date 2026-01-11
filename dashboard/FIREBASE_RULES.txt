@@ -1,11 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // --- HELPER FUNCTIONS ---
+    
+    // --- FUNÇÕES AUXILIARES ---
+    
     function isAuthenticated() {
       return request.auth != null;
     }
     
+    // 👑 FUNÇÃO MASTER (Dono Supremo)
+    // Libera acesso total para o seu e-mail
+    function isMaster() {
+      return isAuthenticated() && request.auth.token.email == "poucavistavidelonge@gmail.com";
+    }
+
     function getUserDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
@@ -21,240 +29,108 @@ service cloud.firestore {
     function getUserCompanyId() {
       return hasCompanyId() ? getUserDoc().data.companyId : null;
     }
-    
-    function isMaster() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             getUserDoc().data.role == 'master';
-    }
-    
-    // Helper to check if document belongs to user's company
-    function belongsToMyCompany(resourceId) {
-      return hasCompanyId() && resourceId == getUserCompanyId();
-    }
 
-    // --- USERS ---
+    // Verifica se o usuário pertence à mesma empresa do documento que está tentando ler
+    function isSameCompany(resourceData) {
+      return hasCompanyId() && resourceData.companyId == getUserCompanyId();
+    }
+    
+    // --- REGRAS DAS COLEÇÕES ---
+
+    // 1. USERS (Usuários)
     match /users/{userId} {
-      // Master can read/write ANY user. Regular users can only read/write their own.
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isMaster());
-      
-      // CREATE: Allow authenticated users to create their own document
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      
-      // UPDATE: Users can update their own document, BUT BLOCK SENSITIVE FIELDS
-      // Only Admin SDK (backend) can change subscriptionStatus, isActive
-      allow update: if isAuthenticated() && 
-                       request.auth.uid == userId &&
-                       !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                         'subscriptionStatus',  // Only backend can change this
-                         'isActive',            // Only backend can change this
-                         'role',                // Users cannot change their own role
-                         'companyId'            // Users cannot change their company
-                       ]);
-      
-      // Master can update any user (for admin operations)
-      allow update: if isMaster();
-      
-      // DELETE: Users cannot delete themselves. Only master can delete users.
-      allow delete: if isMaster();
+      allow read: if isMaster() || 
+                  (isAuthenticated() && request.auth.uid == userId) || 
+                  (isAuthenticated() && hasCompanyId() && resource.data.companyId == getUserCompanyId());
+      allow write: if isMaster() || (isAuthenticated() && request.auth.uid == userId);
     }
-
-    // --- COMPANIES (CRITICAL: Field-Level Security) ---
-    match /companies/{companyId} {
-      // READ: Authenticated users can read their own company, master can read all
-      allow read: if isAuthenticated() && 
-                     (belongsToMyCompany(resource.id) || isMaster());
-      
-      // CREATE: Allow authenticated users to create their own company
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       belongsToMyCompany(request.resource.id);
-      
-      // UPDATE: Allow owner, BUT BLOCK SENSITIVE FIELDS
-      // Only Admin SDK (backend/webhook) can change: wallet, subscriptionStatus, stripeCustomerId, etc.
-      allow update: if isAuthenticated() && 
-                       belongsToMyCompany(resource.id) &&
-                       belongsToMyCompany(request.resource.id) &&
-                       // CRITICAL: Block users from changing sensitive financial/affiliate fields
-                       !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                         'wallet',              // User cannot change their balance
-                         'subscriptionStatus',  // User cannot fake being active (if stored here)
-                         'stripeCustomerId',    // User cannot mess with Stripe ID
-                         'affiliateCode',       // User cannot change their code manually
-                         'referralStats',       // User cannot fake referral counts
-                         'firstMonthDiscount',  // User cannot give themselves discount
-                         'discountExpirationDate', // User cannot extend discount
-                         'referredBy',          // User cannot change who referred them
-                         'lastPaymentDate'      // User cannot fake payment dates
-                       ]);
-      
-      // MASTER: Can update any company (including sensitive fields for admin operations)
-      allow update: if isMaster();
-      
-      // DELETE: Only master can delete companies
-      allow delete: if isMaster();
-    }
-
-    // --- REFERRAL LEDGER (Commission History) ---
-    match /referral_ledger/{ledgerId} {
-      // READ: Users can see their own referral ledger entries (where they are the referrer)
-      allow read: if isAuthenticated() && 
-                     hasCompanyId() && 
-                     resource.data.referrerId == getUserCompanyId();
-      
-      // Master can read all referral ledger entries
-      allow read: if isMaster();
-      
-      // WRITE: DENY ALL (Only Backend/Admin SDK can write commissions)
-      // The webhook handler and commission processing functions use Admin SDK
-      allow create, update, delete: if false;
-    }
-
-    // --- PAYOUT REQUESTS (Withdrawals) ---
-    match /payout_requests/{requestId} {
-      // READ: User sees own requests, Master sees all
-      allow read: if isAuthenticated() && 
-                     ((hasCompanyId() && resource.data.companyId == getUserCompanyId()) || isMaster());
-      
-      // CREATE: User can create their own payout requests (with validation)
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId() &&
-                       request.resource.data.status == 'pending' &&  // Must start as pending
-                       request.resource.data.amount is number &&
-                       request.resource.data.pixKey is string;
-
-      // UPDATE: User CANNOT update (only Master/Admin SDK marks as paid)
-      // Master can update to change status to 'paid' or 'rejected'
-      allow update: if isMaster();
-      
-      // DELETE: No delete allowed (audit trail)
-      allow delete: if false;
-    }
-
-    // --- CLIENTS ---
+    
+    // 2. CLIENTS
     match /clients/{clientId} {
-      allow read: if isAuthenticated() && 
-                     hasCompanyId() && 
-                     resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId() &&
-                       request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
     }
-
-    // --- WORK ORDERS ---
+    
+    // 3. COMPANIES (Empresas)
+    match /companies/{companyId} {
+      allow read: if isMaster() || (isAuthenticated() && hasCompanyId() && resource.id == getUserCompanyId());
+      allow create: if isAuthenticated(); // Permite criar na hora do registro
+      allow update: if isMaster() || (isAuthenticated() && hasCompanyId() && resource.id == getUserCompanyId());
+      allow delete: if isMaster();
+    }
+    
+    // 4. WORK ORDERS (Ordens de Serviço)
     match /workOrders/{workOrderId} {
-      // Public read access (for sharing links)
-      allow read: if true;
-      
-      // Only authenticated users with companyId can create
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      
-      // Update rules:
-      // 1. Authenticated users can update their own company's work orders
-      // 2. Unauthenticated users can ONLY update approval/rejection fields
-      allow update: if (isAuthenticated() && hasCompanyId() && 
-                        resource.data.companyId == getUserCompanyId() &&
-                        request.resource.data.companyId == getUserCompanyId()) ||
-                      // Public approval: allow unauthenticated updates ONLY for approval fields
-                      (!isAuthenticated() &&
-                       request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt']));
-      
-      // Only authenticated users with companyId can delete
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+      allow read: if true; // Mantém público para o cliente final ver o link
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update: if isMaster() || 
+                    (isAuthenticated() && isSameCompany(resource.data)) ||
+                    (!isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate', 'feedbackComment']));
+      allow delete: if isMaster() || isSameCompany(resource.data);
     }
-
-    // --- EXPENSES ---
+    
+    // 5. EXPENSES (Despesas)
     match /expenses/{expenseId} {
-      allow read: if isAuthenticated() && 
-                     hasCompanyId() && 
-                     resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId() &&
-                       request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
     }
-
-    // --- QUOTES ---
+    
+    // 6. QUOTES (Orçamentos)
     match /quotes/{quoteId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      allow update: if (isAuthenticated() && hasCompanyId() && 
-                        resource.data.companyId == getUserCompanyId() &&
-                        request.resource.data.companyId == getUserCompanyId()) ||
-                      (request.resource.data.diff(resource.data).unchangedKeys()
-                        .hasAll(['clientId', 'clientName', 'items', 'subtotal', 'discount', 'total', 'warranty', 'observations', 'diagnosis', 'createdAt', 'companyId'])
-                        && request.resource.data.status in ['approved', 'rejected']
-                        && request.resource.data.updatedAt is timestamp);
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+      allow read: if true; // Mantém público para cliente ver PDF/Link
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update: if isMaster() || 
+                    (isAuthenticated() && isSameCompany(resource.data)) ||
+                    (request.resource.data.status in ['approved', 'rejected']); // Permite cliente aprovar externamente
+      allow delete: if isMaster() || isSameCompany(resource.data);
     }
-
-    // --- RECEIPTS ---
+    
+    // 7. RECEIPTS (Recibos)
     match /receipts/{receiptId} {
       allow read: if true;
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId() &&
-                       request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
+    }
+    
+    // 8. SERVICES (Meus Serviços)
+    match /services/{serviceId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
     }
 
-    // --- SETTINGS ---
+    // --- NOVAS COLEÇÕES (Faltavam no seu arquivo) ---
+
+    // 9. SUBSCRIPTIONS (Assinaturas - Stripe)
+    match /subscriptions/{subId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow write: if isMaster(); // Só o sistema ou Master mexe aqui
+    }
+
+    // 10. REFERRAL_LEDGER (Histórico de Comissões)
+    match /referral_ledger/{ledgerId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster(); // Criado via Backend/Webhook
+      allow update: if isMaster(); // Só Master ou sistema mexe aqui
+    }
+
+    // 11. PAYOUT_REQUESTS (Solicitações de Saque)
+    match /payout_requests/{requestId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId();
+      allow update: if isMaster(); // Só Master muda status para "pago"
+    }
+
+    // 12. SETTINGS & TEMPLATES
     match /settings/{document=**} {
       allow read, write: if isAuthenticated();
     }
-
-    // --- TEMPLATES ---
+    
     match /templates/{templateId} {
-      // All authenticated users can read templates
       allow read: if isAuthenticated();
-      
-      // Only master can create/update/delete templates
-      allow create, update, delete: if isMaster();
-    }
-
-    // --- SERVICES ---
-    match /services/{serviceId} {
-      allow read: if isAuthenticated() && 
-                     hasCompanyId() && 
-                     resource.data.companyId == getUserCompanyId();
-      allow create: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       request.resource.data.companyId == getUserCompanyId();
-      allow update: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId() &&
-                       request.resource.data.companyId == getUserCompanyId();
-      allow delete: if isAuthenticated() && 
-                       hasCompanyId() && 
-                       resource.data.companyId == getUserCompanyId();
+      allow write: if isMaster();
     }
   }
 }

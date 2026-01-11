@@ -240,7 +240,7 @@ export function Affiliates() {
                 <div className="text-xs font-semibold text-slate-600 mb-1">{tier.label}</div>
                 <div className="text-lg font-bold text-navy">{tier.commissionPercent}%</div>
                 <div className="text-xs text-slate-500 mt-1">
-                  {tier.minReferrals}-{tier.maxReferrals || '∞'} referrals
+                  {tier.minReferrals}-{tier.maxReferrals || '∞'} indicações
                 </div>
               </div>
             ))}

@@ -2,8 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { Save, Upload, X, Plus, Edit2, Trash2, Package } from 'lucide-react';
+import { Save, Upload, X, Plus, Edit2, Trash2, Package, AppWindow, Wrench, Key, Zap } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../hooks/useCompany';
 import { useStorage } from '../hooks/useStorage';
@@ -12,6 +11,7 @@ import { compressFile } from '../utils/compressImage';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { queryWithCompanyId } from '../lib/queries';
+import { getDefaultContractTemplate } from '../utils/contractTemplates';
 
 export function CompanySettings() {
   const { company, loading, updateCompany } = useCompany();
@@ -30,6 +30,7 @@ export function CompanySettings() {
     googleReviewUrl: '',
     contractTemplate: '',
     segment: 'glazier' as string,
+    profession: '' as '' | 'vidracaria' | 'serralheria' | 'chaveiro' | 'marido-de-aluguel' | 'eletrica-hidraulica',
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -59,6 +60,16 @@ export function CompanySettings() {
 
   useEffect(() => {
     if (company) {
+      const profession = (company as any).profession || 
+                        ((company as any).segment === 'metalwork' ? 'serralheria' : 
+                         (company as any).segment === 'locksmith' ? 'chaveiro' :
+                         (company as any).segment === 'handyman' ? 'marido-de-aluguel' :
+                         (company as any).segment === 'electrician' || (company as any).segment === 'plumber' ? 'eletrica-hidraulica' :
+                         (company as any).segment === 'glazier' ? 'vidracaria' : 'vidracaria');
+      
+      // If contractTemplate is empty, use default template based on profession
+      const contractTemplate = (company as any).contractTemplate || getDefaultContractTemplate(profession);
+      
       setFormData({
         name: company.name || '',
         cnpj: company.cnpj || '',
@@ -67,8 +78,9 @@ export function CompanySettings() {
         email: company.email || '',
         primaryColor: (company as any).primaryColor || '#0F172A',
         googleReviewUrl: (company as any).googleReviewUrl || '',
-        contractTemplate: (company as any).contractTemplate || '',
-        segment: (company as any).segment || 'glazier', // Default to glazier if not set
+        contractTemplate,
+        segment: (company as any).segment || 'glazier', // Legacy field
+        profession: profession as any,
       });
       setLogoUrl(company.logoUrl || null);
       setLogoPreview(company.logoUrl || null);
@@ -273,6 +285,12 @@ export function CompanySettings() {
       return;
     }
 
+    // Mandatory onboarding check: profession must be selected
+    if (!formData.profession) {
+      alert('Por favor, selecione o Tipo de Serviço/Ramo de Atividade antes de continuar. Esta informação é obrigatória.');
+      return;
+    }
+
     // Ensure companyId is available
     if (!companyId) {
       alert('Erro: ID da empresa não encontrado. Por favor, recarregue a página.');
@@ -291,7 +309,8 @@ export function CompanySettings() {
         cnpj: formData.cnpj?.trim() || '',
         email: formData.email?.trim() || '',
         googleReviewUrl: formData.googleReviewUrl?.trim() || '',
-        segment: formData.segment || 'glazier', // Default to glazier if not set (migration)
+        segment: formData.segment || 'glazier', // Legacy field for backward compatibility
+        profession: formData.profession, // New mandatory field for onboarding
       };
 
       // Only include logoUrl and signatureUrl if they exist
@@ -325,12 +344,49 @@ export function CompanySettings() {
     );
   }
 
+  // Check if onboarding is incomplete
+  const isOnboardingIncomplete = !formData.profession || !formData.name || formData.name.trim() === '';
+
   return (
     <Layout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-navy">Dados da Empresa</h1>
           <p className="text-slate-600 mt-1">Configure as informações da sua empresa para aparecer nos PDFs</p>
+          
+          {/* Onboarding Alert */}
+          {isOnboardingIncomplete && (
+            <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Configuração Inicial Necessária
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>
+                      Para acessar todas as funcionalidades do sistema, você precisa completar seu perfil:
+                    </p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      {(!formData.name || formData.name.trim() === '') && (
+                        <li>Preencha o <strong>Nome da Empresa</strong></li>
+                      )}
+                      {!formData.profession && (
+                        <li>Selecione o <strong>Tipo de Serviço/Ramo de Atividade</strong></li>
+                      )}
+                    </ul>
+                    <p className="mt-2 font-medium">
+                      Após preencher e salvar, você terá acesso completo ao sistema.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <Card>
@@ -344,21 +400,154 @@ export function CompanySettings() {
               required
             />
 
-            <Select
-              label="Ramo de Atividade"
-              value={formData.segment}
-              onChange={(e) => setFormData({ ...formData, segment: e.target.value })}
-              options={[
-                { value: 'glazier', label: 'Vidraçaria' },
-                { value: 'metalwork', label: 'Serralheria' },
-                { value: 'locksmith', label: 'Chaveiro' },
-                { value: 'painter', label: 'Pintura' },
-                { value: 'electrician', label: 'Elétrica' },
-                { value: 'plumber', label: 'Hidráulica' },
-                { value: 'handyman', label: 'Marido de Aluguel' },
-                { value: 'hvac', label: 'Climatização' },
-              ]}
-            />
+            {/* Profession Selection - Mandatory for Onboarding */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                Tipo de Serviço/Ramo de Atividade *
+              </label>
+              <p className="text-xs text-slate-500 mb-4">
+                Selecione o tipo principal de serviço que sua empresa oferece. Esta informação é obrigatória.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Vidraçaria */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, profession: 'vidracaria', segment: 'glazier' })}
+                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                    formData.profession === 'vidracaria'
+                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      formData.profession === 'vidracaria' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <AppWindow className="w-6 h-6" />
+                    </div>
+                    <h3 className={`font-bold text-lg ${
+                      formData.profession === 'vidracaria' ? 'text-navy' : 'text-slate-700'
+                    }`}>
+                      Vidraçaria
+                    </h3>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Instalação, manutenção e reparo de vidros e estruturas de vidro
+                  </p>
+                </button>
+
+                {/* Serralheria */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, profession: 'serralheria', segment: 'metalwork' })}
+                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                    formData.profession === 'serralheria'
+                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      formData.profession === 'serralheria' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <Wrench className="w-6 h-6" />
+                    </div>
+                    <h3 className={`font-bold text-lg ${
+                      formData.profession === 'serralheria' ? 'text-navy' : 'text-slate-700'
+                    }`}>
+                      Serralheria
+                    </h3>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Trabalhos em metal, portões, grades e estruturas metálicas
+                  </p>
+                </button>
+
+                {/* Chaveiro */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, profession: 'chaveiro', segment: 'locksmith' })}
+                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                    formData.profession === 'chaveiro'
+                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      formData.profession === 'chaveiro' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <Key className="w-6 h-6" />
+                    </div>
+                    <h3 className={`font-bold text-lg ${
+                      formData.profession === 'chaveiro' ? 'text-navy' : 'text-slate-700'
+                    }`}>
+                      Chaveiro
+                    </h3>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Serviços de chaveiro, cópia de chaves e segurança
+                  </p>
+                </button>
+
+                {/* Marido de Aluguel */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, profession: 'marido-de-aluguel', segment: 'handyman' })}
+                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                    formData.profession === 'marido-de-aluguel'
+                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      formData.profession === 'marido-de-aluguel' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <Wrench className="w-6 h-6" />
+                    </div>
+                    <h3 className={`font-bold text-lg ${
+                      formData.profession === 'marido-de-aluguel' ? 'text-navy' : 'text-slate-700'
+                    }`}>
+                      Marido de Aluguel
+                    </h3>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Serviços gerais de manutenção e reparos residenciais
+                  </p>
+                </button>
+
+                {/* Elétrica/Hidráulica */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, profession: 'eletrica-hidraulica', segment: 'electrician' })}
+                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                    formData.profession === 'eletrica-hidraulica'
+                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      formData.profession === 'eletrica-hidraulica' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <Zap className="w-6 h-6" />
+                    </div>
+                    <h3 className={`font-bold text-lg ${
+                      formData.profession === 'eletrica-hidraulica' ? 'text-navy' : 'text-slate-700'
+                    }`}>
+                      Elétrica/Hidráulica
+                    </h3>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Instalação e reparo elétrico e hidráulico
+                  </p>
+                </button>
+              </div>
+              {!formData.profession && (
+                <p className="text-xs text-red-600 mt-2">⚠️ Por favor, selecione um tipo de serviço para continuar</p>
+              )}
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -566,10 +755,15 @@ export function CompanySettings() {
           </div>
         </Card>
 
-        {/* Services Management */}
+        {/* Services Management - Custom Services */}
         <Card>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-navy">Meus Serviços</h2>
+            <div>
+              <h2 className="text-xl font-bold text-navy">Meus Serviços Personalizados</h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Adicione os serviços que sua empresa oferece. Eles aparecerão no catálogo ao criar orçamentos.
+              </p>
+            </div>
             <Button
               variant="primary"
               size="sm"

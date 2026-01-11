@@ -170,6 +170,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         available: 0,
         totalPaid: 0,
       },
+      tutorialProgress: {
+        dashboardSeen: false,
+        quotesSeen: false,
+        workOrdersSeen: false,
+        financeSeen: false,
+      },
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });

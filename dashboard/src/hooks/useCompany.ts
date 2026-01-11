@@ -16,6 +16,7 @@ export interface CompanyData {
   primaryColor?: string;
   contractTemplate?: string;
   segment?: string; // 'glazier' | 'locksmith' | 'plumber' | 'handyman'
+  profession?: 'vidracaria' | 'serralheria' | 'chaveiro' | 'marido-de-aluguel' | 'eletrica-hidraulica'; // Primary profession for onboarding
   createdAt?: any;
   updatedAt?: any;
   // Affiliate System Fields
@@ -36,6 +37,13 @@ export interface CompanyData {
   discountExpirationDate?: any; // Timestamp when discount expires (created_at + 30 days)
   // Stripe Integration
   stripeCustomerId?: string; // Stripe Customer ID (e.g., "cus_12345")
+  // Tutorial Progress Tracking
+  tutorialProgress?: {
+    dashboardSeen: boolean;
+    quotesSeen: boolean;
+    workOrdersSeen: boolean;
+    financeSeen: boolean;
+  };
 }
 
 export function useCompany() {
@@ -95,6 +103,12 @@ export function useCompany() {
               totalPaid: 0,
             },
             segment: 'glazier',
+            tutorialProgress: {
+              dashboardSeen: false,
+              quotesSeen: false,
+              workOrdersSeen: false,
+              financeSeen: false,
+            },
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           };

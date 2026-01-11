@@ -11,6 +11,7 @@ import { ReceiptPDF } from '../components/ReceiptPDF';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../hooks/useCompany';
+import { TutorialGuide } from '../components/TutorialGuide';
 
 interface WorkOrder {
   id: string;
@@ -224,6 +225,7 @@ export function WorkOrders() {
           <p className="text-slate-600 mt-1">Gerencie as ordens de serviço</p>
         </div>
           <Button
+            id="btn-add-os"
             variant="primary"
             size="lg"
             onClick={() => setShowClientSelector(true)}
@@ -315,7 +317,7 @@ export function WorkOrders() {
             <p className="text-center text-slate-600 py-8">Nenhuma ordem de serviço encontrada</p>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div id="kanban-board" className="space-y-4">
             {workOrders.map((order) => (
               <Card key={order.id}>
                 <div className="space-y-4">
@@ -389,6 +391,23 @@ export function WorkOrders() {
             ))}
           </div>
         )}
+
+        {/* Tutorial Guide */}
+        <TutorialGuide
+          tutorialKey="workOrdersSeen"
+          steps={[
+            {
+              target: '#kanban-board',
+              content: 'Aqui você gerencia suas ordens de serviço.',
+              placement: 'top',
+            },
+            {
+              target: '#btn-add-os',
+              content: 'Abra uma nova OS para instalação ou manutenção.',
+              placement: 'bottom',
+            },
+          ]}
+        />
       </div>
     </Layout>
   );

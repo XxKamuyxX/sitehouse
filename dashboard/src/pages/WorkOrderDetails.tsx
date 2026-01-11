@@ -10,7 +10,9 @@ import { ImageUpload } from '../components/ImageUpload';
 import { TechnicalInspection } from '../components/TechnicalInspection';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { useCompany } from '../hooks/useCompany';
+import { useAuth } from '../contexts/AuthContext';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
+import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 
 interface ManualService {
   id: string;
@@ -31,8 +33,11 @@ interface WorkOrder {
   photos?: string[];
   feedbackLink?: string;
   technicalInspection?: {
-    leaves: any[];
-    generalChecklist: { task: string; completed: boolean }[];
+    leaves?: any[];
+    generalChecklist: { task: string; completed: boolean; value?: string }[];
+    surveyFields?: Record<string, string>;
+    customChecklist?: Array<{ id: string; label: string; value: string }>;
+    surveyPhotos?: string[];
   };
   clientPhone?: string;
   hasRisk?: boolean;
@@ -44,6 +49,8 @@ export function WorkOrderDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company } = useCompany();
+  const { userMetadata } = useAuth();
+  const companyId = userMetadata?.companyId;
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +64,7 @@ export function WorkOrderDetails() {
   const [manualServices, setManualServices] = useState<ManualService[]>([]);
   const [totalPrice, setTotalPrice] = useState<number>(0);
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [showServiceSelectorModal, setShowServiceSelectorModal] = useState(false);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newService, setNewService] = useState({ description: '', price: 0 });
 
@@ -65,6 +73,72 @@ export function WorkOrderDetails() {
       loadWorkOrder();
     }
   }, [id]);
+
+  const handleSelectServiceFromModal = async (itemData: {
+    serviceId: string;
+    serviceName: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+    isCustom?: boolean;
+    pricingMethod?: 'm2' | 'linear' | 'fixed' | 'unit';
+    dimensions?: {
+      width: number;
+      height: number;
+      area?: number;
+    };
+    glassThickness?: string;
+    profileColor?: string;
+    isInstallation?: boolean;
+  }) => {
+    if (!id) {
+      alert('Erro: ID da OS não encontrado');
+      return;
+    }
+
+    try {
+      // Convert ServiceSelectorModal output to ManualService format
+      const serviceDescription = itemData.dimensions 
+        ? `${itemData.serviceName} - ${itemData.dimensions.width}m x ${itemData.dimensions.height}m${itemData.glassThickness ? ` - Vidro ${itemData.glassThickness}` : ''}${itemData.profileColor ? ` - Perfil ${itemData.profileColor}` : ''} (Qtd: ${itemData.quantity})`
+        : itemData.quantity > 1
+        ? `${itemData.serviceName} (Qtd: ${itemData.quantity})`
+        : itemData.serviceName;
+
+      const service: ManualService = {
+        id: Date.now().toString(),
+        description: serviceDescription,
+      };
+      
+      // Only include price if it's greater than 0
+      if (itemData.total > 0) {
+        service.price = itemData.total;
+      }
+
+      const updated = [...manualServices, service];
+      setManualServices(updated);
+
+      // Remove undefined values before saving
+      const cleanedServices = updated.map(s => {
+        const cleaned: any = {
+          id: s.id,
+          description: s.description,
+        };
+        if (s.price !== undefined && s.price > 0) {
+          cleaned.price = s.price;
+        }
+        return cleaned;
+      });
+
+      await updateDoc(doc(db, 'workOrders', id), {
+        manualServices: cleanedServices,
+      });
+
+      setShowServiceSelectorModal(false);
+    } catch (error: any) {
+      console.error('Error adding service:', error);
+      alert(`Erro ao adicionar serviço: ${error.message || 'Erro desconhecido'}`);
+    }
+  };
 
   const loadWorkOrder = async () => {
     try {
@@ -82,10 +156,18 @@ export function WorkOrderDetails() {
       }
 
       const data = docSnap.data();
-      setWorkOrder({
+      const workOrderData = {
         id: docSnap.id,
         ...data,
-      } as WorkOrder);
+        technicalInspection: data.technicalInspection ? {
+          ...data.technicalInspection,
+          surveyFields: data.technicalInspection.surveyFields || {},
+          customChecklist: data.technicalInspection.customChecklist || [],
+          surveyPhotos: data.technicalInspection.surveyPhotos || [],
+        } : undefined,
+      } as WorkOrder;
+      
+      setWorkOrder(workOrderData);
       setNotes(data.notes || '');
       setClientPhone(data.clientPhone || '');
       setManualServices(data.manualServices || []);
@@ -133,17 +215,35 @@ export function WorkOrderDetails() {
   };
 
   const handleSaveInspection = async (data: {
-    leaves: any[];
-    generalChecklist: { task: string; completed: boolean }[];
+    leaves?: any[];
+    generalChecklist: { task: string; completed: boolean; value?: string }[];
+    surveyFields?: Record<string, string>;
+    customChecklist?: Array<{ id: string; label: string; value: string }>;
+    surveyPhotos?: string[];
   }) => {
     if (!id || !workOrder) return;
 
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'workOrders', id), {
-        technicalInspection: data,
+      const updateData: any = {
+        technicalInspection: {
+          ...(workOrder.technicalInspection || {}),
+          generalChecklist: data.generalChecklist,
+          ...(data.leaves && { leaves: data.leaves }),
+          ...(data.surveyFields && { surveyFields: data.surveyFields }),
+          ...(data.customChecklist && { customChecklist: data.customChecklist }),
+          ...(data.surveyPhotos && { surveyPhotos: data.surveyPhotos }),
+        },
+      };
+
+      await updateDoc(doc(db, 'workOrders', id), updateData);
+      setWorkOrder({ 
+        ...workOrder, 
+        technicalInspection: {
+          ...(workOrder.technicalInspection || {}),
+          ...updateData.technicalInspection,
+        },
       });
-      setWorkOrder({ ...workOrder, technicalInspection: data });
       alert('Vistoria salva com sucesso!');
     } catch (error) {
       console.error('Error saving inspection:', error);
@@ -495,15 +595,26 @@ export function WorkOrderDetails() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-navy">Serviços</h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddServiceModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar Serviço
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowServiceSelectorModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar do Catálogo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddServiceModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Serviço Manual
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-3">
@@ -683,6 +794,11 @@ export function WorkOrderDetails() {
           <TechnicalInspection
             initialLeaves={workOrder.technicalInspection?.leaves || []}
             initialGeneralChecklist={workOrder.technicalInspection?.generalChecklist || []}
+            profession={(company as any)?.profession || (company as any)?.segment || 'vidracaria'}
+            workOrderId={id}
+            initialSurveyFields={workOrder.technicalInspection?.surveyFields || {}}
+            initialCustomChecklist={workOrder.technicalInspection?.customChecklist || []}
+            initialSurveyPhotos={workOrder.technicalInspection?.surveyPhotos || []}
             onSave={handleSaveInspection}
           />
         )}
@@ -748,7 +864,15 @@ export function WorkOrderDetails() {
           </div>
         </Card>
 
-        {/* Add/Edit Service Modal */}
+        {/* Service Selector Modal */}
+        <ServiceSelectorModal
+          isOpen={showServiceSelectorModal}
+          onClose={() => setShowServiceSelectorModal(false)}
+          onSelectService={handleSelectServiceFromModal}
+          companyId={companyId}
+        />
+
+        {/* Add/Edit Service Modal (for manual entry) */}
         {showAddServiceModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">

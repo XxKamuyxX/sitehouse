@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { ImageUpload } from './ImageUpload';
-import { CheckCircle2, AlertCircle, XCircle, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, XCircle, X, Plus, Trash2, Camera } from 'lucide-react';
+import { getSurveyFields } from '../utils/surveyFields';
+import { useStorage } from '../hooks/useStorage';
+import { compressFile } from '../utils/compressImage';
 
 interface Leaf {
   id: number;
@@ -14,10 +17,18 @@ interface Leaf {
 
 interface TechnicalInspectionProps {
   initialLeaves?: Leaf[];
-  initialGeneralChecklist?: { task: string; completed: boolean }[];
+  initialGeneralChecklist?: { task: string; completed: boolean; value?: string }[];
+  profession?: string;
+  workOrderId?: string;
+  initialSurveyFields?: Record<string, string>;
+  initialCustomChecklist?: Array<{ id: string; label: string; value: string }>;
+  initialSurveyPhotos?: string[];
   onSave: (data: {
-    leaves: Leaf[];
-    generalChecklist: { task: string; completed: boolean }[];
+    leaves?: Leaf[];
+    generalChecklist: { task: string; completed: boolean; value?: string }[];
+    surveyFields?: Record<string, string>;
+    customChecklist?: Array<{ id: string; label: string; value: string }>;
+    surveyPhotos?: string[];
   }) => void;
 }
 
@@ -55,6 +66,11 @@ const LEVEL_OPTIONS = [
 export function TechnicalInspection({
   initialLeaves = [],
   initialGeneralChecklist = GENERAL_CHECKLIST_ITEMS.map(item => ({ ...item })),
+  profession = 'vidracaria',
+  workOrderId,
+  initialSurveyFields = {},
+  initialCustomChecklist = [],
+  initialSurveyPhotos = [],
   onSave,
 }: TechnicalInspectionProps) {
   const [numberOfLeaves, setNumberOfLeaves] = useState(initialLeaves.length || 0);
@@ -63,6 +79,27 @@ export function TechnicalInspection({
   const [generalChecklist, setGeneralChecklist] = useState<GeneralChecklistItem[]>(
     initialGeneralChecklist.length > 0 ? initialGeneralChecklist : GENERAL_CHECKLIST_ITEMS.map(item => ({ ...item }))
   );
+  
+  // Dynamic survey fields
+  const surveyFields = getSurveyFields(profession);
+  const [surveyFieldValues, setSurveyFieldValues] = useState<Record<string, string>>(() => {
+    // Initialize quantidade_folhas from initialLeaves if not set
+    const initialFields = { ...initialSurveyFields };
+    if (profession === 'vidracaria' && initialLeaves.length > 0 && !initialFields.quantidade_folhas) {
+      initialFields.quantidade_folhas = initialLeaves.length.toString();
+    }
+    return initialFields;
+  });
+  
+  // Custom checklist items
+  const [customChecklist, setCustomChecklist] = useState<Array<{ id: string; label: string; value: string }>>(initialCustomChecklist);
+  const [showAddCustomItem, setShowAddCustomItem] = useState(false);
+  const [newCustomLabel, setNewCustomLabel] = useState('');
+  const [newCustomValue, setNewCustomValue] = useState('');
+  
+  // Survey photos
+  const [surveyPhotos, setSurveyPhotos] = useState<string[]>(initialSurveyPhotos);
+  const { uploadImage, uploading } = useStorage();
 
   const handleSetLeaves = () => {
     if (numberOfLeaves <= 0) {
@@ -80,6 +117,8 @@ export function TechnicalInspection({
     });
 
     setLeaves(newLeaves);
+    // Also update the survey field value for quantidade_folhas
+    handleSurveyFieldChange('quantidade_folhas', numberOfLeaves.toString());
   };
 
   const updateLeafStatus = (leafId: number, status: 'perfect' | 'attention' | 'damaged') => {
@@ -153,28 +192,108 @@ export function TechnicalInspection({
     return leaves.filter((leaf) => leaf.defects.includes(defect)).length;
   };
 
+  const handleSurveyFieldChange = (fieldId: string, value: string) => {
+    setSurveyFieldValues({ ...surveyFieldValues, [fieldId]: value });
+  };
+
+  const handleAddCustomChecklistItem = () => {
+    if (!newCustomLabel.trim()) {
+      alert('Digite um rótulo para o item');
+      return;
+    }
+    const newItem = {
+      id: Date.now().toString(),
+      label: newCustomLabel,
+      value: newCustomValue,
+    };
+    setCustomChecklist([...customChecklist, newItem]);
+    setNewCustomLabel('');
+    setNewCustomValue('');
+    setShowAddCustomItem(false);
+  };
+
+  const handleRemoveCustomChecklistItem = (id: string) => {
+    setCustomChecklist(customChecklist.filter(item => item.id !== id));
+  };
+
+  const handleSurveyPhotoUpload = async (file: File) => {
+    if (!workOrderId) {
+      alert('Erro: ID da OS não encontrado');
+      return;
+    }
+
+    try {
+      const compressedFile = await compressFile(file);
+      const timestamp = Date.now();
+      const fileName = `${timestamp}_${compressedFile.name}`;
+      const path = `work-orders/${workOrderId}/survey/${fileName}`;
+      const url = await uploadImage(compressedFile, path);
+      setSurveyPhotos([...surveyPhotos, url]);
+    } catch (error) {
+      console.error('Error uploading survey photo:', error);
+      alert('Erro ao fazer upload da foto');
+    }
+  };
+
+  const handleRemoveSurveyPhoto = (index: number) => {
+    setSurveyPhotos(surveyPhotos.filter((_, i) => i !== index));
+  };
+
+  const surveyPhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione apenas imagens');
+      return;
+    }
+    await handleSurveyPhotoUpload(file);
+    if (surveyPhotoInputRef.current) {
+      surveyPhotoInputRef.current.value = '';
+    }
+  };
+
+  const handleSave = () => {
+    const saveData: any = {
+      generalChecklist,
+      surveyFields: surveyFieldValues,
+      customChecklist: customChecklist.length > 0 ? customChecklist : undefined,
+      surveyPhotos: surveyPhotos.length > 0 ? surveyPhotos : undefined,
+    };
+    
+    // Only include leaves for vidracaria profession
+    if (profession === 'vidracaria' && leaves.length > 0) {
+      saveData.leaves = leaves;
+    }
+    
+    onSave(saveData);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Leaf Count Input */}
-      <Card>
-        <h2 className="text-xl font-bold text-navy mb-4">Quantidade de Folhas (Lâminas)</h2>
-        <div className="flex gap-2">
-          <input
-            type="number"
-            min="1"
-            value={numberOfLeaves}
-            onChange={(e) => setNumberOfLeaves(parseInt(e.target.value) || 0)}
-            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-            placeholder="Digite o número de folhas"
-          />
-          <Button variant="primary" onClick={handleSetLeaves}>
-            Definir
-          </Button>
-        </div>
-      </Card>
+      {/* Leaf Count Input (only for vidracaria) */}
+      {profession === 'vidracaria' && (
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Quantidade de Folhas (Lâminas)</h2>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="1"
+              value={numberOfLeaves}
+              onChange={(e) => setNumberOfLeaves(parseInt(e.target.value) || 0)}
+              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+              placeholder="Digite o número de folhas"
+            />
+            <Button variant="primary" onClick={handleSetLeaves}>
+              Definir
+            </Button>
+          </div>
+        </Card>
+      )}
 
-      {/* Leaves Visualization */}
-      {leaves.length > 0 && (
+      {/* Leaves Visualization (only for vidracaria) */}
+      {profession === 'vidracaria' && leaves.length > 0 && (
         <Card>
           <h2 className="text-xl font-bold text-navy mb-4">Vistoria Técnica - Folhas</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
@@ -322,9 +441,99 @@ export function TechnicalInspection({
         </Card>
       )}
 
-      {/* General Checklist - Apenas Guia e Trilhos */}
-      <Card>
-        <h2 className="text-xl font-bold text-navy mb-4">Checklist Geral</h2>
+      {/* Dynamic Survey Fields (for non-vidracaria professions or in addition to leaves) */}
+      {profession !== 'vidracaria' && surveyFields.length > 0 && (
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Vistoria Técnica</h2>
+          <div className="space-y-4">
+            {surveyFields.map((field) => (
+              <div key={field.id}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {field.label} {field.required && <span className="text-red-500">*</span>}
+                </label>
+                {field.type === 'textarea' ? (
+                  <textarea
+                    value={surveyFieldValues[field.id] || ''}
+                    onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    rows={4}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  />
+                ) : field.type === 'select' ? (
+                  <select
+                    value={surveyFieldValues[field.id] || ''}
+                    onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
+                    required={field.required}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  >
+                    <option value="">Selecione...</option>
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={surveyFieldValues[field.id] || ''}
+                    onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Survey Fields for Vidracaria (in addition to leaves) */}
+      {profession === 'vidracaria' && surveyFields.length > 0 && (
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Informações Adicionais</h2>
+          <div className="space-y-4">
+            {surveyFields.filter(f => f.id !== 'quantidade_folhas').map((field) => (
+              <div key={field.id}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {field.label} {field.required && <span className="text-red-500">*</span>}
+                </label>
+                {field.type === 'select' ? (
+                  <select
+                    value={surveyFieldValues[field.id] || ''}
+                    onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
+                    required={field.required}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  >
+                    <option value="">Selecione...</option>
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={surveyFieldValues[field.id] || ''}
+                    onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* General Checklist - Apenas Guia e Trilhos (for vidracaria) */}
+      {profession === 'vidracaria' && (
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Checklist Geral</h2>
         <div className="space-y-4">
           {/* Guia - Quantidade */}
           <div className="p-4 border-2 border-navy rounded-lg bg-navy-50">
@@ -429,9 +638,155 @@ export function TechnicalInspection({
           </div>
         </div>
       </Card>
+      )}
 
-      {/* Defect Summary */}
-      {leaves.length > 0 && (
+      {/* General Checklist (for non-vidracaria professions) */}
+      {profession !== 'vidracaria' && (
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Checklist Geral</h2>
+          <div className="space-y-3">
+            {generalChecklist.map((item, index) => (
+              <label key={index} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={item.completed}
+                  onChange={(e) => {
+                    const updated = [...generalChecklist];
+                    updated[index].completed = e.target.checked;
+                    setGeneralChecklist(updated);
+                  }}
+                  className="w-5 h-5 text-navy rounded focus:ring-navy"
+                />
+                <span className={item.completed ? 'line-through text-slate-500' : 'text-slate-700'}>
+                  {item.task}
+                </span>
+              </label>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Custom Checklist Items */}
+      <Card>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-navy">Itens Personalizados do Checklist</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAddCustomItem(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar Item
+          </Button>
+        </div>
+
+        {showAddCustomItem && (
+          <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={newCustomLabel}
+                onChange={(e) => setNewCustomLabel(e.target.value)}
+                placeholder="Rótulo do item (ex: Estado da Pintura)"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+              />
+              <input
+                type="text"
+                value={newCustomValue}
+                onChange={(e) => setNewCustomValue(e.target.value)}
+                placeholder="Valor (ex: Bom, Regular, Ruim)"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+              />
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" onClick={handleAddCustomChecklistItem}>
+                  Adicionar
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setShowAddCustomItem(false);
+                  setNewCustomLabel('');
+                  setNewCustomValue('');
+                }}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {customChecklist.length > 0 ? (
+          <div className="space-y-2">
+            {customChecklist.map((item) => (
+              <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex-1">
+                  <p className="font-medium text-slate-700">{item.label}</p>
+                  {item.value && <p className="text-sm text-slate-600">{item.value}</p>}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveCustomChecklistItem(item.id)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-slate-500 py-4">Nenhum item personalizado adicionado</p>
+        )}
+      </Card>
+
+      {/* Survey Photos */}
+      <Card>
+        <h2 className="text-xl font-bold text-navy mb-4">Fotos da Vistoria</h2>
+        <div className="space-y-4">
+          <div>
+            <input
+              ref={surveyPhotoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="survey-photo-upload"
+            />
+            <label
+              htmlFor="survey-photo-upload"
+              className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              <Camera className="w-5 h-5" />
+              {uploading ? 'Enviando...' : 'Adicionar Foto'}
+            </label>
+            <p className="text-xs text-slate-500 mt-2">
+              Adicione fotos como evidência da vistoria técnica
+            </p>
+          </div>
+
+          {surveyPhotos.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {surveyPhotos.map((photoUrl, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={photoUrl}
+                    alt={`Foto vistoria ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                  />
+                  <button
+                    onClick={() => handleRemoveSurveyPhoto(index)}
+                    className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Defect Summary (only for vidracaria) */}
+      {profession === 'vidracaria' && leaves.length > 0 && (
         <Card>
           <h2 className="text-xl font-bold text-navy mb-4">Resumo de Defeitos</h2>
           <div className="space-y-2">
@@ -451,7 +806,7 @@ export function TechnicalInspection({
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button variant="primary" size="lg" onClick={() => onSave({ leaves, generalChecklist })}>
+        <Button variant="primary" size="lg" onClick={handleSave}>
           Salvar Vistoria
         </Button>
       </div>

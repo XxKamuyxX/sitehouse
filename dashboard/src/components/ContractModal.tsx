@@ -5,6 +5,7 @@ import { Select } from './ui/Select';
 import { X, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCompany } from '../hooks/useCompany';
+import { getDefaultContractTemplate } from '../utils/contractTemplates';
 
 interface QuoteItem {
   serviceName: string;
@@ -92,53 +93,23 @@ export function ContractModal({ quote, onClose, onGenerate }: ContractModalProps
 
   // Load contract template from company settings
   useEffect(() => {
-    if (company && (company as any).contractTemplate) {
-      setFormData(prev => ({
-        ...prev,
-        contractText: (company as any).contractTemplate,
-      }));
-    } else {
-      // Default template if none exists
-      setFormData(prev => ({
-        ...prev,
-        contractText: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
-
-Pelo presente instrumento particular de contrato de prestação de serviços, de um lado {COMPANY_NAME}, inscrita no CNPJ sob o nº {COMPANY_CNPJ}, com sede em {COMPANY_ADDRESS}, doravante denominada CONTRATADA, e de outro lado {CLIENT_NAME}, {CLIENT_CPF_CNPJ}, residente e domiciliado em {CLIENT_ADDRESS}, doravante denominado CONTRATANTE, têm entre si justo e contratado o seguinte:
-
-CLÁUSULA 1ª - DO OBJETO
-O presente contrato tem por objeto a prestação de serviços de instalação/manutenção de vidros conforme especificado no orçamento anexo, no valor total de R$ {TOTAL}.
-
-CLÁUSULA 2ª - DO PRAZO
-O serviço terá início em {START_DATE} e será concluído até {DELIVERY_DATE}.
-
-CLÁUSULA 3ª - DO PAGAMENTO
-O pagamento será efetuado da seguinte forma: {PAYMENT_DETAILS} através de {PAYMENT_METHOD}.
-
-CLÁUSULA 4ª - DAS OBRIGAÇÕES DA CONTRATADA
-A CONTRATADA se compromete a executar os serviços com qualidade e dentro do prazo estabelecido.
-
-CLÁUSULA 5ª - DAS OBRIGAÇÕES DO CONTRATANTE
-O CONTRATANTE se compromete a fornecer acesso ao local e condições adequadas para a execução dos serviços.
-
-CLÁUSULA 6ª - DA GARANTIA
-Os serviços executados terão garantia de 90 (noventa) dias contra defeitos de execução.
-
-E, por estarem assim justos e contratados, firmam o presente contrato em duas vias de igual teor e forma, na presença das testemunhas abaixo assinadas.
-
-{CITY}, {DATE}
-
-_________________________________
-{COMPANY_NAME}
-CNPJ: {COMPANY_CNPJ}
-
-_________________________________
-{CLIENT_NAME}
-CPF/CNPJ: {CLIENT_CPF_CNPJ}
-
-Testemunhas:
-{WITNESS1_NAME} - CPF: {WITNESS1_CPF}
-{WITNESS2_NAME} - CPF: {WITNESS2_CPF}`,
-      }));
+    if (company) {
+      const profession = (company as any).profession || (company as any).segment || 'vidracaria';
+      const contractTemplate = (company as any).contractTemplate;
+      
+      if (contractTemplate) {
+        // Use custom template from company
+        setFormData(prev => ({
+          ...prev,
+          contractText: contractTemplate,
+        }));
+      } else {
+        // Use default template based on profession
+        setFormData(prev => ({
+          ...prev,
+          contractText: getDefaultContractTemplate(profession),
+        }));
+      }
     }
   }, [company]);
 

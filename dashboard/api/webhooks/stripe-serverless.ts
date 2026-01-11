@@ -12,7 +12,7 @@
  */
 
 import Stripe from 'stripe';
-import { collection, query, where, getDocs, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../src/lib/firebase';
 import { processPaymentCommission } from '../../src/utils/referralCommission';
 

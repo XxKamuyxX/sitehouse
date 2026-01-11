@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DatePickerModal } from '../components/DatePickerModal';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
+import { TutorialGuide } from '../components/TutorialGuide';
 
 interface Quote {
   id: string;
@@ -201,7 +202,7 @@ export function Quotes() {
             <p className="text-slate-600 mt-1">Gerencie seus orçamentos</p>
           </div>
           <Link to="/quotes/new">
-            <Button variant="primary" size="lg" className="flex items-center gap-2">
+            <Button id="btn-new-quote" variant="primary" size="lg" className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Novo Orçamento
             </Button>
@@ -217,22 +218,29 @@ export function Quotes() {
             <p className="text-center text-slate-600 py-8">Nenhum orçamento encontrado</p>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div id="quote-list" className="space-y-4">
             {quotes.map((quote) => (
               <Card key={quote.id}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold text-navy">{quote.clientName}</h3>
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase mb-1">Cliente</p>
+                      <h3 className="text-lg font-bold text-navy">
+                        {quote.clientName || (quote as any).client?.name || 'Sem nome'}
+                      </h3>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase mb-1">Status</p>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[quote.status]}`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium inline-block ${statusColors[quote.status]}`}
                       >
                         {statusLabels[quote.status]}
                       </span>
                     </div>
-                    <p className="text-slate-600">
-                      Total: <span className="font-bold text-navy">{formatCurrency(quote.total)}</span>
-                    </p>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase mb-1">Total</p>
+                      <p className="text-lg font-bold text-navy">{formatCurrency(quote.total)}</p>
+                    </div>
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Link to={`/quotes/${quote.id}`}>
@@ -288,6 +296,23 @@ export function Quotes() {
             message="Selecione a data para agendar a ordem de serviço:"
           />
         )}
+
+        {/* Tutorial Guide */}
+        <TutorialGuide
+          tutorialKey="quotesSeen"
+          steps={[
+            {
+              target: '#btn-new-quote',
+              content: 'Clique aqui para criar seu primeiro orçamento profissional.',
+              placement: 'bottom',
+            },
+            {
+              target: '#quote-list',
+              content: 'Seus orçamentos ficam listados aqui. Acompanhe o status de aprovação.',
+              placement: 'top',
+            },
+          ]}
+        />
       </div>
     </Layout>
   );

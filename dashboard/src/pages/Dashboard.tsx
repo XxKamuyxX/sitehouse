@@ -8,6 +8,7 @@ import { getDocs } from 'firebase/firestore';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { maturePendingCommissions } from '../utils/referralCommission';
+import { TutorialGuide } from '../components/TutorialGuide';
 
 export function Dashboard() {
   const { userMetadata } = useAuth();
@@ -149,7 +150,7 @@ export function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div id="kpi-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <Card>
             <div className="flex items-center justify-between">
               <div>
@@ -242,6 +243,34 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Tutorial Guide */}
+      <TutorialGuide
+        tutorialKey="dashboardSeen"
+        steps={[
+          {
+            target: 'body',
+            content: 'Bem-vindo ao Gestor Vítreo! Vamos fazer um tour rápido?',
+            placement: 'center',
+            disableBeacon: true,
+          },
+          {
+            target: '#sidebar-menu',
+            content: 'Aqui você acessa todas as ferramentas: Orçamentos, OS e Clientes.',
+            placement: 'right',
+          },
+          {
+            target: '#kpi-summary',
+            content: 'Acompanhe aqui o resumo financeiro do mês.',
+            placement: 'top',
+          },
+          {
+            target: '#settings-link',
+            content: 'Configure seus dados e serviços personalizados aqui.',
+            placement: 'left',
+          },
+        ]}
+      />
     </Layout>
   );
 }

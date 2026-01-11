@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBranding } from '../contexts/BrandingContext';
+import { useCompany } from '../hooks/useCompany';
 import { Button } from './ui/Button';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -30,6 +31,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { signOut, userMetadata } = useAuth();
   const { branding } = useBranding();
+  const { company, loading: companyLoading } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,6 +40,35 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     document.title = `${branding.name} | Sistema`;
   }, [branding.name]);
+
+  // Onboarding check: Redirect if profession or company name is missing
+  useEffect(() => {
+    // Skip check for master users
+    if (userMetadata?.role === 'master') {
+      return;
+    }
+
+    // Skip check while loading
+    if (companyLoading || !company) {
+      return;
+    }
+
+    // Skip check if already on company settings page
+    if (location.pathname === '/admin/company' || location.pathname === '/settings') {
+      return;
+    }
+
+    // Check if onboarding is incomplete (profession or company name missing)
+    const isOnboardingIncomplete = (!company.profession && !company.segment) || !company.name || company.name.trim() === '';
+    
+    if (isOnboardingIncomplete && userMetadata?.role === 'admin') {
+      // Redirect admin users to company settings
+      navigate('/admin/company', { replace: true });
+    } else if (isOnboardingIncomplete) {
+      // Redirect other users to settings
+      navigate('/settings', { replace: true });
+    }
+  }, [company, companyLoading, userMetadata, location.pathname, navigate]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -110,13 +141,14 @@ export function Layout({ children }: LayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav id="sidebar-menu" className="hidden md:flex items-center gap-1">
               {!isMaster && navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
+                    id={item.path === '/settings' ? 'settings-link' : undefined}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       isActive(item.path)
                         ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/20'
@@ -186,6 +218,7 @@ export function Layout({ children }: LayoutProps) {
                   <Link
                     key={item.path}
                     to={item.path}
+                    id={item.path === '/settings' ? 'settings-link' : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive(item.path)
@@ -219,6 +252,25 @@ export function Layout({ children }: LayoutProps) {
                         {badgeCount > 9 ? '9+' : badgeCount}
                       </span>
                     )}
+                  </Link>
+                );
+              })}
+              {!isMaster && navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    id={item.path === '/settings' ? 'settings-link' : undefined}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      isActive(item.path)
+                        ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/20'
+                        : 'text-slate-700 hover:bg-glass-blue'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}

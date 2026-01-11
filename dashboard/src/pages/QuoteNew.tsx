@@ -10,6 +10,7 @@ import { QuotePDF } from '../components/QuotePDF';
 import { ContractModal, ContractData } from '../components/ContractModal';
 import { ContractPDF } from '../components/ContractPDF';
 import { InstallationItemModal } from '../components/InstallationItemModal';
+import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 import { ClientForm } from '../components/ClientForm';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -134,10 +135,8 @@ export function QuoteNew() {
   const [status, setStatus] = useState<'draft' | 'sent' | 'approved' | 'cancelled'>('draft');
   const [warranty, setWarranty] = useState('');
   const [observations, setObservations] = useState('');
-  const [customServiceName, setCustomServiceName] = useState('');
-  const [customServicePrice, setCustomServicePrice] = useState('');
-  const [showCustomService, setShowCustomService] = useState(false);
   const [showInstallationModal, setShowInstallationModal] = useState(false);
+  const [showServiceSelectorModal, setShowServiceSelectorModal] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showPDFOptionsModal, setShowPDFOptionsModal] = useState(false);
@@ -214,48 +213,37 @@ export function QuoteNew() {
     }
   };
 
-  const addService = (service: Service) => {
-    // If service type is 'meter', use m2 pricing with dimensions
-    const isMeterService = service.type === 'meter';
-    
+  const handleSelectServiceFromModal = (itemData: {
+    serviceId: string;
+    serviceName: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+    isCustom?: boolean;
+    pricingMethod?: 'm2' | 'linear' | 'fixed' | 'unit';
+    dimensions?: {
+      width: number;
+      height: number;
+      area?: number;
+    };
+    glassThickness?: string;
+    profileColor?: string;
+    isInstallation?: boolean;
+  }) => {
     const newItem: QuoteItem = {
-      serviceId: service.id,
-      serviceName: service.name,
-      quantity: 1,
-      unitPrice: service.defaultPrice || 0,
-      total: service.defaultPrice || 0,
-      isCustom: false,
-      // For meter services, set pricing method and dimensions
-      ...(isMeterService && {
-        pricingMethod: 'm2' as const,
-        dimensions: {
-          width: 0,
-          height: 0,
-          area: 0,
-        },
-      }),
+      serviceId: itemData.serviceId,
+      serviceName: itemData.serviceName,
+      quantity: itemData.quantity,
+      unitPrice: itemData.unitPrice,
+      total: itemData.total,
+      isCustom: itemData.isCustom || false,
+      pricingMethod: itemData.pricingMethod,
+      dimensions: itemData.dimensions,
+      glassThickness: itemData.glassThickness,
+      profileColor: itemData.profileColor,
+      isInstallation: itemData.isInstallation || false,
     };
     setItems([...items, newItem]);
-  };
-
-  const addCustomService = () => {
-    const price = parseFloat(customServicePrice) || 0;
-    if (!customServiceName || price <= 0) {
-      alert('Preencha o nome e o preço do serviço');
-      return;
-    }
-    const newItem: QuoteItem = {
-      serviceId: `custom-${Date.now()}`,
-      serviceName: customServiceName,
-      quantity: 1,
-      unitPrice: price,
-      total: price,
-      isCustom: true,
-    };
-    setItems([...items, newItem]);
-    setCustomServiceName('');
-    setCustomServicePrice('');
-    setShowCustomService(false);
   };
 
   const updateItem = (index: number, field: 'quantity' | 'unitPrice', value: number) => {
@@ -829,83 +817,19 @@ export function QuoteNew() {
               </div>
 
               {/* Add Service */}
-              <div className="mb-4 p-4 border-2 border-dashed border-slate-300 rounded-lg">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-                  <p className="text-sm font-medium text-slate-700">Adicionar Serviço:</p>
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        setEditingItemIndex(null);
-                        setShowInstallationModal(true);
-                      }}
-                      className="flex items-center gap-1 whitespace-nowrap"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Instalação/Vidro
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCustomService(!showCustomService)}
-                      className="whitespace-nowrap"
-                    >
-                      {showCustomService ? 'Cancelar' : '+ Serviço Manual'}
-                    </Button>
-                  </div>
-                </div>
-
-                {showCustomService && (
-                  <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <h3 className="text-sm font-medium text-navy mb-3">Adicionar Serviço Manual</h3>
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Nome do serviço"
-                        value={customServiceName}
-                        onChange={(e) => setCustomServiceName(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                      />
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={customServicePrice}
-                          onChange={(e) => setCustomServicePrice(e.target.value)}
-                          placeholder="Ex: 150,00"
-                          className="flex-1 px-3 py-2 text-lg border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                        />
-                        <Button 
-                          variant="primary" 
-                          size="sm" 
-                          onClick={addCustomService}
-                          className="w-full sm:w-auto whitespace-nowrap"
-                        >
-                          Adicionar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {services.map((service) => (
-                    <button
-                      key={service.id}
-                      onClick={() => addService(service)}
-                      className="text-left p-3 border border-slate-200 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors"
-                    >
-                      <div className="font-medium text-navy">{service.name}</div>
-                      <div className="text-xs text-slate-600">{service.description}</div>
-                      <div className="text-xs text-gold font-medium mt-1">
-                        R$ {service.defaultPrice?.toFixed(2)}
-                        {service.type === 'meter' ? '/m' : service.type === 'package' ? '/pacote' : '/un'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="mb-6">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => {
+                    setEditingItemIndex(null);
+                    setShowServiceSelectorModal(true);
+                  }}
+                  className="w-full sm:w-auto flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Adicionar Item
+                </Button>
               </div>
 
               {/* Items List */}
@@ -1253,7 +1177,15 @@ export function QuoteNew() {
           </div>
         </div>
 
-        {/* Installation Item Modal */}
+        {/* Service Selector Modal */}
+        <ServiceSelectorModal
+          isOpen={showServiceSelectorModal}
+          onClose={() => setShowServiceSelectorModal(false)}
+          onSelectService={handleSelectServiceFromModal}
+          companyId={companyId}
+        />
+
+        {/* Installation Item Modal (kept for editing existing items) */}
         <InstallationItemModal
           isOpen={showInstallationModal}
           onClose={() => {
