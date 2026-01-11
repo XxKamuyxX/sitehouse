@@ -8,7 +8,7 @@
 
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin, Mail, Phone } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 
 interface MarketingLayoutProps {
   children: ReactNode;
@@ -30,31 +30,46 @@ export function MarketingLayout({ children }: MarketingLayoutProps) {
 
             {/* Navigation Links - Center */}
             <nav className="hidden md:flex items-center gap-8 flex-1 justify-center">
-              <Link 
-                to="/#features" 
+              <a 
+                href="#features" 
                 className="text-slate-700 hover:text-navy transition-colors font-medium"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById('features');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
                 Funcionalidades
-              </Link>
-              <Link 
-                to="/#pricing" 
+              </a>
+              <a 
+                href="#pricing" 
                 className="text-slate-700 hover:text-navy transition-colors font-medium"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById('pricing');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
                 Planos
-              </Link>
-              <Link 
-                to="/#faq" 
+              </a>
+              <a 
+                href="#faq" 
                 className="text-slate-700 hover:text-navy transition-colors font-medium"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById('faq');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
                 FAQ
-              </Link>
+              </a>
             </nav>
 
             {/* CTA Button - Right */}
             <div className="flex items-center gap-4">
               <Link
                 to="/login"
-                className="text-slate-700 hover:text-navy transition-colors font-medium hidden md:block"
+                className="text-slate-700 hover:text-navy transition-colors font-medium"
               >
                 Entrar
               </Link>
@@ -86,27 +101,52 @@ export function MarketingLayout({ children }: MarketingLayoutProps) {
               <p className="text-sm text-slate-400 mb-4">
                 Sistema de gestão completo para vidraceiros e prestadores de serviços. Gerencie clientes, orçamentos e ordens de serviço de forma profissional.
               </p>
-              <div className="flex gap-3">
-                <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                  <Facebook className="w-5 h-5" />
-                </a>
-                <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                  <Linkedin className="w-5 h-5" />
-                </a>
-              </div>
             </div>
 
             {/* Product */}
             <div>
               <h4 className="font-semibold text-white mb-4">Produto</h4>
               <ul className="space-y-2 text-sm text-slate-400">
-                <li><Link to="/#features" className="hover:text-white transition-colors">Funcionalidades</Link></li>
-                <li><Link to="/#pricing" className="hover:text-white transition-colors">Planos</Link></li>
+                <li>
+                  <a 
+                    href="#features" 
+                    className="hover:text-white transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const element = document.getElementById('features');
+                      element?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    Funcionalidades
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="#pricing" 
+                    className="hover:text-white transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const element = document.getElementById('pricing');
+                      element?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    Planos
+                  </a>
+                </li>
                 <li><Link to="/signup" className="hover:text-white transition-colors">Teste Grátis</Link></li>
-                <li><Link to="/#faq" className="hover:text-white transition-colors">FAQ</Link></li>
+                <li>
+                  <a 
+                    href="#faq" 
+                    className="hover:text-white transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const element = document.getElementById('faq');
+                      element?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    FAQ
+                  </a>
+                </li>
               </ul>
             </div>
 
@@ -132,8 +172,8 @@ export function MarketingLayout({ children }: MarketingLayoutProps) {
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  <a href="tel:+5511999999999" className="hover:text-white transition-colors">
-                    (11) 99999-9999
+                  <a href="tel:+5531972224582" className="hover:text-white transition-colors">
+                    (31) 97222-4582
                   </a>
                 </li>
               </ul>

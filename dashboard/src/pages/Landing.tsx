@@ -22,7 +22,8 @@ import {
   Zap,
   Smartphone,
   Shield,
-  Coffee
+  Coffee,
+  Camera
 } from 'lucide-react';
 
 // ============================================
@@ -151,24 +152,27 @@ function AnimatedCounter({ end, suffix = '', duration = 2 }: { end: number; suff
 // FAQ ACCORDION COMPONENT
 // ============================================
 
-function FAQItem({ question, answer }: { question: string; answer: string }) {
+function FAQItem({ question, answer, icon }: { question: string; answer: string; icon?: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <motion.div
-      className="border-b border-slate-200 last:border-b-0"
-      initial={false}
-    >
+    <div className="h-full flex flex-col">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full py-6 flex items-center justify-between text-left hover:text-navy transition-colors"
+        className="w-full flex items-start justify-between text-left hover:text-navy transition-colors group"
       >
-        <span className="text-lg font-semibold pr-8">{question}</span>
+        <div className="flex items-start gap-4 flex-1">
+          {icon && <span className="text-3xl flex-shrink-0">{icon}</span>}
+          <span className="text-lg font-bold text-navy group-hover:text-blue-600 transition-colors pr-8">
+            {question}
+          </span>
+        </div>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
+          className="flex-shrink-0 mt-1"
         >
-          <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />
+          <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-navy transition-colors" />
         </motion.div>
       </button>
       <motion.div
@@ -180,9 +184,11 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         transition={{ duration: 0.3 }}
         className="overflow-hidden"
       >
-        <p className="pb-6 text-slate-600 leading-relaxed">{answer}</p>
+        <div className={`pt-4 ${icon ? 'pl-12' : ''}`}>
+          <p className="text-slate-600 leading-relaxed">{answer}</p>
+        </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -266,7 +272,14 @@ export function Landing() {
                   </Button>
                 </motion.div>
               </Link>
-              <Link to="#features">
+              <a
+                href="#features"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById('features');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
                 <Button
                   variant="outline"
                   size="lg"
@@ -274,7 +287,7 @@ export function Landing() {
                 >
                   Ver Funcionalidades
                 </Button>
-              </Link>
+              </a>
             </motion.div>
 
             {/* Dashboard Mockup (Floating Animation) */}
@@ -386,6 +399,100 @@ export function Landing() {
                 </ul>
               </motion.div>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ============================================ */}
+      {/* VALUE PROPOSITION - 2 MINUTES */}
+      {/* ============================================ */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-5xl mx-auto text-center"
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              whileInView={{ scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="inline-block mb-6"
+            >
+              <span className="bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full text-lg font-semibold">
+                ⚡ Em apenas 2 minutos
+              </span>
+            </motion.div>
+
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-8 leading-tight">
+              Orçamento pronto e no WhatsApp do cliente
+            </h2>
+            <p className="text-xl md:text-2xl text-blue-100 mb-12 max-w-3xl mx-auto">
+              Profissionalize sua imagem. Seus clientes vão ver uma empresa organizada, séria e confiável.
+            </p>
+
+            <div className="grid md:grid-cols-3 gap-8 mt-16">
+              {/* Card 1: Orçamento */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20"
+              >
+                <div className="text-5xl mb-4">📄</div>
+                <h3 className="text-2xl font-bold mb-3">Orçamento</h3>
+                <p className="text-blue-100">PDF profissional em 2 minutos, direto no WhatsApp do cliente.</p>
+              </motion.div>
+
+              {/* Card 2: Contratos */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20"
+              >
+                <div className="text-5xl mb-4">📋</div>
+                <h3 className="text-2xl font-bold mb-3">Contratos</h3>
+                <p className="text-blue-100">Gere contratos personalizados com cláusulas profissionais.</p>
+              </motion.div>
+
+              {/* Card 3: Recibos e OS */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20"
+              >
+                <div className="text-5xl mb-4">📝</div>
+                <h3 className="text-2xl font-bold mb-3">Recibos e OS</h3>
+                <p className="text-blue-100">Recibos e ordens de serviço digitais assinadas no celular.</p>
+              </motion.div>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-12"
+            >
+              <p className="text-2xl font-bold mb-4">Tudo isso em até 2 minutos!</p>
+              <p className="text-xl text-blue-100">
+                O cliente vê uma empresa profissional. Você ganha tempo e credibilidade.
+              </p>
+            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -514,6 +621,31 @@ export function Landing() {
                 <CheckCircle2 className="w-16 h-16 text-green-600" />
               </div>
             </motion.div>
+
+            {/* Card 5: Vistoria Técnica */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-8 border border-orange-100 cursor-pointer group"
+            >
+              <Camera className="w-12 h-12 text-orange-600 mb-4" />
+              <h3 className="text-2xl font-bold text-navy mb-3">Vistoria Técnica</h3>
+              <p className="text-slate-600 mb-4">
+                Tire fotos durante a vistoria. Ficam arquivadas e vão direto para o PDF do cliente.
+              </p>
+              <div className="flex items-center gap-2 mt-4">
+                <div className="grid grid-cols-3 gap-2 w-full">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="aspect-square bg-orange-200 rounded-lg flex items-center justify-center">
+                      <Camera className="w-4 h-4 text-orange-600" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -621,27 +753,42 @@ export function Landing() {
             </p>
           </motion.div>
 
-          <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-            {[
-              {
-                q: 'Precisa de cartão de crédito?',
-                a: 'Não! Você pode começar seu teste grátis de 7 dias sem informar nenhum dado de cartão. Apenas quando decidir continuar é que você precisa cadastrar uma forma de pagamento.',
-              },
-              {
-                q: 'Tem fidelidade?',
-                a: 'Não! Você pode cancelar sua assinatura a qualquer momento, sem multa ou taxa de cancelamento. Não acreditamos em amarrar nossos clientes.',
-              },
-              {
-                q: 'Funciona no celular?',
-                a: 'Sim! Nosso app é totalmente responsivo e funciona perfeitamente no celular, tablet e computador. Você pode criar orçamentos, enviar para clientes e acompanhar suas OS de qualquer lugar.',
-              },
-              {
-                q: 'Quanto tempo leva para configurar?',
-                a: 'Menos de 5 minutos! Basta criar sua conta, informar o nome da sua empresa e começar a usar. Não precisa de treinamento complexo ou configuração complicada.',
-              },
-            ].map((item, idx) => (
-              <FAQItem key={idx} question={item.q} answer={item.a} />
-            ))}
+          <div className="max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-6">
+              {[
+                {
+                  q: 'Precisa de cartão de crédito?',
+                  a: 'Não! Você pode começar seu teste grátis de 7 dias sem informar nenhum dado de cartão. Apenas quando decidir continuar é que você precisa cadastrar uma forma de pagamento.',
+                  icon: '💳',
+                },
+                {
+                  q: 'Tem fidelidade?',
+                  a: 'Não! Você pode cancelar sua assinatura a qualquer momento, sem multa ou taxa de cancelamento. Não acreditamos em amarrar nossos clientes.',
+                  icon: '🔓',
+                },
+                {
+                  q: 'Funciona no celular?',
+                  a: 'Sim! Nosso app é totalmente responsivo e funciona perfeitamente no celular, tablet e computador. Você pode criar orçamentos, enviar para clientes e acompanhar suas OS de qualquer lugar.',
+                  icon: '📱',
+                },
+                {
+                  q: 'Quanto tempo leva para configurar?',
+                  a: 'Menos de 5 minutos! Basta criar sua conta, informar o nome da sua empresa e começar a usar. Não precisa de treinamento complexo ou configuração complicada.',
+                  icon: '⚡',
+                },
+              ].map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  className="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  <FAQItem question={item.q} answer={item.a} icon={item.icon} />
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -709,7 +856,8 @@ export function Landing() {
                 <Link to="/signup">
                   <Button
                     size="lg"
-                    className="w-full bg-white text-blue-600 hover:bg-blue-50 font-semibold text-lg py-4"
+                    className="w-full bg-white text-blue-600 hover:bg-blue-50 font-semibold text-lg py-4 border-2 border-white"
+                    style={{ color: '#1e40af' }}
                   >
                     Começar Teste Grátis
                   </Button>
