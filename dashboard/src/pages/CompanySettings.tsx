@@ -60,6 +60,24 @@ export function CompanySettings() {
     category: 'manutencao' as 'instalacao' | 'manutencao',
   });
   const [serviceFilter, setServiceFilter] = useState<'all' | 'instalacao' | 'manutencao'>('all');
+  
+  // Payment Settings
+  const [paymentSettings, setPaymentSettings] = useState({
+    pixDiscount: 5,
+    maxInstallments: 3,
+    paymentNotes: 'Entrada de 50% + restante na entrega.',
+  });
+  
+  // PDF Settings
+  const [pdfSettings, setPdfSettings] = useState({
+    primaryColor: '#0F172A',
+    secondaryColor: '#2563EB',
+    documentTitle: 'ORÇAMENTO DE SERVIÇOS',
+    quoteValidityDays: 15,
+    customFooterText: '',
+    showCnpj: true,
+    legalTerms: '',
+  });
 
   useEffect(() => {
     if (company) {
@@ -89,6 +107,26 @@ export function CompanySettings() {
       setLogoPreview(company.logoUrl || null);
       setSignatureUrl((company as any).signatureUrl || null);
       setSignaturePreview((company as any).signatureUrl || null);
+      
+      // Load payment settings
+      const paymentSettings = (company as any).paymentSettings || {
+        pixDiscount: 5,
+        maxInstallments: 3,
+        paymentNotes: 'Entrada de 50% + restante na entrega.',
+      };
+      setPaymentSettings(paymentSettings);
+      
+      // Load PDF settings
+      const pdfSettings = (company as any).pdfSettings || {
+        primaryColor: (company as any).primaryColor || '#0F172A',
+        secondaryColor: '#2563EB',
+        documentTitle: 'ORÇAMENTO DE SERVIÇOS',
+        quoteValidityDays: 15,
+        customFooterText: '',
+        showCnpj: true,
+        legalTerms: '',
+      };
+      setPdfSettings(pdfSettings);
     }
   }, [company]);
 
@@ -325,6 +363,17 @@ export function CompanySettings() {
       if (signatureUrl) {
         rawData.signatureUrl = signatureUrl;
       }
+      
+      // Include contractTemplate if exists
+      if (formData.contractTemplate) {
+        rawData.contractTemplate = formData.contractTemplate;
+      }
+      
+      // Include payment settings
+      rawData.paymentSettings = paymentSettings;
+      
+      // Include PDF settings
+      rawData.pdfSettings = pdfSettings;
 
       // Strip undefined values using JSON serialization
       const cleanData = JSON.parse(JSON.stringify(rawData));
@@ -874,7 +923,178 @@ export function CompanySettings() {
                 </div>
               ))}
             </div>
-          )}
+            );
+          })()}
+        </Card>
+
+        {/* Payment Settings */}
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Configurações de Pagamento</h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Desconto PIX (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={paymentSettings.pixDiscount}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, pixDiscount: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="5"
+                />
+                <p className="text-xs text-slate-500 mt-1">Desconto aplicado em pagamentos via PIX</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Máximo de Parcelas
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={paymentSettings.maxInstallments}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, maxInstallments: parseInt(e.target.value) || 1 })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="3"
+                />
+                <p className="text-xs text-slate-500 mt-1">Número máximo de parcelas permitidas</p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Observações de Pagamento
+              </label>
+              <textarea
+                value={paymentSettings.paymentNotes}
+                onChange={(e) => setPaymentSettings({ ...paymentSettings, paymentNotes: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                rows={3}
+                placeholder="Ex: Entrada de 50% + restante na entrega."
+              />
+              <p className="text-xs text-slate-500 mt-1">Texto padrão que aparece nos orçamentos sobre condições de pagamento</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* PDF Customization Settings */}
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Personalização de PDFs</h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cor Principal (Hex)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={pdfSettings.primaryColor}
+                    onChange={(e) => setPdfSettings({ ...pdfSettings, primaryColor: e.target.value })}
+                    className="w-16 h-10 border border-slate-300 rounded-lg cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={pdfSettings.primaryColor}
+                    onChange={(e) => setPdfSettings({ ...pdfSettings, primaryColor: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                    placeholder="#0F172A"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Cor usada em bordas e cabeçalhos dos PDFs</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cor Secundária (Hex)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={pdfSettings.secondaryColor}
+                    onChange={(e) => setPdfSettings({ ...pdfSettings, secondaryColor: e.target.value })}
+                    className="w-16 h-10 border border-slate-300 rounded-lg cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={pdfSettings.secondaryColor}
+                    onChange={(e) => setPdfSettings({ ...pdfSettings, secondaryColor: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                    placeholder="#2563EB"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Cor de destaque/accent nos PDFs</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Título do Documento
+                </label>
+                <input
+                  type="text"
+                  value={pdfSettings.documentTitle}
+                  onChange={(e) => setPdfSettings({ ...pdfSettings, documentTitle: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="ORÇAMENTO DE SERVIÇOS"
+                />
+                <p className="text-xs text-slate-500 mt-1">Título que aparece no topo dos PDFs</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Validade do Orçamento (dias)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={pdfSettings.quoteValidityDays}
+                  onChange={(e) => setPdfSettings({ ...pdfSettings, quoteValidityDays: parseInt(e.target.value) || 15 })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="15"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Texto do Rodapé
+              </label>
+              <textarea
+                value={pdfSettings.customFooterText}
+                onChange={(e) => setPdfSettings({ ...pdfSettings, customFooterText: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                rows={2}
+                placeholder="Ex: Obrigado pela preferência! Visite nosso site."
+              />
+              <p className="text-xs text-slate-500 mt-1">Texto que aparece no rodapé dos PDFs (opcional)</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={pdfSettings.showCnpj}
+                onChange={(e) => setPdfSettings({ ...pdfSettings, showCnpj: e.target.checked })}
+                className="w-5 h-5 text-navy focus:ring-navy border-slate-300 rounded"
+                id="showCnpj"
+              />
+              <label htmlFor="showCnpj" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Exibir CNPJ nos documentos
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Termos Legais / Garantia
+              </label>
+              <textarea
+                value={pdfSettings.legalTerms}
+                onChange={(e) => setPdfSettings({ ...pdfSettings, legalTerms: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                rows={4}
+                placeholder="Ex: Garantia de 90 dias contra defeitos de execução..."
+              />
+              <p className="text-xs text-slate-500 mt-1">Texto padrão sobre garantia e termos de serviço</p>
+            </div>
+          </div>
         </Card>
 
         {/* Contract Template */}

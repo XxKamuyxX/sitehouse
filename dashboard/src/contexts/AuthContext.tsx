@@ -21,6 +21,17 @@ export interface UserMetadata {
   subscriptionStatus?: 'trial' | 'trialing' | 'active' | 'expired' | 'canceled' | 'past_due';
   trialEndsAt?: any;
   isActive?: boolean;
+  // Payout Information (for affiliates/users who receive commissions)
+  payoutInfo?: {
+    pixKey: string;
+    pixKeyType: string; // 'CPF', 'EMAIL', 'PHONE', 'RANDOM'
+    bankName: string;
+    agency: string;
+    accountNumber: string;
+    accountType: string; // 'Corrente' or 'Poupança'
+    holderName: string;
+    holderCpf: string;
+  };
 }
 
 interface AuthContextType {

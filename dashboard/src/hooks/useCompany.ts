@@ -44,6 +44,22 @@ export interface CompanyData {
     workOrdersSeen: boolean;
     financeSeen: boolean;
   };
+  // Payment Settings
+  paymentSettings?: {
+    pixDiscount: number; // e.g., 5
+    maxInstallments: number; // e.g., 3
+    paymentNotes: string; // Custom text, e.g., "Entrada de 50% + restante na entrega."
+  };
+  // PDF Customization Settings
+  pdfSettings?: {
+    primaryColor: string; // Hex code (e.g., #2563EB) for borders/headers
+    secondaryColor: string; // Accent color
+    documentTitle: string; // Custom title (e.g., "Proposta Comercial" vs "Orçamento")
+    quoteValidityDays: number; // Default: 15
+    customFooterText: string; // e.g., "Obrigado pela preferência! Visite nosso site."
+    showCnpj: boolean; // Toggle to show/hide document ID
+    legalTerms: string; // Default warranty/service terms text
+  };
 }
 
 export function useCompany() {
