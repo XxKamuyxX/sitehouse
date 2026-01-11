@@ -3,10 +3,9 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User } from 'lucide-react';
-import { queryWithCompanyId } from '../lib/queries';
 import { ImageUpload } from '../components/ImageUpload';
 import { TechnicalInspection } from '../components/TechnicalInspection';
 import { WhatsAppButton } from '../components/WhatsAppButton';
@@ -68,6 +67,12 @@ export function WorkOrderDetails() {
   const [showServiceSelectorModal, setShowServiceSelectorModal] = useState(false);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newService, setNewService] = useState({ description: '', price: 0 });
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
+  const [technicians, setTechnicians] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [loadingTechnicians, setLoadingTechnicians] = useState(false);
 
   useEffect(() => {
     if (id) {
