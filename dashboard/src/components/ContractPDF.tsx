@@ -17,6 +17,20 @@ interface CompanyData {
   email?: string;
   logoUrl?: string;
   cnpj?: string;
+  pdfSettings?: {
+    primaryColor: string;
+    secondaryColor: string;
+    documentTitle: string;
+    quoteValidityDays: number;
+    customFooterText: string;
+    showCnpj: boolean;
+    legalTerms: string;
+  };
+  paymentSettings?: {
+    pixDiscount: number;
+    maxInstallments: number;
+    paymentNotes: string;
+  };
 }
 
 interface ContractData {

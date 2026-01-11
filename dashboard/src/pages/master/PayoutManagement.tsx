@@ -19,6 +19,16 @@ interface PayoutRequest {
   companyTier?: string;
   ownerName?: string;
   ownerEmail?: string;
+  payoutInfo?: {
+    pixKey: string;
+    pixKeyType: string;
+    bankName: string;
+    agency: string;
+    accountNumber: string;
+    accountType: string;
+    holderName: string;
+    holderCpf: string;
+  };
 }
 
 export function PayoutManagement() {
