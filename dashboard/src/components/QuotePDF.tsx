@@ -24,6 +24,20 @@ interface CompanyData {
   email?: string;
   logoUrl?: string;
   cnpj?: string;
+  pdfSettings?: {
+    primaryColor: string;
+    secondaryColor: string;
+    documentTitle: string;
+    quoteValidityDays: number;
+    customFooterText: string;
+    showCnpj: boolean;
+    legalTerms: string;
+  };
+  paymentSettings?: {
+    pixDiscount: number;
+    maxInstallments: number;
+    paymentNotes: string;
+  };
 }
 
 interface QuotePDFProps {
@@ -282,6 +296,49 @@ export function QuotePDF({
     email: 'contato@housemanutencao.com.br',
     cnpj: '42.721.809/0001-52',
   };
+  
+  // Get PDF settings with defaults
+  const pdfSettings = company.pdfSettings || {
+    primaryColor: '#0F172A',
+    secondaryColor: '#2563EB',
+    documentTitle: 'ORÇAMENTO DE SERVIÇOS',
+    quoteValidityDays: 15,
+    customFooterText: '',
+    showCnpj: true,
+    legalTerms: '',
+  };
+  
+  // Get payment settings with defaults
+  const paymentSettings = company.paymentSettings || {
+    pixDiscount: 5,
+    maxInstallments: 3,
+    paymentNotes: '',
+  };
+  
+  // Dynamic styles based on pdfSettings
+  const dynamicStyles = StyleSheet.create({
+    header: {
+      marginBottom: 30,
+      borderBottom: `2 solid ${pdfSettings.primaryColor}`,
+      paddingBottom: 15,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: pdfSettings.primaryColor,
+      marginTop: 20,
+      marginBottom: 15,
+    },
+    tableHeader: {
+      flexDirection: 'row',
+      backgroundColor: pdfSettings.primaryColor,
+      color: '#FFFFFF',
+      padding: 10,
+      fontWeight: 'bold',
+      fontSize: 9,
+    },
+  });
+  
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -302,7 +359,7 @@ export function QuotePDF({
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={dynamicStyles.header}>
           <View style={styles.logoContainer}>
             {company.logoUrl ? (
             <Image
@@ -316,11 +373,12 @@ export function QuotePDF({
             {company.address}{'\n'}
             Telefone: {company.phone}{'\n'}
             {company.email && `Email: ${company.email}`}
+            {pdfSettings.showCnpj && company.cnpj && `\nCNPJ: ${company.cnpj}`}
           </Text>
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>ORÇAMENTO DE SERVIÇOS</Text>
+        <Text style={dynamicStyles.title}>{pdfSettings.documentTitle}</Text>
 
         {/* Quote Info */}
         {quoteNumber && (
@@ -350,7 +408,7 @@ export function QuotePDF({
 
         {/* Services Table */}
         <View style={styles.table}>
-          <View style={styles.tableHeader}>
+          <View style={dynamicStyles.tableHeader}>
             <Text style={[styles.tableCell, { flex: 3 }]}>SERVIÇO</Text>
             <Text style={styles.tableCellCenter}>QTD</Text>
             {!hideUnitPrice && (
@@ -464,7 +522,7 @@ export function QuotePDF({
 
         {/* Validity */}
         <View style={styles.validity}>
-          <Text style={{ fontWeight: 'bold' }}>VALIDADE: 10 DIAS</Text>
+          <Text style={{ fontWeight: 'bold' }}>VALIDADE: {pdfSettings.quoteValidityDays} DIAS</Text>
         </View>
 
         {/* Observations */}
@@ -479,17 +537,29 @@ export function QuotePDF({
         <View style={styles.footer}>
           <Text style={styles.footerTitle}>CONDIÇÕES DE PAGAMENTO:</Text>
           <Text style={styles.footerText}>
-            • Pix: Desconto de 5% no pagamento à vista{'\n'}
-            • Cartão de Crédito: Parcelamento em até 3x sem juros
+            {paymentSettings.pixDiscount > 0 && `• Pix: Desconto de ${paymentSettings.pixDiscount}% no pagamento à vista${'\n'}`}
+            {paymentSettings.maxInstallments > 1 && `• Cartão de Crédito: Parcelamento em até ${paymentSettings.maxInstallments}x sem juros${'\n'}`}
+            {paymentSettings.paymentNotes && `${paymentSettings.paymentNotes}`}
           </Text>
         </View>
 
         {/* Legal Text */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Serviço realizado conforme normas técnicas. Garantia conforme especificado acima em todos os serviços executados.
-          </Text>
-        </View>
+        {pdfSettings.legalTerms && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {pdfSettings.legalTerms}
+            </Text>
+          </View>
+        )}
+
+        {/* Custom Footer Text */}
+        {pdfSettings.customFooterText && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {pdfSettings.customFooterText}
+            </Text>
+          </View>
+        )}
 
         {/* Risk Warning */}
         {hasRisk && (
@@ -513,7 +583,7 @@ export function QuotePDF({
         </View>
 
         {/* Company Signature & CNPJ */}
-        {company.cnpj && (
+        {pdfSettings.showCnpj && company.cnpj && (
         <View style={styles.companySignature}>
           <Text style={styles.cnpjText}>
               {company.name} - CNPJ: {company.cnpj}

@@ -602,6 +602,8 @@ export function QuoteNew() {
             email: company.email || '',
             logoUrl: logoBase64 || company.logoUrl || undefined,
             cnpj: company.cnpj || '',
+            pdfSettings: company.pdfSettings,
+            paymentSettings: company.paymentSettings,
           } : undefined}
         />
       );
@@ -669,6 +671,8 @@ export function QuoteNew() {
             email: company.email || '',
             logoUrl: logoBase64 || company.logoUrl || undefined,
             cnpj: company.cnpj || '',
+            pdfSettings: company.pdfSettings,
+            paymentSettings: company.paymentSettings,
           } : undefined}
           companySignatureUrl={signatureBase64 || (company as any)?.signatureUrl || undefined}
         />

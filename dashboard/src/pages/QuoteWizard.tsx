@@ -319,6 +319,8 @@ export function QuoteWizard() {
             email: company.email || '',
             logoUrl: logoBase64 || company.logoUrl || undefined,
             cnpj: company.cnpj || '',
+            pdfSettings: company.pdfSettings,
+            paymentSettings: company.paymentSettings,
           }}
         />
       );
