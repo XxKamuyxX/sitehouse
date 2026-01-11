@@ -12,9 +12,9 @@ import { X } from 'lucide-react';
 
 export function Affiliates() {
   const { company, loading } = useCompany();
+  const { userMetadata } = useAuth();
   const [copied, setCopied] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [pixKey, setPixKey] = useState('');
+  const [showPayoutSettingsModal, setShowPayoutSettingsModal] = useState(false);
   const [requestingWithdraw, setRequestingWithdraw] = useState(false);
   const [withdrawHistory, setWithdrawHistory] = useState<Array<{
     id: string;

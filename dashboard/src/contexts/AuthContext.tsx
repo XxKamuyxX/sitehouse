@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           subscriptionStatus: data.subscriptionStatus,
           trialEndsAt: data.trialEndsAt,
           isActive: data.isActive !== false, // Default to true if not set
+          payoutInfo: data.payoutInfo,
         });
       } else {
         console.error('User document does not exist for userId:', userId);
