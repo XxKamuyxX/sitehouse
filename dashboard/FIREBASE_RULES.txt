@@ -38,6 +38,9 @@ service cloud.firestore {
     // --- REGRAS DAS COLEÇÕES ---
 
     // 1. USERS (Usuários)
+    // - Master vê todos
+    // - Usuário vê a si mesmo
+    // - Colegas de equipe veem uns aos outros (para a tela de Equipe funcionar)
     match /users/{userId} {
       allow read: if isMaster() || 
                   (isAuthenticated() && request.auth.uid == userId) || 
@@ -45,7 +48,7 @@ service cloud.firestore {
       allow write: if isMaster() || (isAuthenticated() && request.auth.uid == userId);
     }
     
-    // 2. CLIENTS
+    // 2. CLIENTS (Clientes)
     match /clients/{clientId} {
       allow read: if isMaster() || isSameCompany(resource.data);
       allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
@@ -53,6 +56,8 @@ service cloud.firestore {
     }
     
     // 3. COMPANIES (Empresas)
+    // - Master vê todas
+    // - Usuário vê/edita a sua própria
     match /companies/{companyId} {
       allow read: if isMaster() || (isAuthenticated() && hasCompanyId() && resource.id == getUserCompanyId());
       allow create: if isAuthenticated(); // Permite criar na hora do registro
@@ -64,6 +69,7 @@ service cloud.firestore {
     match /workOrders/{workOrderId} {
       allow read: if true; // Mantém público para o cliente final ver o link
       allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      // Lógica complexa de atualização mantida (para feedback do cliente) + Master
       allow update: if isMaster() || 
                     (isAuthenticated() && isSameCompany(resource.data)) ||
                     (!isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate', 'feedbackComment']));
@@ -101,7 +107,7 @@ service cloud.firestore {
       allow update, delete: if isMaster() || isSameCompany(resource.data);
     }
 
-    // --- NOVAS COLEÇÕES (Faltavam no seu arquivo) ---
+    // --- COLEÇÕES DE ASSINATURAS E FINANCEIRO ---
 
     // 9. SUBSCRIPTIONS (Assinaturas - Stripe)
     match /subscriptions/{subId} {
@@ -109,25 +115,35 @@ service cloud.firestore {
       allow write: if isMaster(); // Só o sistema ou Master mexe aqui
     }
 
-    // 10. REFERRAL_LEDGER (Histórico de Comissões)
+    // 10. REFERRAL_LEDGER (Histórico de Comissões de Afiliados)
+    // - Usuários podem ler apenas suas próprias entradas
+    // - Apenas backend/Master pode criar/atualizar
     match /referral_ledger/{ledgerId} {
       allow read: if isMaster() || isSameCompany(resource.data);
       allow create: if isMaster(); // Criado via Backend/Webhook
       allow update: if isMaster(); // Só Master ou sistema mexe aqui
+      allow delete: if isMaster();
     }
 
-    // 11. PAYOUT_REQUESTS (Solicitações de Saque)
+    // 11. PAYOUT_REQUESTS (Solicitações de Saque dos Afiliados)
+    // - Usuários podem criar suas próprias solicitações
+    // - Usuários podem ler suas próprias solicitações
+    // - Master pode ver todas e atualizar status
     match /payout_requests/{requestId} {
       allow read: if isMaster() || isSameCompany(resource.data);
       allow create: if isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId();
-      allow update: if isMaster(); // Só Master muda status para "pago"
+      allow update: if isMaster(); // Só Master muda status para "pago" ou "rejeitado"
+      allow delete: if isMaster();
     }
 
-    // 12. SETTINGS & TEMPLATES
+    // --- COLEÇÕES DE CONFIGURAÇÃO ---
+
+    // 12. SETTINGS (Configurações Gerais)
     match /settings/{document=**} {
       allow read, write: if isAuthenticated();
     }
     
+    // 13. TEMPLATES (Templates de Projetos/Orçamentos)
     match /templates/{templateId} {
       allow read: if isAuthenticated();
       allow write: if isMaster();
