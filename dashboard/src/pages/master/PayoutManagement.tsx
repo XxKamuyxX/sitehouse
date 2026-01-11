@@ -78,10 +78,11 @@ export function PayoutManagement() {
           id: docSnap.id,
           companyId: data.companyId,
           amount: data.amount,
-          pixKey: data.pixKey,
+          pixKey: data.pixKey || data.payoutInfo?.pixKey || '',
           status: data.status,
           requestedAt: data.requestedAt,
           paidAt: data.paidAt,
+          payoutInfo: data.payoutInfo,
         };
         
         // Get company data
