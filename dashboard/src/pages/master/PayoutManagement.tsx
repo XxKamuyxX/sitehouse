@@ -36,12 +36,28 @@ export function PayoutManagement() {
     try {
       setLoading(true);
       
-      // Load all payout requests
-      const requestsQuery = query(
-        collection(db, 'payout_requests'),
-        orderBy('requestedAt', 'desc')
-      );
-      const snapshot = await getDocs(requestsQuery);
+      // Load all payout requests (Master can see all, no companyId filter)
+      // Try to order by requestedAt, but handle if field doesn't exist
+      let snapshot;
+      try {
+        const requestsQuery = query(
+          collection(db, 'payout_requests'),
+          orderBy('requestedAt', 'desc')
+        );
+        snapshot = await getDocs(requestsQuery);
+      } catch (orderByError: any) {
+        // If orderBy fails (e.g., missing index or field), try without ordering
+        console.warn('OrderBy failed, trying without order:', orderByError);
+        const requestsQuery = query(collection(db, 'payout_requests'));
+        snapshot = await getDocs(requestsQuery);
+      }
+      
+      // Handle empty collection gracefully
+      if (!snapshot || snapshot.empty) {
+        setPendingRequests([]);
+        setPaidRequests([]);
+        return;
+      }
       
       const requests: PayoutRequest[] = [];
       
@@ -87,12 +103,28 @@ export function PayoutManagement() {
         requests.push(request);
       }
       
+      // Sort manually if orderBy failed (fallback)
+      requests.sort((a, b) => {
+        const dateA = a.requestedAt?.toDate?.() || a.requestedAt?.seconds ? new Date(a.requestedAt.seconds * 1000) : new Date(0);
+        const dateB = b.requestedAt?.toDate?.() || b.requestedAt?.seconds ? new Date(b.requestedAt.seconds * 1000) : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
       // Separate pending and paid
       setPendingRequests(requests.filter(r => r.status === 'pending'));
       setPaidRequests(requests.filter(r => r.status === 'paid'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading payout requests:', error);
-      alert('Erro ao carregar solicitações de saque');
+      // Only show alert for actual errors, not empty collections
+      if (error.code !== 'permission-denied' && error.message) {
+        alert(`Erro ao carregar solicitações de saque: ${error.message}`);
+      } else if (error.code === 'permission-denied') {
+        alert('Erro de permissão. Verifique as regras do Firestore.');
+      } else {
+        // Silent fail for empty collections
+        setPendingRequests([]);
+        setPaidRequests([]);
+      }
     } finally {
       setLoading(false);
     }
