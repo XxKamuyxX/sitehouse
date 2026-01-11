@@ -3,11 +3,10 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Card } from './ui/Card';
-import { X, Save } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useNavigate } from 'react-router-dom';
 
 interface PayoutSettingsFormProps {
   onClose: () => void;
@@ -56,14 +55,14 @@ export function PayoutSettingsForm({ onClose, onSave }: PayoutSettingsFormProps)
       return;
     }
 
-    if (!userMetadata?.uid) {
+    if (!user?.uid) {
       alert('Erro: Usuário não identificado');
       return;
     }
 
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'users', userMetadata.uid), {
+      await updateDoc(doc(db, 'users', user.uid), {
         payoutInfo: {
           pixKey: formData.pixKey.trim(),
           pixKeyType: formData.pixKeyType,
@@ -77,14 +76,12 @@ export function PayoutSettingsForm({ onClose, onSave }: PayoutSettingsFormProps)
         updatedAt: new Date(),
       });
 
-      // Refresh user metadata
-      if (refreshUser) {
-        await refreshUser();
-      }
-
       alert('Dados bancários salvos com sucesso!');
       onSave?.();
       onClose();
+      
+      // Reload page to refresh user metadata
+      window.location.reload();
     } catch (error: any) {
       console.error('Error saving payout info:', error);
       alert(`Erro ao salvar dados bancários: ${error.message}`);
@@ -114,12 +111,13 @@ export function PayoutSettingsForm({ onClose, onSave }: PayoutSettingsFormProps)
             <Select
               value={formData.pixKeyType}
               onChange={(e) => setFormData({ ...formData, pixKeyType: e.target.value })}
-            >
-              <option value="CPF">CPF</option>
-              <option value="EMAIL">E-mail</option>
-              <option value="PHONE">Telefone</option>
-              <option value="RANDOM">Chave Aleatória</option>
-            </Select>
+              options={[
+                { value: 'CPF', label: 'CPF' },
+                { value: 'EMAIL', label: 'E-mail' },
+                { value: 'PHONE', label: 'Telefone' },
+                { value: 'RANDOM', label: 'Chave Aleatória' },
+              ]}
+            />
           </div>
 
           <div>
@@ -211,10 +209,11 @@ export function PayoutSettingsForm({ onClose, onSave }: PayoutSettingsFormProps)
             <Select
               value={formData.accountType}
               onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-            >
-              <option value="Corrente">Corrente</option>
-              <option value="Poupança">Poupança</option>
-            </Select>
+              options={[
+                { value: 'Corrente', label: 'Corrente' },
+                { value: 'Poupança', label: 'Poupança' },
+              ]}
+            />
           </div>
 
           <div className="flex gap-3 pt-4">

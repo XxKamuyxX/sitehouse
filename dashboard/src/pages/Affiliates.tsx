@@ -1,14 +1,14 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { Copy, CheckCircle2, TrendingUp, Wallet, Clock, DollarSign, Gift } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCompany } from '../hooks/useCompany';
+import { useAuth } from '../contexts/AuthContext';
 import { REFERRAL_TIERS, getTierForReferrals } from '../utils/referralTiers';
 import { collection, addDoc, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { X } from 'lucide-react';
+import { PayoutSettingsForm } from '../components/PayoutSettingsForm';
 
 export function Affiliates() {
   const { company, loading } = useCompany();
@@ -81,25 +81,41 @@ export function Affiliates() {
       return;
     }
 
-    if (!pixKey || pixKey.trim() === '') {
-      alert('Por favor, informe sua chave PIX');
+    // Check if user has payout info
+    if (!userMetadata?.payoutInfo?.pixKey) {
+      alert('Por favor, configure seus dados bancários antes de solicitar um saque.');
+      setShowPayoutSettingsModal(true);
       return;
     }
 
     setRequestingWithdraw(true);
     try {
-      // Create payout request
-      await addDoc(collection(db, 'payout_requests'), {
+      // Create payout request with payout info copied from user metadata
+      const payoutRequestData: any = {
         companyId: company.id,
         amount: available,
-        pixKey: pixKey.trim(),
+        pixKey: userMetadata.payoutInfo.pixKey,
         status: 'pending',
         requestedAt: serverTimestamp(),
-      });
+      };
+
+      // Copy payout info to the request document
+      if (userMetadata.payoutInfo) {
+        payoutRequestData.payoutInfo = {
+          pixKey: userMetadata.payoutInfo.pixKey,
+          pixKeyType: userMetadata.payoutInfo.pixKeyType || '',
+          bankName: userMetadata.payoutInfo.bankName || '',
+          agency: userMetadata.payoutInfo.agency || '',
+          accountNumber: userMetadata.payoutInfo.accountNumber || '',
+          accountType: userMetadata.payoutInfo.accountType || '',
+          holderName: userMetadata.payoutInfo.holderName || '',
+          holderCpf: userMetadata.payoutInfo.holderCpf || '',
+        };
+      }
+
+      await addDoc(collection(db, 'payout_requests'), payoutRequestData);
       
       alert('Solicitação de saque enviada com sucesso! Nossa equipe irá processar em breve.');
-      setShowWithdrawModal(false);
-      setPixKey('');
       await loadWithdrawHistory();
       
       // Reload company to refresh wallet data
@@ -303,16 +319,31 @@ export function Affiliates() {
               <p className="text-xs text-slate-500">
                 O saque será processado via PIX em até 5 dias úteis após a aprovação.
               </p>
+              {!userMetadata?.payoutInfo?.pixKey && (
+                <p className="text-xs text-orange-600 mt-2 font-semibold">
+                  ⚠️ Configure seus dados bancários antes de solicitar um saque.
+                </p>
+              )}
             </div>
             <Button
               variant="primary"
               size="lg"
-              onClick={() => setShowWithdrawModal(true)}
-              disabled={!canWithdraw}
+              onClick={() => {
+                if (!userMetadata?.payoutInfo?.pixKey) {
+                  setShowPayoutSettingsModal(true);
+                } else {
+                  handleRequestWithdraw();
+                }
+              }}
+              disabled={!canWithdraw || requestingWithdraw}
               className="w-full md:w-auto"
             >
               <DollarSign className="w-5 h-5 mr-2" />
-              {canWithdraw ? 'Solicitar Saque' : `Saldo mínimo: R$ 50,00 (disponível: R$ ${available.toFixed(2)})`}
+              {requestingWithdraw 
+                ? 'Processando...' 
+                : canWithdraw 
+                ? (userMetadata?.payoutInfo?.pixKey ? 'Solicitar Saque' : 'Configurar Dados Bancários')
+                : `Saldo mínimo: R$ 50,00 (disponível: R$ ${available.toFixed(2)})`}
             </Button>
           </div>
         </Card>
@@ -365,69 +396,14 @@ export function Affiliates() {
         )}
       </div>
 
-      {/* Withdrawal Modal */}
-      {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-navy">Solicitar Saque</h2>
-              <button
-                onClick={() => {
-                  setShowWithdrawModal(false);
-                  setPixKey('');
-                }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800 mb-2">
-                  <strong>Valor disponível para saque:</strong>
-                </p>
-                <p className="text-2xl font-bold text-blue-900">
-                  R$ {available.toFixed(2).replace('.', ',')}
-                </p>
-              </div>
-
-              <Input
-                label="Chave PIX *"
-                value={pixKey}
-                onChange={(e) => setPixKey(e.target.value)}
-                placeholder="CPF, email, telefone ou chave aleatória"
-                required
-              />
-
-              <p className="text-xs text-slate-500">
-                Certifique-se de que a chave PIX está correta. O pagamento será processado em até 5 dias úteis após a aprovação.
-              </p>
-
-              <div className="flex gap-4 pt-4">
-                <Button
-                  variant="primary"
-                  onClick={handleRequestWithdraw}
-                  disabled={requestingWithdraw || !pixKey.trim() || available < 50}
-                  className="flex-1"
-                >
-                  {requestingWithdraw ? 'Enviando...' : 'Confirmar Saque'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowWithdrawModal(false);
-                    setPixKey('');
-                  }}
-                  className="flex-1"
-                  disabled={requestingWithdraw}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
+      {/* Payout Settings Modal */}
+      {showPayoutSettingsModal && (
+        <PayoutSettingsForm
+          onClose={() => setShowPayoutSettingsModal(false)}
+          onSave={() => {
+            setShowPayoutSettingsModal(false);
+          }}
+        />
       )}
     </Layout>
   );
