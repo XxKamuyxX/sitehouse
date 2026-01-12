@@ -173,10 +173,25 @@ export function SubscribeButton({
     }
 
     // If referral code is entered but not validated, validate it first
-    if (referralCode.trim() && codeValidation.status !== 'valid') {
+    if (referralCode.trim()) {
       await handleValidateReferralCode(referralCode);
-      if (codeValidation.status !== 'valid') {
-        alert('Por favor, insira um código de indicação válido ou deixe em branco.');
+      // Re-check validation status after async validation
+      const normalizedCode = referralCode.toUpperCase().trim().replace(/\s/g, '');
+      if (/^[A-Z]{3}\d{4}$/.test(normalizedCode)) {
+        // Code format is valid, check if it exists in database
+        const companiesQuery = query(
+          collection(db, 'companies'),
+          where('affiliateCode', '==', normalizedCode)
+        );
+        const snapshot = await getDocs(companiesQuery);
+        if (snapshot.empty) {
+          alert('Código de indicação não encontrado. Por favor, verifique o código ou deixe em branco.');
+          setLoading(false);
+          return;
+        }
+      } else {
+        alert('Código de indicação inválido. Formato: 3 letras + 4 dígitos (ex: VID4829). Deixe em branco se não tiver código.');
+        setLoading(false);
         return;
       }
     }
