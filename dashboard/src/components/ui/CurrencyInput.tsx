@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 interface CurrencyInputProps {
   value: number;
   onChange: (value: number) => void;
+  onBlur?: () => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
 }
 
-export function CurrencyInput({ value, onChange, placeholder, className = '', disabled = false }: CurrencyInputProps) {
+export function CurrencyInput({ value, onChange, onBlur, placeholder, className = '', disabled = false }: CurrencyInputProps) {
   const [displayValue, setDisplayValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +75,10 @@ export function CurrencyInput({ value, onChange, placeholder, className = '', di
     } else {
       setDisplayValue('');
       onChange(0);
+    }
+    // Call custom onBlur if provided
+    if (onBlur) {
+      onBlur();
     }
   };
 

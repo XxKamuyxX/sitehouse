@@ -594,11 +594,23 @@ export function WorkOrderDetails() {
                 <p className="font-medium text-navy">{workOrder.clientName}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-600">Data e Hora Agendada</p>
-                <p className="font-medium text-navy">
-                  {new Date(workOrder.scheduledDate).toLocaleDateString('pt-BR')}
-                  {scheduledTime && ` às ${scheduledTime}`}
-                </p>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Data Agendada
+                </label>
+                <input
+                  type="date"
+                  value={workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : ''}
+                  onChange={async (e) => {
+                    if (id && workOrder) {
+                      const newDate = e.target.value;
+                      await updateDoc(doc(db, 'workOrders', id), {
+                        scheduledDate: newDate,
+                      });
+                      setWorkOrder({ ...workOrder, scheduledDate: newDate });
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -736,11 +748,13 @@ export function WorkOrderDetails() {
                 </label>
                 <CurrencyInput
                   value={totalPrice}
-                  onChange={async (value) => {
+                  onChange={(value) => {
                     setTotalPrice(value);
+                  }}
+                  onBlur={async () => {
                     if (id) {
                       await updateDoc(doc(db, 'workOrders', id), {
-                        totalPrice: value,
+                        totalPrice: totalPrice,
                       });
                     }
                   }}

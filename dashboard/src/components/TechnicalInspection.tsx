@@ -21,13 +21,13 @@ interface TechnicalInspectionProps {
   profession?: string;
   workOrderId?: string;
   initialSurveyFields?: Record<string, string>;
-  initialCustomChecklist?: Array<{ id: string; label: string; value: string }>;
+  initialCustomChecklist?: Array<{ id: string; label: string; value: string; imageUrl?: string }>;
   initialSurveyPhotos?: string[];
   onSave: (data: {
     leaves?: Leaf[];
     generalChecklist: { task: string; completed: boolean; value?: string }[];
     surveyFields?: Record<string, string>;
-    customChecklist?: Array<{ id: string; label: string; value: string }>;
+    customChecklist?: Array<{ id: string; label: string; value: string; imageUrl?: string }>;
     surveyPhotos?: string[];
   }) => void;
 }
@@ -56,12 +56,6 @@ const GENERAL_CHECKLIST_ITEMS: GeneralChecklistItem[] = [
   { task: 'Ferramentas organizadas', completed: false },
 ];
 
-const LEVEL_OPTIONS = [
-  { value: '', label: 'Selecione' },
-  { value: 'leve', label: 'Leve' },
-  { value: 'moderado', label: 'Moderado' },
-  { value: 'intenso', label: 'Intenso' },
-];
 
 export function TechnicalInspection({
   initialLeaves = [],
@@ -92,7 +86,7 @@ export function TechnicalInspection({
   });
   
   // Custom checklist items
-  const [customChecklist, setCustomChecklist] = useState<Array<{ id: string; label: string; value: string }>>(initialCustomChecklist);
+  const [customChecklist, setCustomChecklist] = useState<Array<{ id: string; label: string; value: string; imageUrl?: string }>>(initialCustomChecklist);
   const [showAddCustomItem, setShowAddCustomItem] = useState(false);
   const [newCustomLabel, setNewCustomLabel] = useState('');
   const [newCustomValue, setNewCustomValue] = useState('');
@@ -143,11 +137,6 @@ export function TechnicalInspection({
     setLeaves(leaves.map((leaf) => (leaf.id === leafId ? { ...leaf, photo: url } : leaf)));
   };
 
-  const updateGeneralChecklistValue = (index: number, value: string) => {
-    const updated = [...generalChecklist];
-    updated[index].value = value;
-    setGeneralChecklist(updated);
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -205,11 +194,18 @@ export function TechnicalInspection({
       id: Date.now().toString(),
       label: newCustomLabel,
       value: newCustomValue,
+      imageUrl: '',
     };
     setCustomChecklist([...customChecklist, newItem]);
     setNewCustomLabel('');
     setNewCustomValue('');
     setShowAddCustomItem(false);
+  };
+
+  const handleCustomItemPhotoUpload = (itemId: string, url: string) => {
+    setCustomChecklist(customChecklist.map(item => 
+      item.id === itemId ? { ...item, imageUrl: url } : item
+    ));
   };
 
   const handleRemoveCustomChecklistItem = (id: string) => {
@@ -256,7 +252,7 @@ export function TechnicalInspection({
 
   const handleSave = () => {
     const saveData: any = {
-      generalChecklist,
+      generalChecklist: [], // Empty generalChecklist as requested
       surveyFields: surveyFieldValues,
       customChecklist: customChecklist.length > 0 ? customChecklist : undefined,
       surveyPhotos: surveyPhotos.length > 0 ? surveyPhotos : undefined,
@@ -530,141 +526,6 @@ export function TechnicalInspection({
         </Card>
       )}
 
-      {/* General Checklist - Apenas Guia e Trilhos (for vidracaria) */}
-      {profession === 'vidracaria' && (
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Checklist Geral</h2>
-        <div className="space-y-4">
-          {/* Guia - Quantidade */}
-          <div className="p-4 border-2 border-navy rounded-lg bg-navy-50">
-            <label className="block text-sm font-medium text-navy mb-2">Quantidade de Guias</label>
-            <input
-              type="number"
-              min="0"
-              value={generalChecklist.find(item => item.task === 'Guia')?.value || '0'}
-              onChange={(e) => {
-                const guiaIndex = generalChecklist.findIndex(item => item.task === 'Guia');
-                const value = e.target.value;
-                if (guiaIndex === -1) {
-                  setGeneralChecklist([...generalChecklist, { task: 'Guia', completed: true, value }]);
-                } else {
-                  updateGeneralChecklistValue(guiaIndex, value);
-                  const updated = [...generalChecklist];
-                  updated[guiaIndex].completed = true;
-                  setGeneralChecklist(updated);
-                }
-              }}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy bg-white"
-              placeholder="0"
-            />
-            <p className="text-xs text-slate-600 mt-1">Digite 0 se não houver guias</p>
-          </div>
-
-          {/* Trilhos */}
-          <div className="p-4 border-2 border-navy rounded-lg bg-navy-50 space-y-3">
-            <label className="block text-sm font-medium text-navy mb-2">Trilhos</label>
-            
-            {/* Amassado */}
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">Amassado</label>
-              <select
-                value={generalChecklist.find(item => item.task === 'Trilhos - Amassado')?.value || ''}
-                onChange={(e) => {
-                  const index = generalChecklist.findIndex(item => item.task === 'Trilhos - Amassado');
-                  if (index === -1) {
-                    setGeneralChecklist([...generalChecklist, { task: 'Trilhos - Amassado', completed: !!e.target.value, value: e.target.value }]);
-                  } else {
-                    updateGeneralChecklistValue(index, e.target.value);
-                    const updated = [...generalChecklist];
-                    updated[index].completed = !!e.target.value;
-                    setGeneralChecklist(updated);
-                  }
-                }}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy bg-white"
-              >
-                {LEVEL_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ressecado */}
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">Ressecado</label>
-              <select
-                value={generalChecklist.find(item => item.task === 'Trilhos - Ressecado')?.value || ''}
-                onChange={(e) => {
-                  const index = generalChecklist.findIndex(item => item.task === 'Trilhos - Ressecado');
-                  if (index === -1) {
-                    setGeneralChecklist([...generalChecklist, { task: 'Trilhos - Ressecado', completed: !!e.target.value, value: e.target.value }]);
-                  } else {
-                    updateGeneralChecklistValue(index, e.target.value);
-                    const updated = [...generalChecklist];
-                    updated[index].completed = !!e.target.value;
-                    setGeneralChecklist(updated);
-                  }
-                }}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy bg-white"
-              >
-                {LEVEL_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sujo */}
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">Sujo</label>
-              <select
-                value={generalChecklist.find(item => item.task === 'Trilhos - Sujo')?.value || ''}
-                onChange={(e) => {
-                  const index = generalChecklist.findIndex(item => item.task === 'Trilhos - Sujo');
-                  if (index === -1) {
-                    setGeneralChecklist([...generalChecklist, { task: 'Trilhos - Sujo', completed: !!e.target.value, value: e.target.value }]);
-                  } else {
-                    updateGeneralChecklistValue(index, e.target.value);
-                    const updated = [...generalChecklist];
-                    updated[index].completed = !!e.target.value;
-                    setGeneralChecklist(updated);
-                  }
-                }}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy bg-white"
-              >
-                {LEVEL_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      </Card>
-      )}
-
-      {/* General Checklist (for non-vidracaria professions) */}
-      {profession !== 'vidracaria' && (
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Checklist Geral</h2>
-          <div className="space-y-3">
-            {generalChecklist.map((item, index) => (
-              <label key={index} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={item.completed}
-                  onChange={(e) => {
-                    const updated = [...generalChecklist];
-                    updated[index].completed = e.target.checked;
-                    setGeneralChecklist(updated);
-                  }}
-                  className="w-5 h-5 text-navy rounded focus:ring-navy"
-                />
-                <span className={item.completed ? 'line-through text-slate-500' : 'text-slate-700'}>
-                  {item.task}
-                </span>
-              </label>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* Custom Checklist Items */}
       <Card>
@@ -715,21 +576,46 @@ export function TechnicalInspection({
         )}
 
         {customChecklist.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {customChecklist.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex-1">
-                  <p className="font-medium text-slate-700">{item.label}</p>
-                  {item.value && <p className="text-sm text-slate-600">{item.value}</p>}
+              <div key={item.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-700">{item.label}</p>
+                    {item.value && <p className="text-sm text-slate-600 mt-1">{item.value}</p>}
+                    {item.imageUrl && (
+                      <div className="mt-2">
+                        <img
+                          src={item.imageUrl}
+                          alt={item.label}
+                          className="w-full max-w-xs h-32 object-cover rounded-lg border border-slate-300"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {workOrderId && (
+                      <div className="flex flex-col gap-2">
+                        <ImageUpload
+                          onUploadComplete={(url) => handleCustomItemPhotoUpload(item.id, url)}
+                          path={`work-orders/${workOrderId}/custom-checklist/${item.id}`}
+                          label="Foto"
+                        />
+                      </div>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveCustomChecklistItem(item.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveCustomChecklistItem(item.id)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
             ))}
           </div>
