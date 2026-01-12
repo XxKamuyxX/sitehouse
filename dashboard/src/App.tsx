@@ -365,7 +365,15 @@ function AppRoutes() {
         }
       />
       
-      {/* Rotas Legacy (redirecionam para admin) */}
+           <Route
+        path="/admin/library"
+        element={
+          <AdminRoute>
+            <Library />
+          </AdminRoute>
+        }
+      />
+ {/* Rotas Legacy (redirecionam para admin) */}
       <Route
         path="/dashboard"
         element={
@@ -455,7 +463,15 @@ function AppRoutes() {
         }
       />
       
-      {/* Rotas Tech */}
+           <Route
+        path="/library"
+        element={
+          <PrivateRoute>
+            <Navigate to="/admin/library" replace />
+          </PrivateRoute>
+        }
+      />
+ {/* Rotas Tech */}
       <Route
         path="/tech/dashboard"
         element={
