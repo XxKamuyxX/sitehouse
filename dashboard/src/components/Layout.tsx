@@ -115,6 +115,7 @@ export function Layout({ children }: LayoutProps) {
         { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
         { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
         { path: '/finance', icon: DollarSign, label: 'Financeiro' },
+        { path: '/library', icon: BookOpen, label: 'Biblioteca de Projetos' },
         ...(isAdmin ? [
           { path: '/admin/team', icon: UserCog, label: 'Equipe' },
           { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },

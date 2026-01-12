@@ -30,6 +30,7 @@ import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
 import { Landing } from './pages/Landing';
 import { MarketingLayout } from './components/MarketingLayout';
+import { Library } from './pages/Library';
 
 // Helper function to check if subscription is expired
 function isSubscriptionExpired(userMetadata: any): boolean {
