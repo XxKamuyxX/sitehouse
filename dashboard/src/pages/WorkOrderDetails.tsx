@@ -146,6 +146,60 @@ export function WorkOrderDetails() {
     }
   };
 
+  // Load technicians when modal opens
+  useEffect(() => {
+    if (showScheduleModal && companyId) {
+      loadTechnicians();
+    }
+  }, [showScheduleModal, companyId]);
+
+  const loadTechnicians = async () => {
+    if (!companyId) return;
+    setLoadingTechnicians(true);
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('companyId', '==', companyId)
+      );
+      const snapshot = await getDocs(usersQuery);
+      const techs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || '',
+        email: doc.data().email || ''
+      }));
+      setTechnicians(techs);
+    } catch (error) {
+      console.error('Error loading technicians:', error);
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  };
+
+  const handleScheduleSubmit = async () => {
+    if (!id || !scheduleDate) return;
+    setSaving(true);
+    try {
+      const updateData: any = {
+        scheduledDate: scheduleDate,
+      };
+      if (scheduleTime) {
+        updateData.scheduledTime = scheduleTime;
+      }
+      if (selectedTechnicianId) {
+        updateData.technicianId = selectedTechnicianId;
+      }
+      await updateDoc(doc(db, 'workOrders', id), updateData);
+      setShowScheduleModal(false);
+      await loadWorkOrder();
+      alert('Agendamento salvo com sucesso!');
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      alert('Erro ao salvar agendamento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const loadWorkOrder = async () => {
     try {
       if (!id) {
