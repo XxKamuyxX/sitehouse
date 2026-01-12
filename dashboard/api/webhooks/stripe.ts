@@ -249,6 +249,52 @@ async function handleInvoicePaymentSucceeded(event: Stripe.Invoice): Promise<voi
 /**
  * Handle failed invoice payment
  */
+
+/**
+ * Handle checkout session completed
+ * This fires when checkout is completed (before trial starts)
+ * We use this to track affiliate from referral code entered during checkout
+ */
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  try {
+    const companyId = session.metadata?.companyId;
+    const affiliateId = session.metadata?.affiliateId;
+
+    if (!companyId) {
+      console.log('No companyId in checkout session metadata');
+      return;
+    }
+
+    // If affiliateId is present in metadata, update company.referredBy
+    // This will be used later when processing commissions on first payment
+    if (affiliateId) {
+      try {
+        const companyDoc = await db.collection('companies').doc(companyId).get();
+        if (companyDoc.exists) {
+          const companyData = companyDoc.data()!;
+          
+          // Only update referredBy if it's not already set (first subscription)
+          if (!companyData.referredBy) {
+            await db.collection('companies').doc(companyId).update({
+              referredBy: affiliateId,
+              updatedAt: Timestamp.now(),
+            });
+            console.log(Updated company  with referredBy:  from checkout session);
+          } else {
+            console.log(Company  already has referredBy set, skipping update);
+          }
+        }
+      } catch (error: any) {
+        console.error(Error updating company  with affiliateId:, error);
+        // Don't throw - this is non-critical
+      }
+    }
+  } catch (error: any) {
+    console.error('Error handling checkout.session.completed:', error);
+    // Don't throw - this is non-critical for checkout flow
+  }
+}
+
 async function handleInvoicePaymentFailed(event: Stripe.Invoice): Promise<void> {
   try {
     const customerId = typeof event.customer === 'string' ? event.customer : event.customer?.id;
