@@ -30,7 +30,6 @@ import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
 import { Landing } from './pages/Landing';
 import { MarketingLayout } from './components/MarketingLayout';
-import { Library } from './pages/Library';
 
 // Helper function to check if subscription is expired
 function isSubscriptionExpired(userMetadata: any): boolean {
@@ -364,15 +363,6 @@ function AppRoutes() {
           </AdminRoute>
         }
       />
-      
-           <Route
-        path="/admin/library"
-        element={
-          <AdminRoute>
-            <Library />
-          </AdminRoute>
-        }
-      />
  {/* Rotas Legacy (redirecionam para admin) */}
       <Route
         path="/dashboard"
@@ -459,15 +449,6 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <Navigate to="/admin/settings" replace />
-          </PrivateRoute>
-        }
-      />
-      
-           <Route
-        path="/library"
-        element={
-          <PrivateRoute>
-            <Navigate to="/admin/library" replace />
           </PrivateRoute>
         }
       />
