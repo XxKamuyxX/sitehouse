@@ -447,6 +447,11 @@ export default async function handler(req: any, res: any) {
   try {
     // Handle different event types
     switch (event.type) {
+      case 'checkout.session.completed':
+        // This fires when checkout is completed (before trial starts)
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+
       case 'customer.subscription.created':
         // This fires immediately when they start the 7-day trial
         await handleSubscriptionCreated(event.data.object as Stripe.Subscription);

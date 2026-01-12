@@ -14,6 +14,29 @@
  */
 
 import Stripe from 'stripe';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin (only if not already initialized)
+if (!getApps().length) {
+  try {
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      : null;
+
+    if (serviceAccount) {
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+    } else {
+      initializeApp();
+    }
+  } catch (error) {
+    console.error('Error initializing Firebase Admin:', error);
+  }
+}
+
+const db = getFirestore();
 
 // Type definitions for Vercel serverless function
 type VercelRequest = {
@@ -60,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       companyId,
       stripeCustomerId,
       referralDiscountActive = false,
+      referralCode,
       successUrl,
       cancelUrl,
     } = req.body;
@@ -69,6 +93,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({
         error: 'Missing required fields: companyId and stripeCustomerId are required',
       });
+    }
+
+    // Validate referral code if provided
+    let affiliateId: string | null = null;
+    let shouldApplyDiscount = referralDiscountActive;
+
+    if (referralCode) {
+      try {
+        // Normalize code: uppercase and remove spaces
+        const normalizedCode = referralCode.toUpperCase().trim().replace(/\s/g, '');
+
+        // Search for company with this affiliate code
+        const companiesSnapshot = await db
+          .collection('companies')
+          .where('affiliateCode', '==', normalizedCode)
+          .limit(1)
+          .get();
+
+        if (!companiesSnapshot.empty) {
+          const companyDoc = companiesSnapshot.docs[0];
+          affiliateId = companyDoc.id;
+          shouldApplyDiscount = true; // Apply discount if valid code found
+          console.log(`Valid referral code found: ${normalizedCode} for company ${affiliateId}`);
+        } else {
+          console.log(`Referral code not found: ${normalizedCode}, proceeding without discount`);
+          // Continue without discount if code is invalid
+        }
+      } catch (error: any) {
+        console.error('Error validating referral code:', error);
+        // Continue without discount if validation fails
+      }
     }
 
     // Get base URL from environment or request
@@ -100,19 +155,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cancel_url: finalCancelUrl,
       metadata: {
         companyId: companyId,
+        ...(affiliateId && { affiliateId: affiliateId }),
       },
       subscription_data: {
         trial_period_days: 7, // 7-day free trial - user pays nothing today
         metadata: {
           companyId: companyId,
+          ...(affiliateId && { affiliateId: affiliateId }),
         },
       },
     };
 
-    // Apply discount coupon if referral discount is active
+    // Apply discount coupon if referral discount is active or valid code found
     // Stripe applies the coupon to the first invoice generated AFTER the trial ends
     // So if trial is 7 days, coupon applies to invoice on day 8
-    if (referralDiscountActive) {
+    if (shouldApplyDiscount && COUPON_ID) {
       sessionParams.discounts = [
         {
           coupon: COUPON_ID,

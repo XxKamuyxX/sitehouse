@@ -19,6 +19,7 @@ export interface StripeCustomer {
 export interface SubscriptionCheckoutParams {
   companyId: string;
   referralDiscountActive?: boolean;
+  referralCode?: string;
   successUrl?: string;
   cancelUrl?: string;
 }
@@ -133,6 +134,7 @@ export async function createSubscriptionCheckout(
         companyId: params.companyId,
         stripeCustomerId: stripeCustomerId,
         referralDiscountActive: params.referralDiscountActive || false,
+        referralCode: params.referralCode,
         successUrl,
         cancelUrl,
       }),
