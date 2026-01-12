@@ -91,7 +91,7 @@ export function Library() {
     }
   };
 
-  const handleImageUpload = (url: string) => {
+  const handleImageUploadComplete = (url: string) => {
     setFormData({ ...formData, imageUrl: url });
   };
 
