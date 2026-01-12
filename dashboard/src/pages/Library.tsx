@@ -373,10 +373,15 @@ export function Library() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Imagem *
                   </label>
+                  {formData.imageUrl && (
+                    <div className="mb-4">
+                      <img src={formData.imageUrl} alt="Preview" className="max-w-xs rounded-lg border border-slate-300" />
+                    </div>
+                  )}
                   <ImageUpload
-                    currentImageUrl={formData.imageUrl}
-                    onImageUpload={handleImageUpload}
-                    folder="library"
+                    onUploadComplete={handleImageUploadComplete}
+                    path={`companies/${companyId}/library`}
+                    label={formData.imageUrl ? "Trocar Imagem" : "Enviar Imagem"}
                   />
                 </div>
 
