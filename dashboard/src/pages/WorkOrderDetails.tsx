@@ -847,6 +847,42 @@ export function WorkOrderDetails() {
               </Card>
             )}
 
+            {/* Client Digital Acceptance */}
+            {workOrder.status === 'completed' && (
+              <Card>
+                <h2 className="text-xl font-bold text-navy mb-4">Aceite Digital do Cliente</h2>
+                {workOrder.clientAccepted ? (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-700 font-medium mb-2">✓ Aceite confirmado</p>
+                    <p className="text-sm text-green-600">
+                      Aceito em {workOrder.acceptedAt?.toDate ? 
+                        new Date(workOrder.acceptedAt.toDate()).toLocaleString('pt-BR') :
+                        workOrder.acceptedAt ? new Date(workOrder.acceptedAt).toLocaleString('pt-BR') : 'N/A'
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-slate-600 mb-4">
+                      Gere um link para o cliente confirmar o recebimento do serviço.
+                    </p>
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        const acceptanceLink = `${window.location.origin}/p/os/accept/${id}`;
+                        navigator.clipboard.writeText(acceptanceLink);
+                        alert('Link copiado! Compartilhe com o cliente.');
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Copy className="w-5 h-5" />
+                      Copiar Link de Aceite
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            )}
+
             {/* Delete Work Order */}
             <Card>
               <div className="flex items-center justify-between">
