@@ -1364,10 +1364,62 @@ export function WorkOrderDetails() {
       <LibrarySelectorModal
         isOpen={showLibraryModal}
         onClose={() => setShowLibraryModal(false)}
-                  onSelect={(item) => {
+        onSelect={(item) => {
           handlePhotoUpload(item.imageUrl);
         }}
       />
+
+      {/* PDF Preview Modal */}
+      {showPdfPreview && pdfBlobUrl && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-5xl h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-200">
+              <h2 className="text-xl font-bold text-navy">Pré-visualização do PDF</h2>
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    // Close preview and proceed with WhatsApp
+                    setShowPdfPreview(false);
+                    // Trigger WhatsApp button click
+                    const whatsappButton = document.querySelector('[data-whatsapp-button]') as HTMLElement;
+                    if (whatsappButton) {
+                      whatsappButton.click();
+                    }
+                    // Clean up blob URL
+                    if (pdfBlobUrl) {
+                      URL.revokeObjectURL(pdfBlobUrl);
+                      setPdfBlobUrl(null);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  Confirmar e Enviar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPdfPreview(false);
+                    if (pdfBlobUrl) {
+                      URL.revokeObjectURL(pdfBlobUrl);
+                      setPdfBlobUrl(null);
+                    }
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={pdfBlobUrl}
+                className="w-full h-full border-0"
+                title="PDF Preview"
+              />
+            </div>
+          </Card>
+        </div>
+      )}
     </Layout>
   );
 }
