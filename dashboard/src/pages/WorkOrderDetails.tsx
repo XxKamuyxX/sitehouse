@@ -1274,8 +1274,8 @@ export function WorkOrderDetails() {
       <LibrarySelectorModal
         isOpen={showLibraryModal}
         onClose={() => setShowLibraryModal(false)}
-        onSelect={(imageUrl) => {
-          handlePhotoUpload(imageUrl);
+                  onSelect={(item) => {
+          handlePhotoUpload(item.imageUrl);
         }}
       />
     </Layout>

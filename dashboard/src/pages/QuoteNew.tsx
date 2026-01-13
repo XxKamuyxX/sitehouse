@@ -12,6 +12,7 @@ import { ContractPDF } from '../components/ContractPDF';
 import { InstallationItemModal } from '../components/InstallationItemModal';
 import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 import { ClientForm } from '../components/ClientForm';
+import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
 import { getProfessionCatalog } from '../utils/professionCatalog';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -110,6 +111,9 @@ interface QuoteItem {
   glassThickness?: string;
   profileColor?: string;
   isInstallation?: boolean;
+  // Visual library fields
+  imageUrl?: string;
+  description?: string;
 }
 
 const VIP_CONDOMINIUMS = [
@@ -141,6 +145,8 @@ export function QuoteNew() {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showPDFOptionsModal, setShowPDFOptionsModal] = useState(false);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [selectedCategoryForLibrary, setSelectedCategoryForLibrary] = useState<{ catalogName: string; categoryName: string } | null>(null);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [services, setServices] = useState<Service[]>(DEFAULT_SERVICES);
   const [diagnosis, setDiagnosis] = useState({
@@ -1347,6 +1353,38 @@ export function QuoteNew() {
           onClose={() => setShowServiceSelectorModal(false)}
           onSelectService={handleSelectServiceFromModal}
           companyId={companyId}
+        />
+
+        {/* Library Selector Modal */}
+        <LibrarySelectorModal
+          isOpen={showLibraryModal}
+          onClose={() => {
+            setShowLibraryModal(false);
+            setSelectedCategoryForLibrary(null);
+          }}
+          onSelect={(libraryItem) => {
+            // Find catalog item and open installation modal with library data
+            const profession = (company as any)?.profession || (company as any)?.segment || 'vidracaria';
+            const catalog = getProfessionCatalog(profession);
+            const catalogItem = selectedCategoryForLibrary 
+              ? catalog.installation.find((item) => item.name === selectedCategoryForLibrary.catalogName)
+              : null;
+            
+            setEditingItemIndex(null);
+            setShowInstallationModal(true);
+            (window as any).__selectedInstallationCategory = {
+              serviceName: catalogItem?.name || selectedCategoryForLibrary?.catalogName || libraryItem.name,
+              pricingMethod: catalogItem?.pricingMethod || 'm2',
+              defaultPrice: catalogItem?.defaultPrice || 0,
+              glassThickness: catalogItem?.metadata?.glassThickness?.[0],
+              profileColor: catalogItem?.metadata?.profileColor?.[0],
+              imageUrl: libraryItem.imageUrl,
+              description: libraryItem.description,
+            };
+            setShowLibraryModal(false);
+            setSelectedCategoryForLibrary(null);
+          }}
+          filterCategory={selectedCategoryForLibrary?.categoryName}
         />
 
         {/* Installation Item Modal (kept for editing existing items) */}

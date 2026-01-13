@@ -15,6 +15,8 @@ interface QuoteItem {
   glassColor?: string;
   profileColor?: string;
   isInstallation?: boolean;
+  imageUrl?: string;
+  description?: string;
 }
 
 interface CompanyData {
@@ -131,6 +133,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottom: '1 solid #E2E8F0',
     fontSize: 9,
+    alignItems: 'flex-start',
   },
   tableCell: {
     flex: 1,
@@ -409,7 +412,9 @@ export function QuotePDF({
         {/* Services Table */}
         <View style={styles.table}>
           <View style={dynamicStyles.tableHeader}>
-            <Text style={[styles.tableCell, { flex: 3 }]}>SERVIÇO</Text>
+            <Text style={[styles.tableCell, { flex: 1.5 }]}>MODELO</Text>
+            <Text style={[styles.tableCell, { flex: 2.5 }]}>DESCRIÇÃO/DETALHES</Text>
+            <Text style={[styles.tableCell, { flex: 1 }]}>MEDIDAS</Text>
             <Text style={styles.tableCellCenter}>QTD</Text>
             {!hideUnitPrice && (
             <Text style={styles.tableCellRight}>PREÇO UNIT.</Text>

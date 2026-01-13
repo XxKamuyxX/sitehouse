@@ -19,10 +19,11 @@ interface LibraryItem {
 interface LibrarySelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (imageUrl: string) => void;
+  onSelect: (item: LibraryItem) => void;
+  filterCategory?: string;
 }
 
-export function LibrarySelectorModal({ isOpen, onClose, onSelect }: LibrarySelectorModalProps) {
+export function LibrarySelectorModal({ isOpen, onClose, onSelect, filterCategory }: LibrarySelectorModalProps) {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const [items, setItems] = useState<LibraryItem[]>([]);
@@ -56,10 +57,14 @@ export function LibrarySelectorModal({ isOpen, onClose, onSelect }: LibrarySelec
     }
   };
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !filterCategory || 
+      item.category.toLowerCase().includes(filterCategory.toLowerCase()) ||
+      item.sector.toLowerCase().includes(filterCategory.toLowerCase());
+    return matchesSearch && matchesCategory;
+  });
 
   if (!isOpen) return null;
 
@@ -100,12 +105,12 @@ export function LibrarySelectorModal({ isOpen, onClose, onSelect }: LibrarySelec
               <button
                 key={item.id}
                 onClick={() => {
-                  onSelect(item.imageUrl);
+                  onSelect(item);
                   onClose();
                 }}
                 className="group relative p-3 rounded-lg border-2 border-slate-200 hover:border-navy transition-all bg-white hover:bg-slate-50 text-left"
               >
-                <div className="aspect-video bg-slate-100 rounded-lg mb-2 overflow-hidden">
+                <div className="aspect-[4/3] bg-slate-100 rounded-lg mb-2 overflow-hidden">
                   <img
                     src={item.imageUrl}
                     alt={item.name}
@@ -115,7 +120,7 @@ export function LibrarySelectorModal({ isOpen, onClose, onSelect }: LibrarySelec
                     }}
                   />
                 </div>
-                <h3 className="font-medium text-sm text-slate-700 line-clamp-2">{item.name}</h3>
+                <h3 className="font-bold text-sm text-slate-700 line-clamp-2 mt-2">{item.name}</h3>
                 {item.description && (
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description}</p>
                 )}

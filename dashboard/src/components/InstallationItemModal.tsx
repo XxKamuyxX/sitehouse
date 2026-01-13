@@ -23,6 +23,8 @@ interface InstallationItemModalProps {
     glassThickness?: string;
     profileColor?: string;
     isInstallation: boolean;
+    imageUrl?: string;
+    description?: string;
   }) => void;
   initialItem?: any;
   isInstallation?: boolean;
