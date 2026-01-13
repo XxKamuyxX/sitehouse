@@ -793,7 +793,7 @@ export function QuoteNew() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-32">
           {/* Main Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Client Selection */}
@@ -1253,8 +1253,8 @@ export function QuoteNew() {
             {/* Summary */}
             <Card>
               <h2 className="text-xl font-bold text-navy mb-4">Resumo</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between text-slate-600">
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-slate-600">
                   <span>Subtotal:</span>
                   <span className="font-medium">R$ {subtotal.toFixed(2)}</span>
                 </div>
@@ -1269,9 +1269,18 @@ export function QuoteNew() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                   />
                 </div>
-                <div className="pt-3 border-t border-slate-200 flex justify-between">
+                <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:justify-between gap-2">
                   <span className="font-bold text-lg text-navy">Total:</span>
-                  <span className="font-bold text-lg text-navy">R$ {total.toFixed(2)}</span>
+                  <CurrencyInput
+                    value={total}
+                    onChange={(newTotal) => {
+                      // Recalculate discount: New Discount = Subtotal - New Total
+                      const newDiscount = Math.max(0, subtotal - newTotal);
+                      setDiscount(newDiscount);
+                    }}
+                    placeholder="0,00"
+                    className="w-full sm:w-auto text-right font-bold text-lg text-navy px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  />
                 </div>
               </div>
             </Card>
