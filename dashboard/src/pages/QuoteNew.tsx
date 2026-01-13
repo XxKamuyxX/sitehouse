@@ -1261,8 +1261,23 @@ export function QuoteNew() {
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs text-slate-600 mb-1">Total</p>
-                                <p className="text-lg font-bold text-navy">R$ {item.total.toFixed(2)}</p>
+                                <label className="block text-xs text-slate-600 mb-1">Total</label>
+                                <CurrencyInput
+                                  value={item.total}
+                                  onChange={(newTotal: number) => {
+                                    const newItems = [...items];
+                                    newItems[index].total = newTotal;
+                                    // Recalculate unit price: New Unit Price = New Total / Quantity
+                                    if (newItems[index].quantity > 0) {
+                                      newItems[index].unitPrice = newTotal / newItems[index].quantity;
+                                    } else {
+                                      newItems[index].unitPrice = newTotal;
+                                    }
+                                    setItems(newItems);
+                                  }}
+                                  placeholder="0,00"
+                                  className="text-lg font-bold text-navy px-2 py-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy w-full sm:w-auto text-right"
+                                />
                               </div>
                             </div>
                           </div>
