@@ -43,23 +43,11 @@ const DEFECT_OPTIONS = [
   'Descolado'
 ];
 
-interface GeneralChecklistItem {
-  task: string;
-  completed: boolean;
-  value?: string; // Para campos com opções (guia, trilhos, níveis)
-}
-
-const GENERAL_CHECKLIST_ITEMS: GeneralChecklistItem[] = [
-  { task: 'Proteção do piso realizada', completed: false },
-  { task: 'Condição das paredes verificada', completed: false },
-  { task: 'Área de trabalho limpa', completed: false },
-  { task: 'Ferramentas organizadas', completed: false },
-];
 
 
 export function TechnicalInspection({
   initialLeaves = [],
-  initialGeneralChecklist = GENERAL_CHECKLIST_ITEMS.map(item => ({ ...item })),
+  initialGeneralChecklist = [],
   profession = 'vidracaria',
   workOrderId,
   initialSurveyFields = {},
@@ -70,9 +58,6 @@ export function TechnicalInspection({
   const [numberOfLeaves, setNumberOfLeaves] = useState(initialLeaves.length || 0);
   const [leaves, setLeaves] = useState<Leaf[]>(initialLeaves);
   const [selectedLeaf, setSelectedLeaf] = useState<number | null>(null);
-  const [generalChecklist, setGeneralChecklist] = useState<GeneralChecklistItem[]>(
-    initialGeneralChecklist.length > 0 ? initialGeneralChecklist : GENERAL_CHECKLIST_ITEMS.map(item => ({ ...item }))
-  );
   
   // Dynamic survey fields
   const surveyFields = getSurveyFields(profession);

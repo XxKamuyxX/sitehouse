@@ -36,7 +36,7 @@ interface WorkOrder {
     leaves?: any[];
     generalChecklist: { task: string; completed: boolean; value?: string }[];
     surveyFields?: Record<string, string>;
-    customChecklist?: Array<{ id: string; label: string; value: string }>;
+    customChecklist?: Array<{ id: string; label: string; value: string; imageUrl?: string }>;
     surveyPhotos?: string[];
   };
   clientPhone?: string;
