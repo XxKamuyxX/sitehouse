@@ -2,7 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
-import { Save, Trash2, Download, Plus, FileText } from 'lucide-react';
+import { Save, Trash2, Download, Plus, FileText, Square, DoorOpen as DoorIcon, Package, Shield, Home, Image, Lock, MoreHorizontal } from 'lucide-react';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { pdf } from '@react-pdf/renderer';
@@ -12,6 +12,7 @@ import { ContractPDF } from '../components/ContractPDF';
 import { InstallationItemModal } from '../components/InstallationItemModal';
 import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 import { ClientForm } from '../components/ClientForm';
+import { getProfessionCatalog } from '../utils/professionCatalog';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -148,6 +149,8 @@ export function QuoteNew() {
     notes: '',
   });
   const [loading, setLoading] = useState(true);
+  const [activeServiceTab, setActiveServiceTab] = useState<'installation' | 'maintenance' | 'custom'>('installation');
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -174,6 +177,8 @@ export function QuoteNew() {
         id: doc.id,
         ...doc.data(),
       })) as Client[];
+      // Sort clients alphabetically by name (A-Z)
+      clientsData.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
       setClients(clientsData);
     } catch (error) {
       console.error('Error loading clients:', error);
@@ -786,55 +791,210 @@ export function QuoteNew() {
           {/* Main Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Client Selection */}
-            <Card>
+            <Card className="relative pb-32">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-navy">Cliente</h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowClientModal(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Novo Cliente
-                </Button>
               </div>
-              <Select
-                label="Selecione o Cliente"
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                options={[
-                  { value: '', label: 'Selecione um cliente...' },
-                  ...clients.map((client) => ({
-                    value: client.id,
-                    label: `${client.name} - ${client.condominium}`,
-                  })),
-                ]}
-                required
-              />
+              
+              {/* Search Bar */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={clientSearchTerm}
+                  onChange={(e) => setClientSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                />
+              </div>
+
+              {/* Client List */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {clients
+                  .filter((client) => 
+                    clientSearchTerm === '' || 
+                    client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                    client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                  )
+                  .map((client) => (
+                    <button
+                      key={client.id}
+                      onClick={() => setSelectedClientId(client.id)}
+                      className={`w-full p-3 text-left border-2 rounded-lg transition-all ${
+                        selectedClientId === client.id
+                          ? 'border-navy bg-navy-50'
+                          : 'border-slate-200 hover:border-navy hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="font-medium text-navy">{client.name}</div>
+                      {client.condominium && (
+                        <div className="text-sm text-slate-600">{client.condominium}</div>
+                      )}
+                    </button>
+                  ))}
+                {clients.filter((client) => 
+                  clientSearchTerm === '' || 
+                  client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                  client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                ).length === 0 && (
+                  <p className="text-center text-slate-500 py-8">Nenhum cliente encontrado</p>
+                )}
+              </div>
+
+              {/* Sticky Footer */}
+              <div className="fixed bottom-0 left-0 right-0 bg-white z-50 p-4 border-t border-slate-200 shadow-lg">
+                <div className="max-w-7xl mx-auto flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowClientModal(true)}
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Cadastrar Novo Cliente
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      if (!selectedClientId) {
+                        alert('Por favor, selecione um cliente');
+                        return;
+                      }
+                      // Scroll to services section
+                      document.querySelector('[data-section="services"]')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="flex-1"
+                    disabled={!selectedClientId}
+                  >
+                    Avançar
+                  </Button>
+                </div>
+              </div>
             </Card>
 
             {/* Services */}
-            <Card>
+            <Card data-section="services">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-navy">Serviços</h2>
               </div>
 
-              {/* Add Service */}
-              <div className="mb-6">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={() => {
-                    setEditingItemIndex(null);
-                    setShowServiceSelectorModal(true);
-                  }}
-                  className="w-full sm:w-auto flex items-center gap-2"
+              {/* Service Type Tabs */}
+              <div className="flex gap-2 mb-6 border-b border-slate-200">
+                <button
+                  onClick={() => setActiveServiceTab('installation')}
+                  className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                    activeServiceTab === 'installation'
+                      ? 'border-navy text-navy'
+                      : 'border-transparent text-slate-600 hover:text-navy'
+                  }`}
                 >
-                  <Plus className="w-5 h-5" />
-                  Adicionar Item
-                </Button>
+                  Instalação
+                </button>
+                <button
+                  onClick={() => setActiveServiceTab('maintenance')}
+                  className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                    activeServiceTab === 'maintenance'
+                      ? 'border-navy text-navy'
+                      : 'border-transparent text-slate-600 hover:text-navy'
+                  }`}
+                >
+                  Manutenção
+                </button>
+                <button
+                  onClick={() => setActiveServiceTab('custom')}
+                  className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                    activeServiceTab === 'custom'
+                      ? 'border-navy text-navy'
+                      : 'border-transparent text-slate-600 hover:text-navy'
+                  }`}
+                >
+                  Meus Serviços
+                </button>
               </div>
+
+              {/* Installation Category Grid */}
+              {activeServiceTab === 'installation' && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-navy mb-4">Selecione o tipo de instalação:</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { icon: Square, name: 'Janela', catalogName: 'Janela de Vidro' },
+                      { icon: DoorIcon, name: 'Porta', catalogName: 'Porta de Vidro' },
+                      { icon: Package, name: 'Box', catalogName: 'Box Padrão' },
+                      { icon: Shield, name: 'Guardacorpo', catalogName: 'Guarda-corpo' },
+                      { icon: Home, name: 'Sacada', catalogName: 'Cortina de Vidro' },
+                      { icon: Image, name: 'Espelho', catalogName: 'Divisória de Vidro' },
+                      { icon: Lock, name: 'Fixo', catalogName: 'Divisória de Vidro' },
+                      { icon: MoreHorizontal, name: 'Outro', catalogName: 'Outro' },
+                    ].map((category) => (
+                      <button
+                        key={category.name}
+                        onClick={() => {
+                          if (category.catalogName === 'Outro') {
+                            // Open modal with empty service name
+                            setEditingItemIndex(null);
+                            setShowInstallationModal(true);
+                            (window as any).__selectedInstallationCategory = {
+                              serviceName: '',
+                              pricingMethod: 'm2',
+                              defaultPrice: 0,
+                            };
+                          } else {
+                            // Find catalog item and open installation modal
+                            const profession = (company as any)?.profession || (company as any)?.segment || 'vidracaria';
+                            const catalog = getProfessionCatalog(profession);
+                            const catalogItem = catalog.installation.find(
+                              (item) => item.name === category.catalogName
+                            );
+                            
+                            if (catalogItem) {
+                              setEditingItemIndex(null);
+                              setShowInstallationModal(true);
+                              // Store the selected category for the modal
+                              (window as any).__selectedInstallationCategory = {
+                                serviceName: catalogItem.name,
+                                pricingMethod: catalogItem.pricingMethod,
+                                defaultPrice: catalogItem.defaultPrice || 0,
+                                glassThickness: catalogItem.metadata?.glassThickness?.[0],
+                                profileColor: catalogItem.metadata?.profileColor?.[0],
+                              };
+                            } else {
+                              // Fallback: open modal with service name
+                              setEditingItemIndex(null);
+                              setShowInstallationModal(true);
+                              (window as any).__selectedInstallationCategory = {
+                                serviceName: category.catalogName,
+                                pricingMethod: 'm2',
+                                defaultPrice: 0,
+                              };
+                            }
+                          }
+                        }}
+                        className="p-4 border-2 border-slate-200 rounded-lg hover:border-navy hover:bg-navy-50 transition-all text-center group"
+                      >
+                        <category.icon className="w-8 h-8 mx-auto mb-2 text-slate-600 group-hover:text-navy" />
+                        <div className="font-medium text-slate-700 group-hover:text-navy">{category.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Maintenance & Custom Services - Show Add Button */}
+              {(activeServiceTab === 'maintenance' || activeServiceTab === 'custom') && (
+                <div className="mb-6">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => {
+                      setEditingItemIndex(null);
+                      setShowServiceSelectorModal(true);
+                    }}
+                    className="w-full sm:w-auto flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Adicionar Item
+                  </Button>
+                </div>
+              )}
 
               {/* Items List */}
               {items.length === 0 ? (
@@ -1168,7 +1328,7 @@ export function QuoteNew() {
             <Card>
               <h2 className="text-xl font-bold text-navy mb-4">Observações</h2>
               <textarea
-                placeholder="Itens que o cliente optou por não trocar, observações técnicas, etc."
+                placeholder="Descreva o produto ou serviço (ex: medidas, cor, material...)"
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 rows={4}
@@ -1195,9 +1355,14 @@ export function QuoteNew() {
           onClose={() => {
             setShowInstallationModal(false);
             setEditingItemIndex(null);
+            (window as any).__selectedInstallationCategory = null;
           }}
           onSave={handleSaveInstallationItem}
-          initialItem={editingItemIndex !== null ? items[editingItemIndex] : undefined}
+          initialItem={
+            editingItemIndex !== null 
+              ? items[editingItemIndex] 
+              : (window as any).__selectedInstallationCategory || undefined
+          }
         />
 
         {/* Client Form Modal */}

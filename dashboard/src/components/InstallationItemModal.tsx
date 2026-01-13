@@ -254,7 +254,7 @@ export function InstallationItemModal({
             {serviceName === 'Outro' && (
               <input
                 type="text"
-                placeholder="Especifique o tipo de serviço"
+                placeholder="Descreva o produto ou serviço (ex: medidas, cor, material...)"
                 value={customServiceName}
                 onChange={(e) => setCustomServiceName(e.target.value)}
                 className="w-full mt-2 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
