@@ -867,7 +867,6 @@ export function WorkOrderDetails() {
         {activeTab === 'inspection' && (
           <TechnicalInspection
             initialLeaves={workOrder.technicalInspection?.leaves || []}
-            initialGeneralChecklist={workOrder.technicalInspection?.generalChecklist || []}
             profession={(company as any)?.profession || (company as any)?.segment || 'vidracaria'}
             workOrderId={id}
             initialSurveyFields={workOrder.technicalInspection?.surveyFields || {}}

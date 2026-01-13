@@ -17,7 +17,6 @@ interface Leaf {
 
 interface TechnicalInspectionProps {
   initialLeaves?: Leaf[];
-  initialGeneralChecklist?: { task: string; completed: boolean; value?: string }[];
   profession?: string;
   workOrderId?: string;
   initialSurveyFields?: Record<string, string>;
@@ -47,7 +46,6 @@ const DEFECT_OPTIONS = [
 
 export function TechnicalInspection({
   initialLeaves = [],
-  initialGeneralChecklist = [],
   profession = 'vidracaria',
   workOrderId,
   initialSurveyFields = {},
