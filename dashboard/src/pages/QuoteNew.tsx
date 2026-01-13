@@ -2,6 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
+import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { Save, Trash2, Download, Plus, FileText, Square, DoorOpen as DoorIcon, Package, Shield, Home, Image, Lock, MoreHorizontal } from 'lucide-react';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
@@ -1158,9 +1159,22 @@ export function QuoteNew() {
                                   </div>
                                   <div>
                                     <label className="block text-xs text-slate-600 mb-1">Total</label>
-                                    <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg font-medium text-navy">
-                                      R$ {item.total.toFixed(2)}
-                                    </div>
+                                    <CurrencyInput
+                                      value={item.total}
+                                      onChange={(newTotal: number) => {
+                                        const newItems = [...items];
+                                        newItems[index].total = newTotal;
+                                        // Recalculate unit price: New Unit Price = New Total / Quantity
+                                        if (newItems[index].quantity > 0) {
+                                          newItems[index].unitPrice = newTotal / newItems[index].quantity;
+                                        } else {
+                                          newItems[index].unitPrice = newTotal;
+                                        }
+                                        setItems(newItems);
+                                      }}
+                                      placeholder="0,00"
+                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy font-medium text-navy"
+                                    />
                                   </div>
                                 </div>
                                 <div className="text-xs text-slate-500">
@@ -1214,9 +1228,22 @@ export function QuoteNew() {
                                 )}
                             <div>
                               <label className="block text-xs text-slate-600 mb-1">Total</label>
-                              <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg font-medium text-navy">
-                                R$ {item.total.toFixed(2)}
-                              </div>
+                              <CurrencyInput
+                                value={item.total}
+                                onChange={(newTotal: number) => {
+                                  const newItems = [...items];
+                                  newItems[index].total = newTotal;
+                                  // Recalculate unit price: New Unit Price = New Total / Quantity
+                                  if (newItems[index].quantity > 0) {
+                                    newItems[index].unitPrice = newTotal / newItems[index].quantity;
+                                  } else {
+                                    newItems[index].unitPrice = newTotal;
+                                  }
+                                  setItems(newItems);
+                                }}
+                                placeholder="0,00"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy font-medium text-navy"
+                              />
                             </div>
                               </div>
                             )}
