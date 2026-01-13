@@ -177,10 +177,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ];
     }
 
-    // Create the checkout session
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    // Create the checkout session with error handling for invalid customer IDs
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams);
+    } catch (checkoutError: any) {
+      // Check if the error is "customer not found" (resource_missing)
+      if (checkoutError.code === 'resource_missing' && checkoutError.type === 'StripeInvalidRequestError') {
+        console.log(`Customer ${stripeCustomerId} not found in Stripe. Creating new customer and retrying...`);
+        
+        try {
+          // Get company data from Firestore to create new customer
+          const companyDoc = await db.collection('companies').doc(companyId).get();
+          
+          if (!companyDoc.exists) {
+            return res.status(404).json({
+              error: 'Company not found',
+            });
+          }
 
-    if (!session.url) {
+          const companyData = companyDoc.data();
+          const companyEmail = companyData?.email || '';
+          const companyName = companyData?.name || 'Company';
+
+          if (!companyEmail) {
+            return res.status(400).json({
+              error: 'Company email is required to create Stripe customer',
+            });
+          }
+
+          // Check if customer already exists by email (might exist in Live mode)
+          const existingCustomers = await stripe.customers.list({
+            email: companyEmail,
+            limit: 1,
+          });
+
+          let newCustomerId: string;
+
+          if (existingCustomers.data.length > 0) {
+            // Customer exists with this email, use existing ID
+            newCustomerId = existingCustomers.data[0].id;
+            console.log(`Found existing customer by email: ${newCustomerId}`);
+          } else {
+            // Create new customer in Stripe
+            const newCustomer = await stripe.customers.create({
+              email: companyEmail,
+              name: companyName,
+              metadata: {
+                companyId: companyId,
+              },
+            });
+            newCustomerId = newCustomer.id;
+            console.log(`Created new Stripe customer: ${newCustomerId}`);
+          }
+
+          // Update Firestore with the new customer ID
+          await db.collection('companies').doc(companyId).update({
+            stripeCustomerId: newCustomerId,
+            updatedAt: new Date(),
+          });
+          console.log(`Updated company ${companyId} with new stripeCustomerId: ${newCustomerId}`);
+
+          // Retry creating checkout session with the new customer ID
+          sessionParams.customer = newCustomerId;
+          session = await stripe.checkout.sessions.create(sessionParams);
+          console.log(`Successfully created checkout session with new customer ID`);
+        } catch (recoveryError: any) {
+          console.error('Error recovering from invalid customer ID:', recoveryError);
+          return res.status(500).json({
+            error: 'Failed to create checkout session',
+            message: 'Customer migration failed. Please contact support.',
+            details: recoveryError.message || 'Unknown error occurred',
+          });
+        }
+      } else {
+        // Re-throw if it's a different error
+        throw checkoutError;
+      }
+    }
+
+    if (!session || !session.url) {
       return res.status(500).json({
         error: 'Failed to create checkout session URL',
       });
