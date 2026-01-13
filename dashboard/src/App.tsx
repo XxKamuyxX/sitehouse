@@ -151,7 +151,7 @@ function TechRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  if (!userMetadata || userMetadata.role !== 'tech') {
+  if (!userMetadata || userMetadata.role !== 'technician') {
     return <Navigate to="/admin/dashboard" />;
   }
 

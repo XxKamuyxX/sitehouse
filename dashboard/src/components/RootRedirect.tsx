@@ -26,7 +26,7 @@ export function RootRedirect() {
       return;
     }
 
-    if (userMetadata?.role === 'tech') {
+    if (userMetadata?.role === 'technician') {
       navigate('/tech/dashboard', { replace: true });
       return;
     }

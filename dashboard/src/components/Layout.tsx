@@ -75,8 +75,12 @@ export function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
-  const isAdmin = userMetadata?.role === 'admin';
-  const isMaster = userMetadata?.role === 'master';
+  const userRole = userMetadata?.role;
+  const isOwner = userRole === 'owner';
+  const isAdmin = userRole === 'admin' || isOwner;
+  const isMaster = userRole === 'master';
+  const isTechnician = userRole === 'technician';
+  const isSales = userRole === 'sales';
   const [pendingPayoutsCount, setPendingPayoutsCount] = useState(0);
   
   // Monitor pending payout requests for master users
@@ -105,22 +109,36 @@ export function Layout({ children }: LayoutProps) {
       ]
     : [];
 
-  // Master users only see Gestão SaaS, regular users see standard nav
+  // Role-based navigation items
   const navItems = isMaster 
     ? [] // Master users see no standard nav items
     : [
-        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-        { path: '/clients', icon: Users, label: 'Clientes' },
-        { path: '/quotes', icon: FileText, label: 'Orçamentos' },
-        { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
-        { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
-        { path: '/finance', icon: DollarSign, label: 'Financeiro' },
-        ...(isAdmin ? [
+        // Technician: Only OS, Calendar, and Settings
+        ...(isTechnician ? [
+          { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
+          { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
+          { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
+        ] : []),
+        // Sales: Quotes and Clients only
+        ...(isSales ? [
+          { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+          { path: '/clients', icon: Users, label: 'Clientes' },
+          { path: '/quotes', icon: FileText, label: 'Orçamentos' },
+          { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
+        ] : []),
+        // Owner/Admin: Full access
+        ...((isOwner || isAdmin) ? [
+          { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+          { path: '/clients', icon: Users, label: 'Clientes' },
+          { path: '/quotes', icon: FileText, label: 'Orçamentos' },
+          { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
+          { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
+          { path: '/finance', icon: DollarSign, label: 'Financeiro' },
           { path: '/admin/team', icon: UserCog, label: 'Equipe' },
           { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
           { path: '/admin/affiliates', icon: Gift, label: 'Indique e Ganhe' },
+          { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
         ] : []),
-        { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
       ];
 
   const isActive = (path: string) => location.pathname === path;

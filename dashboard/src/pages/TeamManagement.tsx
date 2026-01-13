@@ -3,21 +3,20 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { Plus, Mail, Shield, UserCog } from 'lucide-react';
+import { Plus, Mail, Shield, UserCog, Trash2, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getDocs, doc, setDoc, Timestamp } from 'firebase/firestore';
+import { getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { queryWithCompanyId } from '../lib/queries';
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { firebaseConfig } from '../lib/firebase';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
+import { UserRole } from '../contexts/AuthContext';
 
 interface TeamMember {
   id: string;
   email: string;
-  role: 'admin' | 'tech';
+  role: UserRole;
   name?: string;
+  active?: boolean;
   createdAt?: any;
 }
 
@@ -31,8 +30,9 @@ export function TeamManagement() {
     email: '',
     password: '',
     name: '',
-    role: 'tech' as 'admin' | 'tech',
+    role: 'technician' as UserRole,
   });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadMembers();
@@ -65,56 +65,85 @@ export function TeamManagement() {
       return;
     }
     
-    if (!newMember.email || !newMember.password) {
-      alert('Preencha email e senha');
+    if (!newMember.email || !newMember.password || !newMember.name) {
+      alert('Preencha nome, email e senha');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Get current user's auth token
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        alert('Erro: Usuário não autenticado');
+        setSaving(false);
+        return;
+      }
+
+      const token = await currentUser.getIdToken();
+
+      // Call API route to create team member
+      const response = await fetch(`${window.location.origin}/api/team/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: newMember.email,
+          password: newMember.password,
+          displayName: newMember.name,
+          role: newMember.role,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar membro da equipe');
+      }
+
+      alert('Membro adicionado com sucesso!');
+      setShowAddModal(false);
+      setNewMember({ email: '', password: '', name: '', role: 'technician' });
+      loadMembers();
+    } catch (error: any) {
+      console.error('Error adding member:', error);
+      alert(error.message || 'Erro ao adicionar membro');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActive = async (memberId: string, currentActive: boolean) => {
+    if (!confirm(`Deseja ${currentActive ? 'desativar' : 'ativar'} este membro?`)) {
       return;
     }
 
     try {
-      // 1. Create a temporary 'secondary' app
-      // Check if it exists to avoid duplicates
-      const secondaryAppName = "SecondaryApp";
-      let secondaryApp = getApps().find(app => app.name === secondaryAppName);
-      
-      if (!secondaryApp) {
-        secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
-      }
-      
-      const secondaryAuth = getAuth(secondaryApp);
-
-      // 2. Create user on the SECONDARY auth (does not affect main session)
-      const userCredential = await createUserWithEmailAndPassword(
-        secondaryAuth,
-        newMember.email,
-        newMember.password
-      );
-      const newUser = userCredential.user;
-
-      // 3. Create the user document in Firestore (using the MAIN db instance is fine)
-      await setDoc(doc(db, 'users', newUser.uid), {
-        email: newMember.email,
-        role: newMember.role,
-        companyId: companyId,
-        name: newMember.name || '',
-        createdAt: Timestamp.now(),
+      await updateDoc(doc(db, 'users', memberId), {
+        active: !currentActive,
       });
-
-      // 4. Sign out the secondary user immediately to be safe
-      await signOut(secondaryAuth);
-      
-      alert('Membro adicionado com sucesso!');
-      setShowAddModal(false);
-      setNewMember({ email: '', password: '', name: '', role: 'tech' });
       loadMembers();
-    } catch (error: any) {
-      console.error('Error adding member:', error);
-      if (error.code === 'auth/email-already-in-use') {
-        alert('Este email já está em uso.');
-      } else if (error.code === 'auth/weak-password') {
-        alert('A senha é muito fraca. Use pelo menos 6 caracteres.');
-      } else {
-        alert(error.message || 'Erro ao adicionar membro');
-      }
+      alert(`Membro ${!currentActive ? 'ativado' : 'desativado'} com sucesso!`);
+    } catch (error) {
+      console.error('Error toggling member status:', error);
+      alert('Erro ao alterar status do membro');
+    }
+  };
+
+  const handleDeleteMember = async (memberId: string, memberEmail: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o membro ${memberEmail}? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'users', memberId));
+      loadMembers();
+      alert('Membro excluído com sucesso!');
+    } catch (error) {
+      console.error('Error deleting member:', error);
+      alert('Erro ao excluir membro');
     }
   };
 
@@ -208,10 +237,11 @@ export function TeamManagement() {
                 <Select
                   label="Função"
                   value={newMember.role}
-                  onChange={(e) => setNewMember({ ...newMember, role: e.target.value as 'admin' | 'tech' })}
+                  onChange={(e) => setNewMember({ ...newMember, role: e.target.value as UserRole })}
                   options={[
                     { value: 'admin', label: 'Administrador' },
-                    { value: 'tech', label: 'Técnico/Instalador' },
+                    { value: 'technician', label: 'Técnico/Instalador' },
+                    { value: 'sales', label: 'Vendedor' },
                   ]}
                 />
                 <div className="flex gap-2">
@@ -227,8 +257,9 @@ export function TeamManagement() {
                     type="submit"
                     variant="primary"
                     className="flex-1"
+                    disabled={saving}
                   >
-                    Adicionar
+                    {saving ? 'Salvando...' : 'Adicionar'}
                   </Button>
                 </div>
               </form>

@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { generateAffiliateCode } from '../utils/affiliateCode';
 import { syncStripeCustomer } from '../services/stripe';
 
-export type UserRole = 'admin' | 'tech' | 'master';
+export type UserRole = 'owner' | 'admin' | 'technician' | 'sales' | 'master';
 
 export interface UserMetadata {
   companyId: string;

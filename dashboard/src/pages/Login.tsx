@@ -37,7 +37,7 @@ export function Login() {
         navigate('/master');
       } else if (userMetadata.role === 'admin') {
         navigate('/admin/dashboard');
-      } else if (userMetadata.role === 'tech') {
+      } else if (userMetadata.role === 'technician') {
         navigate('/tech/dashboard');
       } else {
         navigate('/dashboard'); // Fallback for legacy users
