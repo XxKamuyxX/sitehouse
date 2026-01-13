@@ -1315,10 +1315,29 @@ export function QuoteNew() {
                   <span className="font-bold text-lg text-navy">Total:</span>
                   <CurrencyInput
                     value={total}
-                    onChange={(newTotal) => {
-                      // Recalculate discount: New Discount = Subtotal - New Total
-                      const newDiscount = Math.max(0, subtotal - newTotal);
-                      setDiscount(newDiscount);
+                    onChange={(newTotal: number) => {
+                      // Proportional price adjustment: adjust unit prices instead of discount
+                      if (subtotal > 0 && newTotal > 0) {
+                        const ratio = newTotal / subtotal;
+                        const newItems = items.map(item => {
+                          const updatedItem = { ...item };
+                          // Update unit price proportionally
+                          updatedItem.unitPrice = item.unitPrice * ratio;
+                          // Recalculate total based on pricing method
+                          if (updatedItem.pricingMethod === 'm2' && updatedItem.dimensions) {
+                            const area = (updatedItem.dimensions.width * updatedItem.dimensions.height) || 0;
+                            updatedItem.total = area * updatedItem.quantity * updatedItem.unitPrice;
+                          } else if (updatedItem.pricingMethod === 'linear' && updatedItem.dimensions) {
+                            updatedItem.total = updatedItem.dimensions.width * updatedItem.quantity * updatedItem.unitPrice;
+                          } else {
+                            updatedItem.total = updatedItem.quantity * updatedItem.unitPrice;
+                          }
+                          return updatedItem;
+                        });
+                        setItems(newItems);
+                        // Set discount to 0 (no discount, just adjusted prices)
+                        setDiscount(0);
+                      }
                     }}
                     placeholder="0,00"
                     className="w-full sm:w-auto text-right font-bold text-lg text-navy px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"

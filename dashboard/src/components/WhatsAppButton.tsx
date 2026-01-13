@@ -10,6 +10,7 @@ interface WhatsAppButtonProps {
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  'data-whatsapp-button'?: string;
 }
 
 export function WhatsAppButton({
@@ -21,6 +22,7 @@ export function WhatsAppButton({
   variant = 'primary',
   size = 'md',
   className = '',
+  'data-whatsapp-button': dataWhatsappButton,
 }: WhatsAppButtonProps) {
   const sanitizePhone = (phone: string): string => {
     if (!phone) return '';
@@ -90,6 +92,7 @@ export function WhatsAppButton({
       size={size}
       onClick={handleClick}
       className={`bg-green-600 hover:bg-green-700 ${className}`}
+      data-whatsapp-button={dataWhatsappButton}
     >
       <MessageCircle className="w-5 h-5 mr-2" />
       Enviar no WhatsApp

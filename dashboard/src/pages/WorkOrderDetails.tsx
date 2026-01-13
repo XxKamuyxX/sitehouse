@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User } from 'lucide-react';
+import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User, Eye } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 import { TechnicalInspection } from '../components/TechnicalInspection';
 import { WhatsAppButton } from '../components/WhatsAppButton';
@@ -14,6 +14,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
+import { pdf } from '@react-pdf/renderer';
+import { ReceiptPDF } from '../components/ReceiptPDF';
 
 interface ManualService {
   id: string;
@@ -78,6 +80,8 @@ export function WorkOrderDetails() {
   const [technicians, setTechnicians] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [loadingTechnicians, setLoadingTechnicians] = useState(false);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -810,8 +814,8 @@ export function WorkOrderDetails() {
           </div>
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'info' && (
+        {/* Tab Content - Using CSS visibility to preserve state */}
+        <div className={activeTab === 'info' ? 'block' : 'hidden'}>
           <>
             {/* WhatsApp Button - Share OS with approval link */}
             <Card>
@@ -822,13 +826,24 @@ export function WorkOrderDetails() {
                     Envie o link da ordem de serviço e aprovação para o cliente via WhatsApp
                   </p>
                 </div>
-                <WhatsAppButton
-                  phoneNumber={clientPhone}
-                  clientName={workOrder.clientName}
-                  docType="OS"
-                  docLink={`${window.location.origin}/p/os/${id}`}
-                  googleReviewUrl={(company as any)?.googleReviewUrl}
-                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleGeneratePdfPreview}
+                    className="flex items-center gap-2"
+                  >
+                    <Eye className="w-5 h-5" />
+                    Pré-visualizar
+                  </Button>
+                  <WhatsAppButton
+                    phoneNumber={clientPhone}
+                    clientName={workOrder.clientName}
+                    docType="OS"
+                    docLink={`${window.location.origin}/p/os/${id}`}
+                    googleReviewUrl={(company as any)?.googleReviewUrl}
+                    data-whatsapp-button="true"
+                  />
+                </div>
               </div>
             </Card>
 
@@ -903,9 +918,9 @@ export function WorkOrderDetails() {
               </div>
             </Card>
           </>
-        )}
+        </div>
 
-        {activeTab === 'inspection' && (
+        <div className={activeTab === 'inspection' ? 'block' : 'hidden'}>
           <TechnicalInspection
             initialLeaves={workOrder.technicalInspection?.leaves || []}
             profession={(company as any)?.profession || (company as any)?.segment || 'vidracaria'}
@@ -915,9 +930,9 @@ export function WorkOrderDetails() {
             initialSurveyPhotos={workOrder.technicalInspection?.surveyPhotos || []}
             onSave={handleSaveInspection}
           />
-        )}
+        </div>
 
-        {activeTab === 'photos' && (
+        <div className={activeTab === 'photos' ? 'block' : 'hidden'}>
           <Card>
             <h2 className="text-xl font-bold text-navy mb-4">Relatório Fotográfico</h2>
             
@@ -968,7 +983,7 @@ export function WorkOrderDetails() {
               </div>
             )}
           </Card>
-        )}
+        </div>
 
         {/* Notes */}
         <Card>
