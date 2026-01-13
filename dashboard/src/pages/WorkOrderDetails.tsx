@@ -378,6 +378,81 @@ export function WorkOrderDetails() {
     }
   };
 
+  const handleGeneratePdfPreview = async () => {
+    if (!id || !workOrder || !company) return;
+
+    try {
+      // Get quote data for items
+      let quoteData: any = null;
+      if (workOrder.quoteId) {
+        const quoteDoc = await getDoc(doc(db, 'quotes', workOrder.quoteId));
+        if (quoteDoc.exists()) {
+          quoteData = quoteDoc.data();
+        }
+      }
+
+      // Prepare receipt data for PDF
+      const receiptItems = (quoteData?.items || []).map((item: any) => ({
+        serviceName: item.name || item.title || 'Serviço',
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || item.price || 0,
+        total: item.total || 0,
+      }));
+
+      // Add manual services
+      const manualServicesItems = (manualServices || []).map((service) => ({
+        serviceName: service.description,
+        quantity: 1,
+        unitPrice: service.price || 0,
+        total: service.price || 0,
+      }));
+
+      const allItems = [...receiptItems, ...manualServicesItems];
+      const totalAmount = allItems.reduce((sum, item) => sum + item.total, 0) || totalPrice || 0;
+
+      // Generate PDF
+      const pdfDoc = (
+        <ReceiptPDF
+          clientName={workOrder.clientName}
+          workOrderId={id || ''}
+          scheduledDate={workOrder.scheduledDate || ''}
+          scheduledTime={workOrder.scheduledTime}
+          completedDate={new Date().toISOString().split('T')[0]}
+          technician={workOrder.technician || 'Não atribuído'}
+          checklist={workOrder.technicalInspection?.customChecklist?.map((item: any) => ({
+            task: item.label,
+            completed: item.value === 'ok' || item.value === 'sim',
+          })) || []}
+          notes={notes || workOrder.notes || ''}
+          items={allItems}
+          total={totalAmount}
+          warranty={quoteData?.warranty || ''}
+          photos={workOrder.photos || []}
+          hasRisk={workOrder.hasRisk || false}
+          companyData={{
+            name: company.name || '',
+            address: company.address || '',
+            phone: company.phone || '',
+            email: company.email,
+            logoUrl: company.logoUrl,
+            cnpj: company.cnpj,
+          }}
+          manualServices={manualServices}
+          manualServicesTotal={totalPrice}
+          clientAccepted={workOrder.clientAccepted}
+          acceptedAt={workOrder.acceptedAt}
+        />
+      );
+
+      const blob = await pdf(pdfDoc).toBlob();
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+      setShowPdfPreview(true);
+    } catch (error) {
+      console.error('Error generating PDF preview:', error);
+      alert('Erro ao gerar preview do PDF');
+    }
+  };
 
   const handleDeleteWorkOrder = async () => {
     if (!id || !workOrder) return;
