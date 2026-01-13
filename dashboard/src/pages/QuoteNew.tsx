@@ -944,34 +944,9 @@ export function QuoteNew() {
                               defaultPrice: 0,
                             };
                           } else {
-                            // Find catalog item and open installation modal
-                            const profession = (company as any)?.profession || (company as any)?.segment || 'vidracaria';
-                            const catalog = getProfessionCatalog(profession);
-                            const catalogItem = catalog.installation.find(
-                              (item) => item.name === category.catalogName
-                            );
-                            
-                            if (catalogItem) {
-                              setEditingItemIndex(null);
-                              setShowInstallationModal(true);
-                              // Store the selected category for the modal
-                              (window as any).__selectedInstallationCategory = {
-                                serviceName: catalogItem.name,
-                                pricingMethod: catalogItem.pricingMethod,
-                                defaultPrice: catalogItem.defaultPrice || 0,
-                                glassThickness: catalogItem.metadata?.glassThickness?.[0],
-                                profileColor: catalogItem.metadata?.profileColor?.[0],
-                              };
-                            } else {
-                              // Fallback: open modal with service name
-                              setEditingItemIndex(null);
-                              setShowInstallationModal(true);
-                              (window as any).__selectedInstallationCategory = {
-                                serviceName: category.catalogName,
-                                pricingMethod: 'm2',
-                                defaultPrice: 0,
-                              };
-                            }
+                            // Open library modal to select a model
+                            setSelectedCategoryForLibrary({ catalogName: category.catalogName, categoryName: category.name });
+                            setShowLibraryModal(true);
                           }
                         }}
                         className="p-4 border-2 border-slate-200 rounded-lg hover:border-navy hover:bg-navy-50 transition-all text-center group"

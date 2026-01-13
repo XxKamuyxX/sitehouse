@@ -215,6 +215,9 @@ export function InstallationItemModal({
       glassThickness: isInstallation ? (glassThickness || '') : '',
       profileColor: isInstallation ? (profileColor || '') : '',
       isInstallation,
+      // Include library data if available
+      imageUrl: initialItem?.imageUrl,
+      description: initialItem?.description,
     });
 
     onClose();
