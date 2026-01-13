@@ -44,6 +44,8 @@ interface ReceiptPDFProps {
   companyData?: CompanyData;
   manualServices?: ManualService[];
   manualServicesTotal?: number;
+  clientAccepted?: boolean;
+  acceptedAt?: any;
 }
 
 const styles = StyleSheet.create({
@@ -143,6 +145,14 @@ const styles = StyleSheet.create({
   checklistCompleted: {
     textDecoration: 'line-through',
     color: '#64748B',
+  },
+  acceptance: {
+    marginTop: 15,
+    marginBottom: 15,
+    padding: 12,
+    backgroundColor: '#ECFDF5',
+    border: '1 solid #10B981',
+    borderRadius: 5,
   },
   total: {
     marginTop: 20,
@@ -274,6 +284,8 @@ export function ReceiptPDF({
   companyData,
   manualServices = [],
   manualServicesTotal = 0,
+  clientAccepted = false,
+  acceptedAt,
 }: ReceiptPDFProps) {
   // Fallback to default values if companyData is not provided
   const company = companyData || {
@@ -449,6 +461,21 @@ export function ReceiptPDF({
             Este recibo comprova a prestação de serviço e o recebimento do valor acima mencionado.
           </Text>
         </View>
+
+        {/* Client Acceptance */}
+        {clientAccepted && acceptedAt && (
+          <View style={styles.acceptance}>
+            <Text style={{ fontWeight: 'bold', marginBottom: 5, fontSize: 10, color: '#059669' }}>
+              ✓ ACEITE DIGITAL CONFIRMADO
+            </Text>
+            <Text style={{ fontSize: 9, color: '#64748B' }}>
+              Aceito em {acceptedAt?.toDate ? 
+                new Date(acceptedAt.toDate()).toLocaleString('pt-BR') :
+                new Date(acceptedAt).toLocaleString('pt-BR')
+              }
+            </Text>
+          </View>
+        )}
 
         {/* Signature */}
         <View style={styles.signature}>

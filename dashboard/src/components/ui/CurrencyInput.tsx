@@ -11,17 +11,20 @@ interface CurrencyInputProps {
 
 export function CurrencyInput({ value, onChange, onBlur, placeholder, className = '', disabled = false }: CurrencyInputProps) {
   const [displayValue, setDisplayValue] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Initialize display value from numeric value
-    if (value > 0) {
-      const formatted = formatCurrency(value);
-      setDisplayValue(formatted);
-    } else {
-      setDisplayValue('');
+    // Only update display value if not focused (to prevent cursor jumping)
+    if (!isFocused) {
+      if (value > 0) {
+        const formatted = formatCurrency(value);
+        setDisplayValue(formatted);
+      } else {
+        setDisplayValue('');
+      }
     }
-  }, [value]);
+  }, [value, isFocused]);
 
   const formatCurrency = (num: number): string => {
     // Convert number to string with 2 decimal places
@@ -55,8 +58,7 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     
-    // Allow user to type freely - don't format on every keystroke
-    // Just store the raw input value
+    // Store raw input value while typing (no formatting to prevent cursor jumps)
     setDisplayValue(inputValue);
     
     // Parse and update the numeric value
@@ -64,7 +66,18 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
     onChange(numValue);
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+    // When focused, show raw numeric value for easier editing
+    if (value > 0) {
+      // Remove formatting for easier editing
+      const rawValue = value.toFixed(2).replace('.', ',');
+      setDisplayValue(rawValue);
+    }
+  };
+
   const handleBlur = () => {
+    setIsFocused(false);
     // Format only on blur (when user leaves the field)
     const numValue = parseCurrency(displayValue);
     if (numValue > 0) {
@@ -88,6 +101,7 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
       type="text"
       value={displayValue}
       onChange={handleChange}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       placeholder={placeholder || '0,00'}
       className={className}

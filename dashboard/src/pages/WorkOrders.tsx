@@ -166,13 +166,16 @@ export function WorkOrders() {
           clientName={order.clientName}
           workOrderId={order.id}
           scheduledDate={order.scheduledDate}
+          scheduledTime={orderData?.scheduledTime}
           completedDate={new Date().toISOString()}
           technician={order.technician}
-          checklist={order.checklist}
-          notes={order.notes}
+          checklist={order.checklist || []}
+          notes={order.notes || ''}
           items={quoteData?.items || []}
           total={quoteData?.total || 0}
           warranty={quoteData?.warranty || '90 dias'}
+          photos={orderData?.photos || []}
+          hasRisk={orderData?.hasRisk || false}
           companyData={company ? {
             name: company.name,
             address: company.address,
@@ -183,6 +186,8 @@ export function WorkOrders() {
           } : undefined}
           manualServices={orderData?.manualServices || []}
           manualServicesTotal={orderData?.totalPrice || 0}
+          clientAccepted={orderData?.clientAccepted || false}
+          acceptedAt={orderData?.acceptedAt}
         />
       );
 

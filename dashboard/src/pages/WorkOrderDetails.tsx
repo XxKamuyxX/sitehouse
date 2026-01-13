@@ -13,6 +13,7 @@ import { useCompany } from '../hooks/useCompany';
 import { useAuth } from '../contexts/AuthContext';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
+import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
 
 interface ManualService {
   id: string;
@@ -43,6 +44,9 @@ interface WorkOrder {
   hasRisk?: boolean;
   manualServices?: ManualService[];
   totalPrice?: number;
+  clientAccepted?: boolean;
+  acceptedAt?: any;
+  clientIp?: string;
 }
 
 export function WorkOrderDetails() {
@@ -73,6 +77,7 @@ export function WorkOrderDetails() {
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
   const [technicians, setTechnicians] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [loadingTechnicians, setLoadingTechnicians] = useState(false);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -881,12 +886,21 @@ export function WorkOrderDetails() {
             <h2 className="text-xl font-bold text-navy mb-4">Relatório Fotográfico</h2>
             
             {/* Image Upload */}
-            <div className="mb-6">
-              <ImageUpload
-                onUploadComplete={handlePhotoUpload}
-                path={`work-orders/${id}/photos`}
-                label="Adicionar Foto"
-              />
+            <div className="mb-6 flex gap-2">
+              <div className="flex-1">
+                <ImageUpload
+                  onUploadComplete={handlePhotoUpload}
+                  path={`work-orders/${id}/photos`}
+                  label="Adicionar Foto"
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowLibraryModal(true)}
+                className="flex items-center gap-2"
+              >
+                📂 Escolher da Biblioteca
+              </Button>
             </div>
 
             {/* Photos Grid */}
@@ -1219,6 +1233,15 @@ export function WorkOrderDetails() {
           </Card>
         </div>
       )}
+
+      {/* Library Selector Modal */}
+      <LibrarySelectorModal
+        isOpen={showLibraryModal}
+        onClose={() => setShowLibraryModal(false)}
+        onSelect={(imageUrl) => {
+          handlePhotoUpload(imageUrl);
+        }}
+      />
     </Layout>
   );
 }

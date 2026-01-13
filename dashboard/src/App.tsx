@@ -15,6 +15,7 @@ import { PublicQuote } from './pages/PublicQuote';
 import { PublicWorkOrder } from './pages/PublicWorkOrder';
 import { PublicWorkOrderApprove } from './pages/PublicWorkOrderApprove';
 import { PublicReceipt } from './pages/PublicReceipt';
+import { WorkOrderAcceptance } from './pages/WorkOrderAcceptance';
 import { WorkOrderDetails } from './pages/WorkOrderDetails';
 import { Feedback } from './pages/Feedback';
 import { TeamManagement } from './pages/TeamManagement';
@@ -241,6 +242,7 @@ function AppRoutes() {
       <Route path="/p/:quoteId" element={<PublicQuote />} />
       <Route path="/p/os/:osId" element={<PublicWorkOrder />} />
       <Route path="/p/os/:osId/approve" element={<PublicWorkOrderApprove />} />
+      <Route path="/p/os/accept/:osId" element={<WorkOrderAcceptance />} />
       <Route path="/p/receipt/:receiptId" element={<PublicReceipt />} />
       <Route path="/feedback/:osId" element={<Feedback />} />
       

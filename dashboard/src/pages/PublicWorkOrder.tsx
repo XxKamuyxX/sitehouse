@@ -47,6 +47,9 @@ interface WorkOrder {
   rejected?: boolean;
   approvedAt?: any;
   rejectedAt?: any;
+  hasRisk?: boolean;
+  clientAccepted?: boolean;
+  acceptedAt?: any;
 }
 
 export function PublicWorkOrder() {
@@ -240,6 +243,7 @@ export function PublicWorkOrder() {
           clientName={workOrder.clientName}
           workOrderId={workOrder.id}
           scheduledDate={workOrder.scheduledDate}
+          scheduledTime={workOrder.scheduledTime}
           completedDate={new Date().toISOString()}
           technician={workOrder.technician}
           checklist={workOrder.checklist || []}
@@ -247,9 +251,13 @@ export function PublicWorkOrder() {
           items={quoteData?.items || quote?.items || []}
           total={quoteData?.total || quote?.total || 0}
           warranty={quoteData?.warranty || quote?.warranty || '90 dias'}
+          photos={workOrder.photos || []}
+          hasRisk={workOrder.hasRisk || false}
           companyData={companyData}
           manualServices={latestWorkOrder.manualServices || workOrder.manualServices || []}
           manualServicesTotal={latestWorkOrder.totalPrice || workOrder.totalPrice || 0}
+          clientAccepted={latestWorkOrder.clientAccepted || workOrder.clientAccepted || false}
+          acceptedAt={latestWorkOrder.acceptedAt || workOrder.acceptedAt}
         />
       );
 
