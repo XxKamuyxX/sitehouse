@@ -483,17 +483,73 @@ export function QuotePDF({
               serviceDescription = serviceDescription.replace(/\s*-\s*R\$\s*[\d.,]+\/m\s*linear/g, '');
             }
 
+            // Build dimensions text
+            let dimensionsText = '';
+            if (item.isInstallation && item.pricingMethod === 'm2' && item.dimensions && !hideDimensions) {
+              dimensionsText = `${(item.dimensions.width / 1000).toFixed(2)}m × ${(item.dimensions.height / 1000).toFixed(2)}m\n${((item.dimensions.area || (item.dimensions.width * item.dimensions.height / 1000000))).toFixed(2)}m²`;
+            } else if (item.isInstallation && item.pricingMethod === 'linear' && item.dimensions && !hideDimensions) {
+              dimensionsText = `${(item.dimensions.width / 1000).toFixed(2)}m\n${((item.dimensions.width / 1000) * item.quantity).toFixed(2)}m linear`;
+            }
+
             return (
-              <View key={index} style={styles.tableRow}>
-                <View style={[styles.tableCell, { flex: 3 }]}>
-                  <Text>{serviceDescription}</Text>
+              <View key={index} style={[styles.tableRow, { minHeight: item.imageUrl ? 80 : 40 }]}>
+                {/* Image Column */}
+                <View style={[styles.tableCell, { flex: 1.5, paddingRight: 5 }]}>
+                  {item.imageUrl ? (
+                    <Image
+                      src={item.imageUrl}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        objectFit: 'cover',
+                        borderRadius: 4,
+                      }}
+                    />
+                  ) : (
+                    <View style={{
+                      width: 60,
+                      height: 60,
+                      backgroundColor: '#E2E8F0',
+                      borderRadius: 4,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <Text style={{ fontSize: 8, color: '#94A3B8' }}>Sem imagem</Text>
+                    </View>
+                  )}
                 </View>
+                
+                {/* Description Column */}
+                <View style={[styles.tableCell, { flex: 2.5, paddingRight: 5 }]}>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{item.serviceName}</Text>
+                  {item.description && (
+                    <Text style={{ fontSize: 8, color: '#64748B', marginBottom: 2 }}>{item.description}</Text>
+                  )}
+                  {!item.description && serviceDescription !== item.serviceName && (
+                    <Text style={{ fontSize: 9 }}>{serviceDescription.replace(item.serviceName, '').trim()}</Text>
+                  )}
+                </View>
+                
+                {/* Dimensions Column */}
+                <View style={[styles.tableCell, { flex: 1, paddingRight: 5 }]}>
+                  {dimensionsText ? (
+                    <Text style={{ fontSize: 8 }}>{dimensionsText}</Text>
+                  ) : (
+                    <Text style={{ fontSize: 8, color: '#94A3B8' }}>-</Text>
+                  )}
+                </View>
+                
+                {/* Quantity Column */}
                 <Text style={styles.tableCellCenter}>{item.quantity}</Text>
+                
+                {/* Unit Price Column */}
                 {!hideUnitPrice && (
                 <Text style={styles.tableCellRight}>
                   {item.pricingMethod === 'fixed' ? '-' : formatCurrency(item.unitPrice)}
                 </Text>
                 )}
+                
+                {/* Total Column */}
                 <Text style={styles.tableCellRight}>{formatCurrency(item.total)}</Text>
               </View>
             );
