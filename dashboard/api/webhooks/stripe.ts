@@ -279,13 +279,13 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
               referredBy: affiliateId,
               updatedAt: Timestamp.now(),
             });
-            console.log(Updated company  with referredBy:  from checkout session);
+            console.log('Updated company with referredBy:', affiliateId, 'from checkout session');
           } else {
-            console.log(Company  already has referredBy set, skipping update);
+            console.log('Company already has referredBy set, skipping update');
           }
         }
       } catch (error: any) {
-        console.error(Error updating company  with affiliateId:, error);
+        console.error('Error updating company with affiliateId:', error);
         // Don't throw - this is non-critical
       }
     }
