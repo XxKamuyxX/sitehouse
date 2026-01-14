@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { Plus, Mail, Shield, UserCog, Trash2, X } from 'lucide-react';
+import { Plus, Mail, Shield, UserCog, Trash2, X, CheckCircle2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -197,10 +197,37 @@ export function TeamManagement() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-1 bg-slate-100 rounded text-xs">
-                        {member.role === 'admin' ? 'Administrador' : 'Técnico'}
+                        {member.role === 'admin' ? 'Administrador' : 
+                         member.role === 'technician' ? 'Técnico/Instalador' :
+                         member.role === 'sales' ? 'Vendedor' : 'Membro'}
                       </span>
+                      {member.active === false && (
+                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">
+                          Bloqueado
+                        </span>
+                      )}
                     </div>
                   </div>
+                </div>
+                <div className="flex items-center gap-2 ml-2">
+                  <button
+                    onClick={() => handleToggleActive(member.id, member.active !== false)}
+                    className="p-2 rounded-md hover:bg-slate-100 transition-colors"
+                    title={member.active !== false ? 'Desativar membro' : 'Ativar membro'}
+                  >
+                    {member.active !== false ? (
+                      <X className="w-5 h-5 text-red-600" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteMember(member.id, member.email)}
+                    className="p-2 rounded-md hover:bg-slate-100 transition-colors"
+                    title="Excluir membro"
+                  >
+                    <Trash2 className="w-5 h-5 text-red-600" />
+                  </button>
                 </div>
               </div>
             </Card>
