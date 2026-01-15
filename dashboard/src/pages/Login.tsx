@@ -6,6 +6,53 @@ import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { LogIn, UserPlus, X } from 'lucide-react';
 
+/**
+ * Maps Firebase Auth error codes to user-friendly Portuguese messages
+ */
+function getFirebaseErrorMessage(error: any): string {
+  const errorCode = error?.code || '';
+  
+  switch (errorCode) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      // Group these for security (don't reveal if user exists)
+      return 'E-mail ou senha incorretos.';
+    
+    case 'auth/invalid-email':
+      return 'O endereço de e-mail é inválido.';
+    
+    case 'auth/user-disabled':
+      return 'Esta conta foi desativada. Entre em contato com o suporte.';
+    
+    case 'auth/too-many-requests':
+      return 'Muitas tentativas falhas. Tente novamente mais tarde.';
+    
+    case 'auth/popup-closed-by-user':
+      return 'Login cancelado.';
+    
+    case 'auth/popup-blocked':
+      return 'Popup bloqueado. Permita popups para este site.';
+    
+    case 'auth/network-request-failed':
+      return 'Erro de conexão. Verifique sua internet e tente novamente.';
+    
+    case 'auth/weak-password':
+      return 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+    
+    case 'auth/email-already-in-use':
+      return 'Este e-mail já está em uso.';
+    
+    case 'auth/operation-not-allowed':
+      return 'Operação não permitida. Entre em contato com o suporte.';
+    
+    default:
+      // Never show raw error messages to users
+      console.error('Unhandled Firebase error:', error);
+      return 'Ocorreu um erro ao fazer login. Tente novamente.';
+  }
+}
+
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,20 +75,8 @@ export function Login() {
       await signIn(email, password);
       // Navigation will happen in useEffect after userMetadata loads
     } catch (err: any) {
-      let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
-      
-      if (err.code === 'auth/user-not-found') {
-        errorMessage = 'Usuário não encontrado. Verifique o email.';
-      } else if (err.code === 'auth/wrong-password') {
-        errorMessage = 'Senha incorreta. Tente novamente.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Email inválido. Verifique o formato.';
-      } else if (err.code === 'auth/too-many-requests') {
-        errorMessage = 'Muitas tentativas. Tente novamente mais tarde.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      console.error('Login error:', err); // Keep logging for debug
+      const errorMessage = getFirebaseErrorMessage(err);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -56,16 +91,8 @@ export function Login() {
       await signInWithGoogle();
       // Navigation will happen in useEffect after userMetadata loads
     } catch (err: any) {
-      let errorMessage = 'Erro ao fazer login com Google.';
-      
-      if (err.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Login cancelado.';
-      } else if (err.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup bloqueado. Permita popups para este site.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      console.error('Google sign-in error:', err); // Keep logging for debug
+      const errorMessage = getFirebaseErrorMessage(err);
       setError(errorMessage);
     } finally {
       setGoogleLoading(false);
@@ -86,16 +113,9 @@ export function Login() {
       await resetPassword(resetEmail);
       setResetSuccess(true);
     } catch (err: any) {
-      let errorMessage = 'Erro ao enviar email de recuperação.';
-      
-      if (err.code === 'auth/user-not-found') {
-        errorMessage = 'Email não encontrado. Verifique o endereço.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Email inválido. Verifique o formato.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      console.error('Password reset error:', err); // Keep logging for debug
+      // For password reset, we still use the helper but could customize messages
+      const errorMessage = getFirebaseErrorMessage(err);
       setError(errorMessage);
     } finally {
       setResetLoading(false);

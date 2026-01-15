@@ -41,6 +41,9 @@ const statusColors = {
 export function Quotes() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
+  const navigate = useNavigate();
+  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  const [showPaywall, setShowPaywall] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +52,13 @@ export function Quotes() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Listen for paywall modal trigger
+  useEffect(() => {
+    const handleOpenPaywall = () => setShowPaywall(true);
+    window.addEventListener('openSubscriptionModal', handleOpenPaywall);
+    return () => window.removeEventListener('openSubscriptionModal', handleOpenPaywall);
+  }, []);
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const navigate = useNavigate();
 
@@ -240,19 +250,21 @@ export function Quotes() {
   };
 
   const handleDeleteQuote = async (quote: Quote) => {
-    if (!confirm(`Tem certeza que deseja excluir este orçamento?\n\nEsta ação não pode ser desfeita.`)) {
-      return;
-    }
+    verifyGate(async () => {
+      if (!confirm(`Tem certeza que deseja excluir este orçamento?\n\nEsta ação não pode ser desfeita.`)) {
+        return;
+      }
 
-    try {
-      await deleteDoc(doc(db, 'quotes', quote.id));
-      alert('Orçamento excluído com sucesso!');
-      loadQuotes();
-      setOpenMenuId(null);
-    } catch (error) {
-      console.error('Error deleting quote:', error);
-      alert('Erro ao excluir orçamento');
-    }
+      try {
+        await deleteDoc(doc(db, 'quotes', quote.id));
+        alert('Orçamento excluído com sucesso!');
+        loadQuotes();
+        setOpenMenuId(null);
+      } catch (error) {
+        console.error('Error deleting quote:', error);
+        alert('Erro ao excluir orçamento');
+      }
+    });
   };
 
   return (
@@ -264,12 +276,16 @@ export function Quotes() {
             <h1 className="text-3xl font-bold text-navy">Orçamentos</h1>
             <p className="text-slate-600 mt-1">Gerencie seus orçamentos</p>
           </div>
-          <Link to="/admin/quotes/new">
-            <Button id="btn-new-quote" variant="primary" size="lg" className="flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Novo Orçamento
-            </Button>
-          </Link>
+          <Button
+            id="btn-new-quote"
+            variant="primary"
+            size="lg"
+            className="flex items-center gap-2"
+            onClick={() => verifyGate(() => navigate('/admin/quotes/new'), 'criar orçamentos')}
+          >
+            <Plus className="w-5 h-5" />
+            Novo Orçamento
+          </Button>
         </div>
 
         {/* Search Bar */}

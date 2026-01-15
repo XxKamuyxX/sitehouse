@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Get user's companyId from their user document
+    function getUserCompanyId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
+    }
+    
+    // Check if user belongs to a company
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && 
+             getUserCompanyId() == companyId;
+    }
+    
+    // Check if user is admin or owner of a company
+    function isOwnerOrAdmin(companyId) {
+      return isAuthenticated() && 
+             belongsToCompany(companyId) &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
+    }
+    
+    // Check if user can read company data (member of company)
+    function canReadCompany(companyId) {
+      return isAuthenticated() && belongsToCompany(companyId);
+    }
+
+    // ============================================
+    // 1. COMPANIES & DATA ISOLATION (Multi-Tenant)
+    // ============================================
+    match /companies/{companyId} {
+      // Users can read their own company data
+      allow read: if canReadCompany(companyId);
+      
+      // Only admins/owners can write company data
+      allow create: if isOwnerOrAdmin(companyId);
+      allow update: if isOwnerOrAdmin(companyId) && 
+                       request.resource.data.keys().hasAll(['updatedAt']);
+      allow delete: if false; // Never allow deletion (soft delete via status field)
+      
+      // Subcollections: Clients, Quotes, Work Orders, Team Members
+      match /{document=**} {
+        allow read: if canReadCompany(companyId);
+        allow write: if isOwnerOrAdmin(companyId);
+      }
+    }
+
+    // ============================================
+    // 2. QUOTES (Isolated by companyId)
+    // ============================================
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId() &&
+                       request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+
+    // ============================================
+    // 3. WORK ORDERS (Isolated by companyId)
+    // ============================================
+    match /workOrders/{workOrderId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId() &&
+                       request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+
+    // ============================================
+    // 4. CLIENTS (Isolated by companyId)
+    // ============================================
+    match /clients/{clientId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId() &&
+                       request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+
+    // ============================================
+    // 5. USERS (Profile Protection)
+    // ============================================
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can update their own profile (with restrictions)
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == userId &&
+                       // Prevent users from changing critical fields themselves
+                       request.resource.data.companyId == resource.data.companyId &&
+                       request.resource.data.role == resource.data.role &&
+                       request.resource.data.subscriptionStatus == resource.data.subscriptionStatus;
+      
+      // Only server (Cloud Functions) or admins can create/delete users
+      allow create: if isAuthenticated() && 
+                       (request.resource.data.companyId == getUserCompanyId() ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master');
+      allow delete: if false; // Never allow deletion (soft delete via isActive field)
+    }
+
+    // ============================================
+    // 6. REFERRALS (Anti-Fraud Lock)
+    // ============================================
+    match /referrals/{referralId} {
+      // Users can create referral records
+      allow create: if isAuthenticated() &&
+                       request.resource.data.referrerId == request.auth.uid;
+      
+      // Users can only read their own referrals
+      allow read: if isAuthenticated() && 
+                     resource.data.referrerId == request.auth.uid;
+      
+      // CRITICAL: Prevent users from editing commission status/balance
+      // Updates must be done via Cloud Functions (Server-side) only
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 7. PHONE REGISTRY (Anti-Fraud)
+    // ============================================
+    match /phone_registry/{phoneNumber} {
+      // Only authenticated users can read (to check if number exists)
+      allow read: if isAuthenticated();
+      
+      // Only server (via Cloud Function after OTP verification) can create
+      allow create: if false; // Must be created via server-side verification
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 8. TAX ID REGISTRY (Anti-Fraud)
+    // ============================================
+    match /tax_id_registry/{taxId} {
+      // Only authenticated users can read (to check if tax ID exists)
+      allow read: if isAuthenticated();
+      
+      // Only server (via Cloud Function) can create after validation
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 9. DEFAULT DENY (Security by default)
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

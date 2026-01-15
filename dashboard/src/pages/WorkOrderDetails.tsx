@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User, Eye, Camera, Image as ImageIcon } from 'lucide-react';
+import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User, Eye, Camera, Image as ImageIcon, MoreVertical } from 'lucide-react';
 import { TechnicalInspection } from '../components/TechnicalInspection';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { useCompany } from '../hooks/useCompany';
@@ -51,6 +51,8 @@ interface WorkOrder {
   clientAccepted?: boolean;
   acceptedAt?: any;
   clientIp?: string;
+  deviceInfo?: string;
+  signatureImage?: string;
 }
 
 export function WorkOrderDetails() {
@@ -136,6 +138,12 @@ export function WorkOrderDetails() {
 
       const updated = [...manualServices, service];
       setManualServices(updated);
+      // Recalculate total
+      const newTotal = updated.reduce((sum, s) => {
+        const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0).replace(',', '.'));
+        return sum + (isNaN(price) ? 0 : price);
+      }, 0);
+      setTotalPrice(roundCurrency(newTotal));
 
       // Remove undefined values before saving
       const cleanedServices = updated.map(s => {
@@ -479,6 +487,9 @@ export function WorkOrderDetails() {
           manualServicesTotal={totalPrice}
           clientAccepted={workOrder.clientAccepted}
           acceptedAt={workOrder.acceptedAt}
+          signatureImage={workOrder.signatureImage}
+          deviceInfo={workOrder.deviceInfo}
+          clientIp={workOrder.clientIp}
         />
       );
 
@@ -486,6 +497,8 @@ export function WorkOrderDetails() {
       const url = URL.createObjectURL(blob);
       setPdfBlobUrl(url);
       setShowPdfPreview(true);
+      // Open PDF in new tab
+      window.open(url, '_blank');
     } catch (error) {
       console.error('Error generating PDF preview:', error);
       alert('Erro ao gerar preview do PDF');
@@ -643,37 +656,76 @@ export function WorkOrderDetails() {
             <p className="text-slate-600 mt-1">{workOrder.clientName}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`px-4 py-2 rounded-full text-sm font-medium ${statusColors[workOrder.status]}`}>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[workOrder.status]}`}>
               {statusLabels[workOrder.status]}
             </span>
+            {/* Dropdown Menu */}
+            <div className="relative">
+              <button
+                className="p-2 text-slate-600 hover:text-navy hover:bg-slate-100 rounded-lg transition-colors"
+                onClick={(e) => {
+                  const menu = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (menu) {
+                    menu.classList.toggle('hidden');
+                  }
+                }}
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              <div className="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-10">
+                <button
+                  onClick={async () => {
+                    const menu = document.querySelector('.relative button + div');
+                    if (menu) menu.classList.add('hidden');
+                    await handleDeleteWorkOrder();
+                  }}
+                  className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir OS
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Status Actions */}
+        {/* Status Actions - Segmented Control */}
         <Card>
           <h2 className="text-xl font-bold text-navy mb-4">Alterar Status</h2>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={workOrder.status === 'scheduled' ? 'primary' : 'outline'}
+          <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-1">
+            <button
               onClick={() => handleStatusChange('scheduled')}
               disabled={saving}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                workOrder.status === 'scheduled'
+                  ? 'bg-white text-navy shadow-sm'
+                  : 'text-slate-600 hover:text-navy'
+              }`}
             >
               Agendado
-            </Button>
-            <Button
-              variant={workOrder.status === 'in-progress' ? 'primary' : 'outline'}
+            </button>
+            <button
               onClick={() => handleStatusChange('in-progress')}
               disabled={saving}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                workOrder.status === 'in-progress'
+                  ? 'bg-white text-navy shadow-sm'
+                  : 'text-slate-600 hover:text-navy'
+              }`}
             >
               Em Andamento
-            </Button>
-            <Button
-              variant={workOrder.status === 'completed' ? 'primary' : 'outline'}
+            </button>
+            <button
               onClick={() => handleStatusChange('completed')}
               disabled={saving}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                workOrder.status === 'completed'
+                  ? 'bg-white text-navy shadow-sm'
+                  : 'text-slate-600 hover:text-navy'
+              }`}
             >
               Concluído
-            </Button>
+            </button>
           </div>
         </Card>
 
@@ -834,7 +886,7 @@ export function WorkOrderDetails() {
                             });
                             setShowAddServiceModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-700 p-1"
+                          className="text-slate-500 hover:text-slate-700 p-1.5 transition-colors"
                           title="Editar serviço"
                         >
                           <Edit className="w-4 h-4" />
@@ -843,13 +895,20 @@ export function WorkOrderDetails() {
                           onClick={async () => {
                             const updated = manualServices.filter(s => s.id !== service.id);
                             setManualServices(updated);
+                            // Recalculate total
+                            const newTotal = updated.reduce((sum, s) => {
+                              const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0).replace(',', '.'));
+                              return sum + (isNaN(price) ? 0 : price);
+                            }, 0);
+                            setTotalPrice(roundCurrency(newTotal));
                             if (id) {
                               await updateDoc(doc(db, 'workOrders', id), {
                                 manualServices: updated,
+                                totalPrice: roundCurrency(newTotal),
                               });
                             }
                           }}
-                          className="text-red-600 hover:text-red-700 p-1"
+                          className="text-slate-500 hover:text-slate-700 p-1.5 transition-colors"
                           title="Excluir serviço"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -865,9 +924,19 @@ export function WorkOrderDetails() {
               )}
               
               <div className="pt-3 border-t border-slate-200">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Total (R$)
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Total (R$)
+                  </label>
+                  {manualServices.length > 0 && (
+                    <span className="text-sm text-slate-600">
+                      Calculado: {manualServices.reduce((sum, s) => {
+                        const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0).replace(',', '.'));
+                        return sum + (isNaN(price) ? 0 : price);
+                      }, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
+                  )}
+                </div>
                 <CurrencyInput
                   value={totalPrice}
                   onChange={(value) => {
@@ -883,6 +952,9 @@ export function WorkOrderDetails() {
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="0,00"
                 />
+                <p className="text-xs text-slate-500 mt-1">
+                  Digite o valor total ou deixe em branco para calcular automaticamente
+                </p>
               </div>
             </div>
           </Card>
@@ -979,14 +1051,80 @@ export function WorkOrderDetails() {
               <Card>
                 <h2 className="text-xl font-bold text-navy mb-4">Aceite Digital do Cliente</h2>
                 {workOrder.clientAccepted ? (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-700 font-medium mb-2">✓ Aceite confirmado</p>
-                    <p className="text-sm text-green-600">
-                      Aceito em {workOrder.acceptedAt?.toDate ? 
-                        new Date(workOrder.acceptedAt.toDate()).toLocaleString('pt-BR') :
-                        workOrder.acceptedAt ? new Date(workOrder.acceptedAt).toLocaleString('pt-BR') : 'N/A'
-                      }
-                    </p>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-green-700 font-medium mb-2">✓ Aceite confirmado</p>
+                      <p className="text-sm text-green-600">
+                        Aceito em {workOrder.acceptedAt?.toDate ? 
+                          new Date(workOrder.acceptedAt.toDate()).toLocaleString('pt-BR') :
+                          workOrder.acceptedAt ? new Date(workOrder.acceptedAt).toLocaleString('pt-BR') : 'N/A'
+                        }
+                      </p>
+                    </div>
+
+                    {/* Audit Card */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                      <h3 className="text-sm font-semibold text-navy mb-3 flex items-center gap-2">
+                        🛡️ Auditoria do Aceite Digital
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            Assinado Digitalmente
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600">Assinado por:</span>{' '}
+                          <span className="font-medium text-navy">{workOrder.clientName}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600">Data/Hora:</span>{' '}
+                          <span className="font-mono text-xs">
+                            {workOrder.acceptedAt?.toDate ? 
+                              new Date(workOrder.acceptedAt.toDate()).toLocaleString('pt-BR', { 
+                                day: '2-digit', 
+                                month: '2-digit', 
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                              }) :
+                              workOrder.acceptedAt ? new Date(workOrder.acceptedAt).toLocaleString('pt-BR', {
+                                day: '2-digit', 
+                                month: '2-digit', 
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                              }) : 'N/A'
+                            }
+                          </span>
+                        </div>
+                        {workOrder.deviceInfo && (
+                          <div>
+                            <span className="text-slate-600">Dispositivo:</span>{' '}
+                            <span className="font-mono text-xs text-slate-700">{workOrder.deviceInfo}</span>
+                          </div>
+                        )}
+                        {workOrder.clientIp && (
+                          <div>
+                            <span className="text-slate-600">IP de Origem:</span>{' '}
+                            <span className="font-mono text-xs text-slate-700">{workOrder.clientIp}</span>
+                          </div>
+                        )}
+                        {workOrder.signatureImage && (
+                          <div className="mt-3 pt-3 border-t border-slate-200">
+                            <span className="text-slate-600 text-xs block mb-2">Assinatura:</span>
+                            <img 
+                              src={workOrder.signatureImage} 
+                              alt="Assinatura do cliente"
+                              className="max-w-xs border border-slate-300 rounded bg-white p-2"
+                              style={{ maxHeight: '80px' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div>
@@ -1134,30 +1272,6 @@ export function WorkOrderDetails() {
           </div>
         </Card>
 
-        {/* Delete Work Order - Moved to bottom */}
-        <Card>
-          <details className="group">
-            <summary className="cursor-pointer list-none flex items-center justify-between p-4 hover:bg-slate-50 rounded-lg transition-colors">
-              <div>
-                <h2 className="text-lg font-semibold text-red-600 mb-1">Zona de Perigo</h2>
-                <p className="text-sm text-slate-600">
-                  Excluir permanentemente esta ordem de serviço
-                </p>
-              </div>
-              <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            <div className="p-4 pt-0">
-              <Button
-                variant="outline"
-                onClick={handleDeleteWorkOrder}
-                className="w-full flex items-center justify-center gap-2 border-red-600 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="w-5 h-5" />
-                Excluir Ordem de Serviço
-              </Button>
-            </div>
-          </details>
-        </Card>
 
         {/* Service Selector Modal */}
         <ServiceSelectorModal
@@ -1256,6 +1370,7 @@ export function WorkOrderDetails() {
                           });
                           await updateDoc(doc(db, 'workOrders', id), {
                             manualServices: cleanedServices,
+                            totalPrice: roundCurrency(newTotal),
                           });
                         } else {
                           // Add new service
@@ -1269,6 +1384,12 @@ export function WorkOrderDetails() {
                           }
                           const updated = [...manualServices, service];
                           setManualServices(updated);
+                          // Recalculate total
+                          const newTotal = updated.reduce((sum, s) => {
+                            const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0).replace(',', '.'));
+                            return sum + (isNaN(price) ? 0 : price);
+                          }, 0);
+                          setTotalPrice(roundCurrency(newTotal));
                           // Remove undefined values before saving
                           const cleanedServices = updated.map(s => {
                             const cleaned: any = {
@@ -1282,6 +1403,7 @@ export function WorkOrderDetails() {
                           });
                           await updateDoc(doc(db, 'workOrders', id), {
                             manualServices: cleanedServices,
+                            totalPrice: roundCurrency(newTotal),
                           });
                         }
                         

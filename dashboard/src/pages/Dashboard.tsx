@@ -23,6 +23,8 @@ export function Dashboard() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const navigate = useNavigate();
+  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  const [showPaywall, setShowPaywall] = useState(false);
   const [stats, setStats] = useState({
     openQuotes: 0,
     monthlyRevenue: 0,
@@ -356,44 +358,39 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Revenue Chart */}
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Receita (Últimos 30 dias)</h2>
-          <div className="h-64">
+        {/* Financial Overview Card */}
+        <Card className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <p className="text-sm text-gray-500 mb-2">Faturamento (Últimos 30 dias)</p>
+          <p className="text-4xl font-bold text-navy mb-4">{formatCurrency(stats.monthlyRevenue)}</p>
+          <div className="h-[120px] -mx-4 -mb-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0F172A" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#0F172A" stopOpacity={0}/>
+                  <linearGradient id="colorRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
+                    <stop offset="100%" stopColor="#10B981" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#64748B"
-                  style={{ fontSize: '12px' }}
-                />
-                <YAxis 
-                  stroke="#64748B"
-                  style={{ fontSize: '12px' }}
-                  tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                />
+                <XAxis hide />
+                <YAxis hide />
+                <CartesianGrid vertical={false} horizontal={false} />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#fff', 
                     border: '1px solid #E2E8F0',
                     borderRadius: '8px',
+                    padding: '8px 12px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                   }}
                   formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="revenue" 
-                  stroke="#0F172A" 
+                  stroke="#10B981" 
                   strokeWidth={2}
                   fillOpacity={1}
-                  fill="url(#colorRevenue)" 
+                  fill="url(#colorRevenueGradient)" 
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -404,12 +401,13 @@ export function Dashboard() {
         <Card>
           <h2 className="text-xl font-bold text-navy mb-4">Ações Rápidas</h2>
           <div className="grid grid-cols-2 gap-3">
-            <Link to="/admin/quotes/new">
-              <div className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
-                <Plus className="w-6 h-6 text-navy mx-auto mb-1" />
-                <p className="text-sm font-medium text-navy">Novo Orçamento</p>
-              </div>
-            </Link>
+            <div
+              onClick={() => verifyGate(() => navigate('/admin/quotes/new'), 'criar orçamentos')}
+              className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center"
+            >
+              <Plus className="w-6 h-6 text-navy mx-auto mb-1" />
+              <p className="text-sm font-medium text-navy">Novo Orçamento</p>
+            </div>
             <Link to="/admin/clients/new">
               <div className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
                 <Users className="w-6 h-6 text-navy mx-auto mb-1" />
@@ -490,6 +488,15 @@ export function Dashboard() {
           },
         ]}
       />
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+      />
+      
+      {/* Phone Verification Modal */}
+      <PhoneVerificationModalComponent requiredFor="criar orçamentos" />
     </Layout>
   );
 }

@@ -3,8 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
-import { Save, Trash2, Download, Plus, FileText, Search } from 'lucide-react';
-import { WhatsAppButton } from '../components/WhatsAppButton';
+import { Save, Trash2, Download, Plus, FileText, Search, MoreVertical, Lock, X, MessageCircle } from 'lucide-react';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { pdf } from '@react-pdf/renderer';
 import { QuotePDF } from '../components/QuotePDF';
@@ -16,7 +15,7 @@ import { ClientForm } from '../components/ClientForm';
 import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
 import { getProfessionCatalog } from '../utils/professionCatalog';
 import { getCategoriesForIndustry, getIconComponent } from '../constants/serviceCategories';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -24,6 +23,8 @@ import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../hooks/useCompany';
 import { roundCurrency } from '../lib/utils';
+import { useSecurityGate } from '../hooks/useSecurityGate';
+import { PaywallModal } from '../components/PaywallModal';
 
 interface Service {
   id: string;
@@ -162,6 +163,11 @@ export function QuoteNew() {
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const actionsDropdownRef = useRef<HTMLDivElement>(null);
+  
+  const isEditMode = !!id;
 
   useEffect(() => {
     const init = async () => {
@@ -177,6 +183,17 @@ export function QuoteNew() {
     };
     init();
   }, [id, companyId]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(event.target as Node)) {
+        setShowActionsDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadClients = async () => {
     if (!companyId) return;
@@ -384,15 +401,16 @@ export function QuoteNew() {
   const total = roundCurrency(subtotal - discount);
 
   const handleSave = async () => {
-    if (!selectedClientId) {
-      alert('Selecione um cliente');
-      return;
-    }
+    verifyGate(async () => {
+      if (!selectedClientId) {
+        alert('Selecione um cliente');
+        return;
+      }
 
-    const selectedClient = clients.find((c) => c.id === selectedClientId);
-    if (!selectedClient) return;
+      const selectedClient = clients.find((c) => c.id === selectedClientId);
+      if (!selectedClient) return;
 
-    try {
+      try {
       // Sanitize items - include all fields including installation data
       const sanitizedItems = items.map((item) => {
         // Validate required fields
@@ -532,7 +550,8 @@ export function QuoteNew() {
       console.error('Error saving quote:', error);
       const errorMessage = error?.message || 'Erro desconhecido';
       alert(`Erro ao salvar orçamento: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
-    }
+      }
+    });
   };
 
 
@@ -731,69 +750,100 @@ export function QuoteNew() {
   }
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-navy">
-              {id ? 'Editar Orçamento' : 'Novo Orçamento'}
-            </h1>
-            <p className="text-slate-600 mt-1">Crie e gerencie seus orçamentos</p>
-          </div>
-          <div className="flex gap-2">
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 py-3">
+            <div>
+              <h1 className="text-lg font-semibold text-navy">
+                {id ? 'Editar Orçamento' : 'Novo Orçamento'}
+              </h1>
+            </div>
+          <div className="flex gap-2 items-center">
             <Button variant="outline" onClick={() => navigate('/quotes')}>
               Cancelar
             </Button>
-            {id && selectedClientId && (
-              <WhatsAppButton
-                phoneNumber={clients.find((c) => c.id === selectedClientId)?.phone || ''}
-                clientName={clients.find((c) => c.id === selectedClientId)?.name || ''}
-                docType="Orçamento"
-                docLink={`${window.location.origin}/p/quote/${id}`}
-                googleReviewUrl={(company as any)?.googleReviewUrl}
-                size="md"
-              />
-            )}
-            <Button
-              variant="secondary"
-              onClick={handleGeneratePDFClick}
-              className="flex items-center gap-2"
-              disabled={!selectedClientId || items.length === 0}
-            >
-              <Download className="w-5 h-5" />
-              Gerar PDF
-            </Button>
+            
+            {/* Actions Dropdown */}
             {id && (
-              <Button
-                variant="outline"
-                onClick={() => setShowContractModal(true)}
-                className="flex items-center gap-2"
-                disabled={!selectedClientId || items.length === 0}
-              >
-                <FileText className="w-5 h-5" />
-                Gerar Contrato
-              </Button>
-            )}
-            {id && status === 'approved' && (
-              <>
-                <Button
-                  variant="primary"
-                  onClick={handleCreateWorkOrder}
-                  className="flex items-center gap-2"
-                >
-                  🛠️ Gerar Ordem de Serviço
-                </Button>
+              <div className="relative" ref={actionsDropdownRef}>
                 <Button
                   variant="outline"
-                  onClick={() => setShowContractModal(true)}
-                  className="flex items-center gap-2 border-gold text-gold-700 hover:bg-gold-50"
-                  disabled={!selectedClientId || items.length === 0}
+                  onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+                  className="flex items-center gap-2"
                 >
-                  <FileText className="w-5 h-5" />
-                  Gerar Contrato
+                  <MoreVertical className="w-5 h-5" />
+                  Ações
                 </Button>
-              </>
+                {showActionsDropdown && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="py-1">
+                      {selectedClientId && (() => {
+                        const selectedClient = clients.find((c) => c.id === selectedClientId);
+                        const sanitizePhone = (phone: string): string => {
+                          if (!phone) return '';
+                          let cleaned = phone.replace(/[\s\(\)\-]/g, '');
+                          if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
+                          if (!cleaned.startsWith('55')) cleaned = '55' + cleaned;
+                          return cleaned;
+                        };
+                        const handleWhatsApp = () => {
+                          setShowActionsDropdown(false);
+                          const message = `Olá ${selectedClient?.name}, segue o link do seu Orçamento: ${window.location.origin}/p/quote/${id}${(company as any)?.googleReviewUrl ? `\n\nAvalie nosso serviço: ${(company as any).googleReviewUrl}` : ''}`;
+                          const encodedMessage = encodeURIComponent(message);
+                          const phone = sanitizePhone(selectedClient?.phone || '');
+                          const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+                          window.open(whatsappUrl, '_blank');
+                        };
+                        return (
+                          <button
+                            onClick={handleWhatsApp}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            Enviar no WhatsApp
+                          </button>
+                        );
+                      })()}
+                      <button
+                        onClick={() => {
+                          setShowActionsDropdown(false);
+                          handleGeneratePDFClick();
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        disabled={!selectedClientId || items.length === 0}
+                      >
+                        <Download className="w-4 h-4" />
+                        Gerar PDF
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowActionsDropdown(false);
+                          setShowContractModal(true);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        disabled={!selectedClientId || items.length === 0}
+                      >
+                        <FileText className="w-4 h-4" />
+                        Gerar Contrato
+                      </button>
+                      {status === 'approved' && (
+                        <button
+                          onClick={() => {
+                            setShowActionsDropdown(false);
+                            handleCreateWorkOrder();
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          🛠️ Gerar Ordem de Serviço
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
+            
+            
             <Button 
               variant="primary" 
               onClick={handleSave} 
@@ -806,89 +856,106 @@ export function QuoteNew() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-32">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-48">
           {/* Main Form */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Client Selection */}
-            <Card className="relative flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-navy">Cliente</h2>
-              </div>
-              
-              {/* Search Bar */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Buscar cliente..."
-                  value={clientSearchTerm}
-                  onChange={(e) => setClientSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                />
-              </div>
-
-              {/* Client List - Compact Dense List */}
-              <div className="flex-1 overflow-y-auto pb-20">
-                <ul className="divide-y divide-gray-100">
-                  {clients
-                    .filter((client) => 
-                      clientSearchTerm === '' || 
-                      client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
-                      client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
-                    )
-                    .map((client) => (
-                      <li key={client.id}>
-                        <button
-                          onClick={() => setSelectedClientId(client.id)}
-                          className={`w-full flex flex-row items-center justify-between p-3 transition-colors ${
-                            selectedClientId === client.id
-                              ? 'bg-navy-50 border-l-4 border-l-navy'
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <span className="text-sm font-semibold text-gray-900">{client.name}</span>
-                          <span className="text-xs text-gray-500">{client.phone || ''}</span>
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-                {clients.filter((client) => 
-                  clientSearchTerm === '' || 
-                  client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
-                  client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
-                ).length === 0 && (
-                  <p className="text-center text-slate-500 py-8">Nenhum cliente encontrado</p>
-                )}
-              </div>
-
-              {/* Sticky Footer */}
-              <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-3 z-50">
-                <div className="max-w-7xl mx-auto flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowClientModal(true)}
-                    className="flex-1 flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Novo Cliente
-                  </Button>
+            {/* Client Selection / Read-Only Client Card */}
+            {isEditMode && selectedClientId ? (
+              <Card>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-navy">Cliente</h2>
+                  <Lock className="w-5 h-5 text-gray-400" />
+                </div>
+                {(() => {
+                  const selectedClient = clients.find((c) => c.id === selectedClientId);
+                  if (!selectedClient) return null;
+                  return (
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="font-semibold text-gray-900 mb-1">{selectedClient.name}</p>
+                      <p className="text-sm text-gray-600 mb-1">{selectedClient.phone || 'Sem telefone'}</p>
+                      <p className="text-sm text-gray-600">{selectedClient.address || 'Sem endereço'}</p>
+                    </div>
+                  );
+                })()}
+              </Card>
+            ) : (
+              <Card className="relative flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
+                {/* Search Bar with New Client Button */}
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente..."
+                    value={clientSearchTerm}
+                    onChange={(e) => setClientSearchTerm(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                    autoFocus={false}
+                  />
                   <Button
                     variant="primary"
-                    onClick={() => {
-                      if (!selectedClientId) {
-                        alert('Por favor, selecione um cliente');
-                        return;
-                      }
-                      // Scroll to services section
-                      document.querySelector('[data-section="services"]')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="flex-1"
-                    disabled={!selectedClientId}
+                    onClick={() => setShowClientModal(true)}
+                    className="h-10 w-10 p-0 flex items-center justify-center"
+                    title="Novo Cliente"
                   >
-                    Avançar
-                </Button>
-              </div>
-              </div>
-            </Card>
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                {/* Client List - Compact Dense List */}
+                <div className="flex-1 overflow-y-auto pb-24">
+                  <ul className="divide-y divide-gray-100">
+                    {clients
+                      .filter((client) => 
+                        clientSearchTerm === '' || 
+                        client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                        client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                      )
+                      .map((client) => (
+                        <li key={client.id}>
+                          <button
+                            onClick={() => setSelectedClientId(client.id)}
+                            className={`w-full flex flex-row items-center justify-between p-3 transition-colors ${
+                              selectedClientId === client.id
+                                ? 'bg-navy-50 border-l-4 border-l-navy'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className="text-sm font-semibold text-gray-900">{client.name}</span>
+                            <span className="text-xs text-gray-500">{client.phone || ''}</span>
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  {clients.filter((client) => 
+                    clientSearchTerm === '' || 
+                    client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                    client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                  ).length === 0 && (
+                    <p className="text-center text-slate-500 py-8">Nenhum cliente encontrado</p>
+                  )}
+                </div>
+
+                {/* Sticky Footer - Only Avançar button */}
+                <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-3 z-50">
+                  <div className="max-w-7xl mx-auto">
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        if (!selectedClientId) {
+                          alert('Por favor, selecione um cliente');
+                          return;
+                        }
+                        // Scroll to services section
+                        document.querySelector('[data-section="services"]')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="w-full"
+                      disabled={!selectedClientId}
+                    >
+                      Avançar
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Services */}
             <Card data-section="services">
@@ -930,115 +997,129 @@ export function QuoteNew() {
                 </button>
               </div>
 
-              {/* Installation Category Grid */}
-              {activeServiceTab === 'installation' && (() => {
-                // Get categories based on company industry/segment/profession
-                const industry = company?.segment || company?.profession || 'glazier';
-                const allCategories = getCategoriesForIndustry(industry);
-                
-                // Filter categories based on search
-                const filteredCategories = allCategories.filter(category =>
-                  category.label.toLowerCase().includes(categorySearchTerm.toLowerCase())
-                );
-                
-                return (
+              {/* Installation Category Grid - Show immediately in new mode, button in edit mode */}
+              {activeServiceTab === 'installation' && (
+                isEditMode ? (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-navy mb-4">Selecione a Categoria</h3>
-                    
-                    {/* Search Bar */}
-                    <div className="relative mb-4">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar categoria (ex: Janela, Fiação...)"
-                        value={categorySearchTerm}
-                        onChange={(e) => setCategorySearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                      />
-                    </div>
-                    
-                    {/* Category Grid */}
-                    {filteredCategories.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-slate-600 mb-4">Nenhum serviço encontrado</p>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setEditingItemIndex(null);
-                            setShowInstallationModal(true);
-                            (window as any).__selectedInstallationCategory = {
-                              serviceName: '',
-                              pricingMethod: 'm2',
-                              defaultPrice: 0,
-                            };
-                          }}
-                          className="flex items-center gap-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Cadastrar Outro
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {filteredCategories.map((category) => {
-                          const IconComponent = getIconComponent(category.icon);
-                          return (
-                            <button
-                              key={category.id}
-                              onClick={() => {
-                                setSelectedCategoryId(category.id);
-                                // Auto-open modal immediately
-                                if (category.id === 'outros' || category.id === 'outro') {
-                                  // Open modal with empty service name
-                                  setEditingItemIndex(null);
-                                  setShowInstallationModal(true);
-                                  (window as any).__selectedInstallationCategory = {
-                                    serviceName: '',
-                                    pricingMethod: 'm2',
-                                    defaultPrice: 0,
-                                  };
-                                } else if (category.catalogName) {
-                                  // Open library modal to select a model
-                                  setSelectedCategoryForLibrary({ 
-                                    catalogName: category.catalogName, 
-                                    categoryName: category.label 
-                                  });
-                                  setShowLibraryModal(true);
-                                } else {
-                                  // Fallback: open installation modal
-                                  setEditingItemIndex(null);
-                                  setShowInstallationModal(true);
-                                  (window as any).__selectedInstallationCategory = {
-                                    serviceName: category.label,
-                                    pricingMethod: 'm2',
-                                    defaultPrice: 0,
-                                  };
-                                }
-                              }}
-                              className={`p-4 border-2 rounded-lg transition-all duration-200 text-center group ${
-                                selectedCategoryId === category.id
-                                  ? 'border-blue-600 bg-blue-50 shadow-md ring-1 ring-blue-600'
-                                  : 'border-slate-200 bg-white hover:border-blue-300'
-                              }`}
-                            >
-                              <IconComponent className={`w-8 h-8 mx-auto mb-2 ${
-                                selectedCategoryId === category.id
-                                  ? 'text-blue-600'
-                                  : 'text-slate-600 group-hover:text-blue-600'
-                              }`} />
-                              <div className={`font-medium ${
-                                selectedCategoryId === category.id
-                                  ? 'text-blue-600'
-                                  : 'text-slate-700 group-hover:text-blue-600'
-                              }`}>{category.label}</div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCategoryModal(true)}
+                      className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Adicionar Novo Item
+                    </Button>
                   </div>
-                );
-              })()}
+                ) : (
+                  (() => {
+                  // Get categories based on company industry/segment/profession
+                  const industry = company?.segment || company?.profession || 'glazier';
+                  const allCategories = getCategoriesForIndustry(industry);
+                  
+                  // Filter categories based on search
+                  const filteredCategories = allCategories.filter(category =>
+                    category.label.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                  );
+                  
+                  return (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-navy mb-4">Selecione a Categoria</h3>
+                      
+                      {/* Search Bar */}
+                      <div className="relative mb-4">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Buscar categoria (ex: Janela, Fiação...)"
+                          value={categorySearchTerm}
+                          onChange={(e) => setCategorySearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                        />
+                      </div>
+                      
+                      {/* Category Grid */}
+                      {filteredCategories.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-slate-600 mb-4">Nenhum serviço encontrado</p>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingItemIndex(null);
+                              setShowInstallationModal(true);
+                              (window as any).__selectedInstallationCategory = {
+                                serviceName: '',
+                                pricingMethod: 'm2',
+                                defaultPrice: 0,
+                              };
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Cadastrar Outro
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {filteredCategories.map((category) => {
+                            const IconComponent = getIconComponent(category.icon);
+                            return (
+                              <button
+                                key={category.id}
+                                onClick={() => {
+                                  setSelectedCategoryId(category.id);
+                                  // Auto-open modal immediately
+                                  if (category.id === 'outros' || category.id === 'outro') {
+                                    // Open modal with empty service name
+                                    setEditingItemIndex(null);
+                                    setShowInstallationModal(true);
+                                    (window as any).__selectedInstallationCategory = {
+                                      serviceName: '',
+                                      pricingMethod: 'm2',
+                                      defaultPrice: 0,
+                                    };
+                                  } else if (category.catalogName) {
+                                    // Open library modal to select a model
+                                    setSelectedCategoryForLibrary({ 
+                                      catalogName: category.catalogName, 
+                                      categoryName: category.label 
+                                    });
+                                    setShowLibraryModal(true);
+                                  } else {
+                                    // Fallback: open installation modal
+                                    setEditingItemIndex(null);
+                                    setShowInstallationModal(true);
+                                    (window as any).__selectedInstallationCategory = {
+                                      serviceName: category.label,
+                                      pricingMethod: 'm2',
+                                      defaultPrice: 0,
+                                    };
+                                  }
+                                }}
+                                className={`p-4 border-2 rounded-lg transition-all duration-200 text-center group ${
+                                  selectedCategoryId === category.id
+                                    ? 'border-blue-600 bg-blue-50 shadow-md ring-1 ring-blue-600'
+                                    : 'border-slate-200 bg-white hover:border-blue-300'
+                                }`}
+                              >
+                                <IconComponent className={`w-8 h-8 mx-auto mb-2 ${
+                                  selectedCategoryId === category.id
+                                    ? 'text-blue-600'
+                                    : 'text-slate-600 group-hover:text-blue-600'
+                                }`} />
+                                <div className={`font-medium ${
+                                  selectedCategoryId === category.id
+                                    ? 'text-blue-600'
+                                    : 'text-slate-700 group-hover:text-blue-600'
+                                }`}>{category.label}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              )}
 
               {/* Maintenance & Custom Services - Show Add Button */}
               {(activeServiceTab === 'maintenance' || activeServiceTab === 'custom') && (
@@ -1058,12 +1139,12 @@ export function QuoteNew() {
                   </div>
                 )}
 
-              {/* Items List */}
-              {items.length === 0 ? (
+              {/* Items List - Only show empty state if not in installation tab (where grid is shown) */}
+              {items.length === 0 && !(activeServiceTab === 'installation' && !isEditMode) ? (
                 <p className="text-center text-slate-600 py-8">
                   Nenhum serviço adicionado. Selecione um serviço acima.
                 </p>
-              ) : (
+              ) : items.length > 0 ? (
                 <div className="space-y-4">
                   {items.map((item, index) => {
                     const service = services.find((s) => s.id === item.serviceId);
@@ -1516,6 +1597,114 @@ export function QuoteNew() {
           filterCategory={selectedCategoryForLibrary?.categoryName}
         />
 
+        {/* Category Selection Modal (for Edit Mode) */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-navy">Selecione a Categoria</h3>
+                <button
+                  onClick={() => setShowCategoryModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                {/* Search Bar */}
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar categoria (ex: Janela, Fiação...)"
+                    value={categorySearchTerm}
+                    onChange={(e) => setCategorySearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  />
+                </div>
+                
+                {/* Category Grid */}
+                {(() => {
+                  const industry = company?.segment || company?.profession || 'glazier';
+                  const allCategories = getCategoriesForIndustry(industry);
+                  const filteredCategories = allCategories.filter(category =>
+                    category.label.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                  );
+                  
+                  if (filteredCategories.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <p className="text-slate-600 mb-4">Nenhum serviço encontrado</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowCategoryModal(false);
+                            setEditingItemIndex(null);
+                            setShowInstallationModal(true);
+                            (window as any).__selectedInstallationCategory = {
+                              serviceName: '',
+                              pricingMethod: 'm2',
+                              defaultPrice: 0,
+                            };
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Cadastrar Outro
+                        </Button>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {filteredCategories.map((category) => {
+                        const IconComponent = getIconComponent(category.icon);
+                        return (
+                          <button
+                            key={category.id}
+                            onClick={() => {
+                              setShowCategoryModal(false);
+                              setSelectedCategoryId(category.id);
+                              if (category.id === 'outros' || category.id === 'outro') {
+                                setEditingItemIndex(null);
+                                setShowInstallationModal(true);
+                                (window as any).__selectedInstallationCategory = {
+                                  serviceName: '',
+                                  pricingMethod: 'm2',
+                                  defaultPrice: 0,
+                                };
+                              } else if (category.catalogName) {
+                                setSelectedCategoryForLibrary({ 
+                                  catalogName: category.catalogName, 
+                                  categoryName: category.label 
+                                });
+                                setShowLibraryModal(true);
+                              } else {
+                                setEditingItemIndex(null);
+                                setShowInstallationModal(true);
+                                (window as any).__selectedInstallationCategory = {
+                                  serviceName: category.label,
+                                  pricingMethod: 'm2',
+                                  defaultPrice: 0,
+                                };
+                              }
+                            }}
+                            className="p-4 border-2 rounded-lg transition-all duration-200 text-center group border-slate-200 bg-white hover:border-blue-300"
+                          >
+                            <IconComponent className="w-8 h-8 mx-auto mb-2 text-slate-600 group-hover:text-blue-600" />
+                            <div className="font-medium text-slate-700 group-hover:text-blue-600">{category.label}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Installation Item Modal (kept for editing existing items) */}
         <InstallationItemModal
           isOpen={showInstallationModal}
@@ -1568,6 +1757,15 @@ export function QuoteNew() {
           />
         )}
       </div>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+      />
+      
+      {/* Phone Verification Modal */}
+      <PhoneVerificationModalComponent requiredFor="salvar orçamentos" />
     </Layout>
   );
 }

@@ -29,7 +29,6 @@ import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
-import { AffiliateNetwork } from './pages/AffiliateNetwork';
 import { Landing } from './pages/Landing';
 import { MarketingLayout } from './components/MarketingLayout';
 import { VersionChecker } from './components/system/VersionChecker';
@@ -364,14 +363,6 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Affiliates />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/admin/affiliate/network"
-        element={
-          <AdminRoute>
-            <AffiliateNetwork />
           </AdminRoute>
         }
       />

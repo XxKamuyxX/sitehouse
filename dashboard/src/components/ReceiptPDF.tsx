@@ -46,6 +46,9 @@ interface ReceiptPDFProps {
   manualServicesTotal?: number;
   clientAccepted?: boolean;
   acceptedAt?: any;
+  signatureImage?: string;
+  deviceInfo?: string;
+  clientIp?: string;
 }
 
 const styles = StyleSheet.create({
@@ -265,6 +268,30 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 5,
   },
+  digitalTraceability: {
+    marginTop: 40,
+    paddingTop: 20,
+    borderTop: '2 solid #E2E8F0',
+    fontSize: 7,
+    color: '#64748B',
+  },
+  traceabilityTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  traceabilityText: {
+    fontSize: 7,
+    color: '#64748B',
+    lineHeight: 1.4,
+    marginBottom: 4,
+  },
+  traceabilityValue: {
+    fontFamily: 'Courier',
+    fontSize: 7,
+    color: '#475569',
+  },
 });
 
 export function ReceiptPDF({
@@ -286,6 +313,9 @@ export function ReceiptPDF({
   manualServicesTotal = 0,
   clientAccepted = false,
   acceptedAt,
+  signatureImage,
+  deviceInfo,
+  clientIp,
 }: ReceiptPDFProps) {
   // Fallback to default values if companyData is not provided
   const company = companyData || {
@@ -477,16 +507,99 @@ export function ReceiptPDF({
           </View>
         )}
 
-        {/* Signature */}
-        <View style={styles.signature}>
-          <View style={styles.signatureLine} />
-          <Text style={styles.signatureText}>{clientName}</Text>
-          <Text style={styles.signatureText}>
-            {hasRisk 
-              ? 'Declaro ciência do risco preexistente e autorizo o serviço, isentando a contratada de responsabilidade sobre quebras de vidros já danificados.'
-              : 'Cliente'}
-          </Text>
-        </View>
+        {/* Signature Section */}
+        {signatureImage ? (
+          <View style={styles.signature}>
+            <Text style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 8, color: '#0F172A' }}>
+              Assinatura do Cliente:
+            </Text>
+            <Image 
+              src={signatureImage}
+              style={{ width: 200, height: 80, marginBottom: 5, objectFit: 'contain' }}
+            />
+            <Text style={styles.signatureText}>{clientName}</Text>
+            {acceptedAt && (
+              <Text style={{ fontSize: 8, color: '#64748B', marginTop: 2 }}>
+                {acceptedAt?.toDate ? 
+                  new Date(acceptedAt.toDate()).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  }) :
+                  new Date(acceptedAt).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })
+                }
+              </Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.signature}>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureText}>{clientName}</Text>
+            <Text style={styles.signatureText}>
+              {hasRisk 
+                ? 'Declaro ciência do risco preexistente e autorizo o serviço, isentando a contratada de responsabilidade sobre quebras de vidros já danificados.'
+                : 'Cliente'}
+            </Text>
+          </View>
+        )}
+
+        {/* Digital Traceability Footer */}
+        {clientAccepted && signatureImage && (
+          <View style={styles.digitalTraceability}>
+            <Text style={styles.traceabilityTitle}>Registro de Aceite Digital e Vistoria</Text>
+            <Text style={styles.traceabilityText}>
+              Este documento foi assinado eletronicamente.{'\n'}
+              O cliente declarou ter vistoriado e aprovado os serviços nesta data.
+            </Text>
+            <Text style={styles.traceabilityText}>
+              Hash/ID: <Text style={styles.traceabilityValue}>{workOrderId}</Text>
+            </Text>
+            {acceptedAt && (
+              <Text style={styles.traceabilityText}>
+                Carimbo de Tempo: <Text style={styles.traceabilityValue}>
+                  {acceptedAt?.toDate ? 
+                    new Date(acceptedAt.toDate()).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    }) :
+                    new Date(acceptedAt).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    })
+                  }
+                </Text>
+              </Text>
+            )}
+            {deviceInfo && (
+              <Text style={styles.traceabilityText}>
+                Dispositivo: <Text style={styles.traceabilityValue}>{deviceInfo}</Text>
+              </Text>
+            )}
+            {clientIp && clientIp !== 'unknown' && (
+              <Text style={styles.traceabilityText}>
+                IP: <Text style={styles.traceabilityValue}>{clientIp}</Text>
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Company Signature & CNPJ */}
         {company.cnpj && (

@@ -545,14 +545,42 @@ export function Settings() {
           <Card>
             <h2 className="text-xl font-bold text-navy mb-6">Assinatura</h2>
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <p className="text-sm font-semibold text-green-800 mb-1">
-                  🎁 7 dias grátis para testar
-                </p>
-                <p className="text-xs text-green-700">
-                  Após o período de teste, cobrança mensal automática
-                </p>
-              </div>
+              {(() => {
+                // Check if trial has expired
+                const trialEndDate = userMetadata?.trialEndsAt 
+                  ? (userMetadata.trialEndsAt?.toDate ? userMetadata.trialEndsAt.toDate() : new Date(userMetadata.trialEndsAt))
+                  : null;
+                const isTrialExpired = trialEndDate ? new Date() > trialEndDate : false;
+                const isActive = userMetadata?.subscriptionStatus === 'active' || userMetadata?.subscriptionStatus === 'trialing';
+                
+                if (isTrialExpired && !isActive) {
+                  return (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm font-semibold text-yellow-800 mb-1">
+                        ⚠️ Seu período de teste acabou
+                      </p>
+                      <p className="text-xs text-yellow-700">
+                        Assine agora para continuar gerenciando seu negócio
+                      </p>
+                    </div>
+                  );
+                }
+                
+                if (!isTrialExpired) {
+                  return (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm font-semibold text-green-800 mb-1">
+                        🎁 7 dias grátis para testar
+                      </p>
+                      <p className="text-xs text-green-700">
+                        Após o período de teste, cobrança mensal automática
+                      </p>
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
               <div className="bg-slate-50 rounded-lg p-4 mb-4">
                 <p className="text-slate-700 mb-2">
                   <strong>Plano:</strong> Mensal - R$ 40,00/mês

@@ -22,7 +22,6 @@ import {
   Crown,
   BookOpen,
   Gift,
-  Network as NetworkIcon
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -138,7 +137,6 @@ export function Layout({ children }: LayoutProps) {
       { path: '/admin/team', icon: UserCog, label: 'Equipe' },
       { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
           { path: '/admin/affiliates', icon: Gift, label: 'Indique e Ganhe' },
-          { path: '/admin/affiliate/network', icon: NetworkIcon, label: 'Minha Rede' },
           { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
     ] : []),
   ];

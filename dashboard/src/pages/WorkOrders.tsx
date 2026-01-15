@@ -12,6 +12,8 @@ import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../hooks/useCompany';
 import { TutorialGuide } from '../components/TutorialGuide';
+import { useSecurityGate } from '../hooks/useSecurityGate';
+import { PaywallModal } from '../components/PaywallModal';
 
 interface WorkOrder {
   id: string;
@@ -45,6 +47,8 @@ export function WorkOrders() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { company } = useCompany();
+  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  const [showPaywall, setShowPaywall] = useState(false);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showClientSelector, setShowClientSelector] = useState(false);
@@ -55,6 +59,13 @@ export function WorkOrders() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Listen for paywall modal trigger
+  useEffect(() => {
+    const handleOpenPaywall = () => setShowPaywall(true);
+    window.addEventListener('openSubscriptionModal', handleOpenPaywall);
+    return () => window.removeEventListener('openSubscriptionModal', handleOpenPaywall);
+  }, []);
 
   useEffect(() => {
     if (companyId) {
@@ -90,10 +101,11 @@ export function WorkOrders() {
   };
 
   const handleCreateWorkOrder = async () => {
-    if (!selectedClientId || !companyId) {
-      alert('Selecione um cliente');
-      return;
-    }
+    verifyGate(async () => {
+      if (!selectedClientId || !companyId) {
+        alert('Selecione um cliente');
+        return;
+      }
 
     const selectedClient = clients.find((c) => c.id === selectedClientId);
     if (!selectedClient) return;
@@ -123,6 +135,7 @@ export function WorkOrders() {
       console.error('Error creating work order:', error);
       alert(`Erro ao criar ordem de serviço: ${error.message}`);
     }
+    });
   };
 
   const filteredClients = clients.filter((client) =>
@@ -313,7 +326,7 @@ export function WorkOrders() {
             id="btn-add-os"
             variant="primary"
             size="lg"
-            onClick={() => setShowClientSelector(true)}
+            onClick={() => verifyGate(() => setShowClientSelector(true), 'criar ordens de serviço')}
             className="flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -592,6 +605,15 @@ export function WorkOrders() {
           ]}
         />
       </div>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+      />
+      
+      {/* Phone Verification Modal */}
+      <PhoneVerificationModalComponent requiredFor="criar ordens de serviço" />
     </Layout>
   );
 }

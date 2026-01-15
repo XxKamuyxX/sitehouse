@@ -37,6 +37,53 @@
   }
 }
 
+/* React Big Calendar Fixes */
+.rbc-time-gutter {
+  min-width: 50px !important;
+  width: 50px !important;
+}
+
+.rbc-event {
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.rbc-header {
+  padding: 8px 4px;
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid #e5e7eb;
+}
+
+.rbc-time-content {
+  border-top: 2px solid #e5e7eb;
+}
+
+.rbc-time-header-content {
+  border-left: 1px solid #e5e7eb;
+}
+
+/* Mobile: Ensure columns don't get too narrow */
+@media (max-width: 768px) {
+  .rbc-header {
+    font-size: 12px;
+    padding: 6px 2px;
+  }
+  
+  .rbc-day-slot {
+    min-width: 60px;
+  }
+  
+  .rbc-event {
+    font-size: 11px;
+    padding: 1px 3px;
+  }
+}
+
 
 
 

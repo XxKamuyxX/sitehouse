@@ -5,11 +5,13 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Plus, Mail, Trash2, X, Eye, EyeOff, Edit, Lock, Unlock, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getDocs, doc, updateDoc, deleteDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { queryWithCompanyId } from '../lib/queries';
-import { db, auth } from '../lib/firebase';
+import { db, auth, firebaseConfig } from '../lib/firebase';
 import { UserRole } from '../contexts/AuthContext';
+import { initializeApp, getApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
 interface TeamMember {
   id: string;
@@ -38,28 +40,36 @@ export function TeamManagement() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Real-time listener for team members
   useEffect(() => {
-    loadMembers();
-  }, [companyId]);
-
-  const loadMembers = async () => {
-    if (!companyId) return;
-    
-    try {
-      const q = queryWithCompanyId('users', companyId);
-      const snapshot = await getDocs(q);
-      const membersData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as TeamMember[];
-      setMembers(membersData);
-    } catch (error) {
-      console.error('Error loading team members:', error);
-      alert('Erro ao carregar membros da equipe');
-    } finally {
+    if (!companyId) {
       setLoading(false);
+      return;
     }
-  };
+
+    setLoading(true);
+    const q = queryWithCompanyId('users', companyId);
+    
+    // Use onSnapshot for real-time updates
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const membersData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as TeamMember[];
+        setMembers(membersData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error loading team members:', error);
+        alert('Erro ao carregar membros da equipe');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [companyId]);
 
   const getInitials = (name?: string, email?: string) => {
     if (name) {
@@ -115,47 +125,76 @@ export function TeamManagement() {
     }
 
     setSaving(true);
+    let secondaryApp;
+
     try {
-      // Get current user's auth token
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        alert('Erro: Usuário não autenticado');
-        setSaving(false);
-        return;
+      // 1. Create a Secondary App Instance (The "Robot")
+      // This prevents the Admin from being logged out
+      const appName = 'SecondaryApp';
+      try {
+        secondaryApp = getApp(appName);
+      } catch (e) {
+        secondaryApp = initializeApp(firebaseConfig, appName);
       }
 
-      const token = await currentUser.getIdToken();
+      const secondaryAuth = getAuth(secondaryApp);
 
-      // Call API route to create team member
-      const response = await fetch(`${window.location.origin}/api/team/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: newMember.email,
-          password: newMember.password,
-          displayName: newMember.name,
-          role: newMember.role,
-        }),
+      // 2. Create User in Firebase Auth using Secondary App
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        newMember.email,
+        newMember.password
+      );
+      const { user } = userCredential;
+
+      // 3. Force Logout the new user immediately (so the secondary app doesn't hold session)
+      await signOut(secondaryAuth);
+
+      // 4. Write Data to Firestore (Using the MAIN app instance db)
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid, // Critical: This links Auth to Firestore
+        name: newMember.name,
+        email: newMember.email,
+        role: newMember.role,
+        active: true,
+        companyId: companyId, // Link to company
+        createdAt: serverTimestamp(),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao criar membro da equipe');
-      }
-
+      // 5. Success - Modal will close and list will update via onSnapshot
       alert('Membro adicionado com sucesso!');
       setShowAddModal(false);
       setNewMember({ email: '', password: '', name: '', role: 'technician' });
       setShowPassword(false);
-      loadMembers();
+      // No need to call loadMembers() - onSnapshot will update automatically
     } catch (error: any) {
       console.error('Error adding member:', error);
-      alert(error.message || 'Erro ao adicionar membro');
+      
+      // Map Firebase errors to friendly Portuguese messages
+      let errorMessage = 'Erro ao adicionar membro.';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Este e-mail já está em uso.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'O endereço de e-mail é inválido.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Operação não permitida. Entre em contato com o suporte.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
     } finally {
+      // 6. Destroy Secondary App
+      if (secondaryApp) {
+        try {
+          await deleteApp(secondaryApp);
+        } catch (deleteError) {
+          console.error('Error deleting secondary app:', deleteError);
+          // Non-critical error, continue
+        }
+      }
       setSaving(false);
     }
   };
@@ -179,7 +218,7 @@ export function TeamManagement() {
       alert('Membro atualizado com sucesso!');
       setShowEditModal(false);
       setEditingMember(null);
-      loadMembers();
+      // No need to call loadMembers() - onSnapshot will update automatically
     } catch (error) {
       console.error('Error updating member:', error);
       alert('Erro ao atualizar membro');
@@ -195,7 +234,7 @@ export function TeamManagement() {
       await updateDoc(doc(db, 'users', memberId), {
         active: !currentActive,
       });
-      loadMembers();
+      // No need to call loadMembers() - onSnapshot will update automatically
       alert(`Membro ${!currentActive ? 'desbloqueado' : 'bloqueado'} com sucesso!`);
     } catch (error) {
       console.error('Error toggling member status:', error);
@@ -210,7 +249,7 @@ export function TeamManagement() {
 
     try {
       await deleteDoc(doc(db, 'users', memberId));
-      loadMembers();
+      // No need to call loadMembers() - onSnapshot will update automatically
       alert('Membro excluído com sucesso!');
     } catch (error) {
       console.error('Error deleting member:', error);

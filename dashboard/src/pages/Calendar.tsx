@@ -79,12 +79,22 @@ export function Calendar() {
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
-        setCurrentView('day');
+        // On mobile, default to agenda view (list)
+        if (currentView === 'month' || currentView === 'week') {
+          setCurrentView('agenda');
+        }
       }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [currentView]);
+  
+  // Set initial view based on screen size
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setCurrentView('agenda');
+    }
   }, []);
 
   useEffect(() => {
@@ -314,7 +324,10 @@ export function Calendar() {
     };
 
     const label = () => {
-      return moment(toolbar.date).format('MMMM [de] YYYY');
+      // Format: "Janeiro 2026" (capitalized)
+      const formatted = moment(toolbar.date).format('MMMM YYYY');
+      // Capitalize first letter
+      return formatted.charAt(0).toUpperCase() + formatted.slice(1);
     };
 
     return (
@@ -350,24 +363,27 @@ export function Calendar() {
             </button>
           </div>
 
-          {/* View Switcher */}
+          {/* View Switcher - Hide Month/Week on mobile */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+            {/* Month - Hidden on mobile */}
             <button
               onClick={() => goToView('month')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`hidden md:block px-3 py-1 rounded text-sm font-medium transition-colors ${
                 toolbar.view === 'month' ? 'bg-white text-navy shadow-sm' : 'text-slate-600 hover:text-navy'
               }`}
             >
               Mês
             </button>
+            {/* Week - Hidden on mobile */}
             <button
               onClick={() => goToView('week')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`hidden md:block px-3 py-1 rounded text-sm font-medium transition-colors ${
                 toolbar.view === 'week' ? 'bg-white text-navy shadow-sm' : 'text-slate-600 hover:text-navy'
               }`}
             >
               Semana
             </button>
+            {/* Day - Always visible */}
             <button
               onClick={() => goToView('day')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
@@ -376,6 +392,7 @@ export function Calendar() {
             >
               Dia
             </button>
+            {/* Agenda/List - Always visible */}
             <button
               onClick={() => goToView('agenda')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
@@ -455,23 +472,30 @@ export function Calendar() {
                 date: 'Data',
                 time: 'Hora',
                 event: 'Evento',
+                allDay: 'Dia Inteiro',
+                work_week: 'Semana de Trabalho',
                 noEventsInRange: 'Nenhum compromisso para este período. Toque no + para agendar.',
               }}
               formats={{
                 timeGutterFormat: 'HH:mm',
                 eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
                   `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`,
-                dayFormat: 'dddd, DD/MM',
-                dayHeaderFormat: 'dddd, DD/MM',
+                dayFormat: 'dddd, DD',
+                dayHeaderFormat: 'dddd, DD',
                 dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
                   `${moment(start).format('DD/MM')} - ${moment(end).format('DD/MM')}`,
-                monthHeaderFormat: 'MMMM [de] YYYY',
+                monthHeaderFormat: 'MMMM YYYY',
                 agendaHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
                   `${moment(start).format('DD/MM')} - ${moment(end).format('DD/MM')}`,
                 agendaTimeFormat: 'HH:mm',
                 agendaTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
                   `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`,
               }}
+              onDrillDown={() => {
+                // Disable automatic navigation to day view on click
+                return null;
+              }}
+              drilldownView={null}
             />
           </div>
         </Card>

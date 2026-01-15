@@ -2,7 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Save, Upload, X, Plus, Edit2, Trash2, Package, AppWindow, Wrench, Key, Building2, Palette, FileText, Settings } from 'lucide-react';
+import { Save, Upload, X, Plus, Edit2, Trash2, Package, AppWindow, Wrench, Key, Building2, Palette, FileText, Settings, Wind, Zap, Droplets, Info } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../hooks/useCompany';
 import { useStorage } from '../hooks/useStorage';
@@ -12,42 +12,67 @@ import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp
 import { db } from '../lib/firebase';
 import { queryWithCompanyId } from '../lib/queries';
 import { getDefaultContractTemplate } from '../utils/contractTemplates';
+import { sanitizeTaxId, isTaxIdRegistered, validateTaxIdFormat } from '../utils/security';
 
 // Contract Variables Toolbar Component
 function ContractVariablesToolbar({ onInsert }: { onInsert: (variable: string) => void }) {
-  const variables = [
-    { label: 'Nome Cliente', value: '{CLIENT_NAME}' },
-    { label: 'CPF/CNPJ Cliente', value: '{CLIENT_CPF_CNPJ}' },
-    { label: 'Endereço Cliente', value: '{CLIENT_ADDRESS}' },
-    { label: 'Total', value: '{TOTAL}' },
-    { label: 'Data', value: '{DATE}' },
-    { label: 'Cidade', value: '{CITY}' },
-    { label: 'Nome Empresa', value: '{COMPANY_NAME}' },
-    { label: 'CNPJ Empresa', value: '{COMPANY_CNPJ}' },
-    { label: 'Endereço Empresa', value: '{COMPANY_ADDRESS}' },
-    { label: 'Data Início', value: '{START_DATE}' },
-    { label: 'Data Entrega', value: '{DELIVERY_DATE}' },
-    { label: 'Método Pagamento', value: '{PAYMENT_METHOD}' },
-    { label: 'Detalhes Pagamento', value: '{PAYMENT_DETAILS}' },
-    { label: 'Testemunha 1 Nome', value: '{WITNESS1_NAME}' },
-    { label: 'Testemunha 1 CPF', value: '{WITNESS1_CPF}' },
-    { label: 'Testemunha 2 Nome', value: '{WITNESS2_NAME}' },
-    { label: 'Testemunha 2 CPF', value: '{WITNESS2_CPF}' },
+  const variableGroups = [
+    {
+      label: 'Dados do Cliente',
+      variables: [
+        { label: '👤 Nome Cliente', value: '{CLIENT_NAME}', icon: '👤' },
+        { label: '📄 CPF/CNPJ', value: '{CLIENT_CPF_CNPJ}', icon: '📄' },
+        { label: '📍 Endereço', value: '{CLIENT_ADDRESS}', icon: '📍' },
+      ],
+    },
+    {
+      label: 'Valores e Datas',
+      variables: [
+        { label: '💰 Valor Total', value: '{TOTAL}', icon: '💰' },
+        { label: '📅 Data Início', value: '{START_DATE}', icon: '📅' },
+        { label: '🚚 Prazo', value: '{DELIVERY_DATE}', icon: '🚚' },
+      ],
+    },
+    {
+      label: 'Empresa',
+      variables: [
+        { label: 'Nome Empresa', value: '{COMPANY_NAME}' },
+        { label: 'CNPJ Empresa', value: '{COMPANY_CNPJ}' },
+        { label: 'Endereço Empresa', value: '{COMPANY_ADDRESS}' },
+      ],
+    },
+    {
+      label: 'Outros',
+      variables: [
+        { label: 'Data', value: '{DATE}' },
+        { label: 'Cidade', value: '{CITY}' },
+        { label: 'Método Pagamento', value: '{PAYMENT_METHOD}' },
+        { label: 'Detalhes Pagamento', value: '{PAYMENT_DETAILS}' },
+        { label: 'Testemunha 1 Nome', value: '{WITNESS1_NAME}' },
+        { label: 'Testemunha 1 CPF', value: '{WITNESS1_CPF}' },
+        { label: 'Testemunha 2 Nome', value: '{WITNESS2_NAME}' },
+        { label: 'Testemunha 2 CPF', value: '{WITNESS2_CPF}' },
+      ],
+    },
   ];
 
   return (
-    <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-      <p className="text-xs font-medium text-slate-700 mb-2">Variáveis Disponíveis (clique para inserir):</p>
-      <div className="flex flex-wrap gap-2">
-        {variables.map((variable) => (
-          <button
-            key={variable.value}
-            type="button"
-            onClick={() => onInsert(variable.value)}
-            className="px-2 py-1 text-xs bg-white border border-slate-300 rounded-md hover:bg-slate-100 hover:border-navy transition-colors"
-          >
-            {variable.label}
-          </button>
+    <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-3 mb-4 shadow-sm">
+      <p className="text-xs font-medium text-slate-700 mb-3">Variáveis Disponíveis (clique para inserir):</p>
+      <div className="space-y-2">
+        {variableGroups.slice(0, 2).map((group, groupIdx) => (
+          <div key={groupIdx} className="flex flex-wrap gap-2">
+            {group.variables.map((variable) => (
+              <button
+                key={variable.value}
+                type="button"
+                onClick={() => onInsert(variable.value)}
+                className="px-3 py-1.5 text-xs bg-gray-100 border border-gray-300 rounded-full hover:bg-gray-300 hover:border-gray-400 transition-colors font-medium text-gray-700"
+              >
+                {variable.label}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </div>
@@ -123,7 +148,7 @@ export function CompanySettings() {
     googleReviewUrl: '',
     contractTemplate: '',
     segment: 'glazier' as string,
-    profession: '' as '' | 'vidracaria' | 'serralheria' | 'chaveiro' | 'marido-de-aluguel' | 'eletrica-hidraulica',
+    profession: '' as '' | 'vidracaria' | 'serralheria' | 'chaveiro' | 'marido-de-aluguel' | 'eletrica-hidraulica' | 'climatizacao' | 'eletrica' | 'hidraulica',
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -133,6 +158,7 @@ export function CompanySettings() {
   const [compressing, setCompressing] = useState(false);
   const [compressingSignature, setCompressingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
+  const [previewMode, setPreviewMode] = useState(false);
   
   // Services management
   const [services, setServices] = useState<Array<{
@@ -178,7 +204,9 @@ export function CompanySettings() {
                         ((company as any).segment === 'metalwork' ? 'serralheria' : 
                          (company as any).segment === 'locksmith' ? 'chaveiro' :
                          (company as any).segment === 'handyman' ? 'marido-de-aluguel' :
-                         (company as any).segment === 'electrician' || (company as any).segment === 'plumber' ? 'eletrica-hidraulica' :
+                         (company as any).segment === 'electrician' ? 'eletrica' :
+                         (company as any).segment === 'plumber' ? 'hidraulica' :
+                         (company as any).segment === 'hvac' ? 'climatizacao' :
                          (company as any).segment === 'glazier' ? 'vidracaria' : 'vidracaria');
       
       // If contractTemplate is empty, use default template based on profession
@@ -417,7 +445,7 @@ export function CompanySettings() {
 
   const handleInsertVariable = (variable: string) => {
     const textarea = contractTextareaRef.current;
-    if (!textarea) return;
+    if (!textarea || previewMode) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
@@ -429,8 +457,38 @@ export function CompanySettings() {
     // Set cursor position after inserted variable
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + variable.length, start + variable.length);
+      const newCursorPos = start + variable.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
+  };
+
+  const getPreviewText = (template: string): string => {
+    const replacements: Record<string, string> = {
+      '{CLIENT_NAME}': 'João da Silva',
+      '{CLIENT_CPF_CNPJ}': '123.456.789-00',
+      '{CLIENT_ADDRESS}': 'Rua das Flores, 123 - Centro, Belo Horizonte - MG',
+      '{TOTAL}': 'R$ 1.500,00',
+      '{START_DATE}': '15/01/2026',
+      '{DELIVERY_DATE}': '30/01/2026',
+      '{DATE}': '15/01/2026',
+      '{CITY}': 'Belo Horizonte',
+      '{COMPANY_NAME}': formData.name || 'Sua Empresa',
+      '{COMPANY_CNPJ}': formData.cnpj || '12.345.678/0001-90',
+      '{COMPANY_ADDRESS}': formData.address || 'Endereço da Empresa',
+      '{PAYMENT_METHOD}': 'PIX',
+      '{PAYMENT_DETAILS}': 'À vista com 5% de desconto',
+      '{WITNESS1_NAME}': 'Maria Santos',
+      '{WITNESS1_CPF}': '987.654.321-00',
+      '{WITNESS2_NAME}': 'Pedro Oliveira',
+      '{WITNESS2_CPF}': '111.222.333-44',
+    };
+
+    let preview = template;
+    Object.entries(replacements).forEach(([key, value]) => {
+      preview = preview.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
+    });
+    
+    return preview;
   };
 
   const handleSave = async () => {
@@ -453,6 +511,24 @@ export function CompanySettings() {
 
     setSaving(true);
     try {
+      // Security Layer 3: Tax ID Lock (CNPJ/CPF)
+      if (formData.cnpj?.trim()) {
+        const sanitizedTaxId = sanitizeTaxId(formData.cnpj);
+        
+        if (sanitizedTaxId && validateTaxIdFormat(formData.cnpj)) {
+          const taxIdCheck = await isTaxIdRegistered(formData.cnpj, user?.uid);
+          
+          if (taxIdCheck.exists) {
+            alert('Este CNPJ/CPF já possui um período de teste utilizado. Use outro documento ou entre em contato com o suporte.');
+            setSaving(false);
+            return;
+          }
+          
+          // If tax ID is valid and new, register it after successful save
+          // We'll handle this after the company update succeeds
+        }
+      }
+
       // Sanitize payload: ensure all fields have values (never undefined)
       // Use JSON.parse(JSON.stringify()) to strip undefined values, then set defaults
       const rawData: any = {
@@ -490,6 +566,23 @@ export function CompanySettings() {
       const cleanData = JSON.parse(JSON.stringify(rawData));
 
       await updateCompany(cleanData);
+      
+      // Register tax ID in tax_id_registry after successful save (if provided)
+      if (formData.cnpj?.trim()) {
+        const sanitizedTaxId = sanitizeTaxId(formData.cnpj);
+        if (sanitizedTaxId && validateTaxIdFormat(formData.cnpj)) {
+          const taxIdCheck = await isTaxIdRegistered(formData.cnpj, user?.uid);
+          if (!taxIdCheck.exists && user?.uid) {
+            // Register the tax ID
+            await setDoc(doc(db, 'tax_id_registry', sanitizedTaxId), {
+              userId: user.uid,
+              companyId: companyId,
+              usedAt: serverTimestamp(),
+            }, { merge: true });
+          }
+        }
+      }
+      
       alert('Dados da empresa salvos com sucesso!');
     } catch (error: any) {
       console.error('Error saving company data:', error);
@@ -513,10 +606,10 @@ export function CompanySettings() {
   const isOnboardingIncomplete = !formData.profession || !formData.name || formData.name.trim() === '';
 
   const tabs = [
-    { id: 'perfil' as const, label: '🏢 Perfil & Contato', icon: Building2 },
-    { id: 'marca' as const, label: '🎨 Marca & PDF', icon: Palette },
-    { id: 'contrato' as const, label: '📄 Contrato & Termos', icon: FileText },
-    { id: 'ajustes' as const, label: '⚙️ Ajustes & Financeiro', icon: Settings },
+    { id: 'perfil' as const, label: 'Perfil', subtitle: 'Dados Básicos', icon: Building2 },
+    { id: 'marca' as const, label: 'Marca', subtitle: 'Logo e Cores', icon: Palette },
+    { id: 'contrato' as const, label: 'Contrato', subtitle: 'Editor de Modelo', icon: FileText },
+    { id: 'ajustes' as const, label: 'Configurações', subtitle: 'Pagamento e Serviços', icon: Settings },
   ];
 
   return (
@@ -570,15 +663,17 @@ export function CompanySettings() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${
+                  className={`flex flex-col sm:flex-row items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 whitespace-nowrap min-w-[100px] sm:min-w-0 ${
                     activeTab === tab.id
                       ? 'border-navy text-navy bg-navy-50'
                       : 'border-transparent text-slate-600 hover:text-navy hover:bg-slate-50'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <div className="flex flex-col items-center sm:items-start">
+                    <span className="text-xs sm:text-sm font-semibold">{tab.label}</span>
+                    <span className="text-[10px] sm:text-xs text-slate-500 hidden sm:block">({tab.subtitle})</span>
+                  </div>
                 </button>
               );
             })}
@@ -654,7 +749,7 @@ export function CompanySettings() {
                   <p className="text-xs text-slate-500 mb-4">
                     Selecione o tipo principal de serviço que sua empresa oferece. Esta informação é obrigatória.
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {/* Vidraçaria */}
                     <button
                       type="button"
@@ -760,6 +855,87 @@ export function CompanySettings() {
                       </div>
                       <p className="text-xs text-slate-600">
                         Manutenção e reparos residenciais
+                      </p>
+                    </button>
+
+                    {/* Climatização */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, profession: 'climatizacao', segment: 'hvac' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'climatizacao'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'climatizacao' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Wind className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'climatizacao' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Climatização
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Refrigeração e Ar Condicionado
+                      </p>
+                    </button>
+
+                    {/* Elétrica */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, profession: 'eletrica', segment: 'electrician' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'eletrica'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'eletrica' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Zap className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'eletrica' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Elétrica
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Instalações e Fiação
+                      </p>
+                    </button>
+
+                    {/* Hidráulica */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, profession: 'hidraulica', segment: 'plumber' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'hidraulica'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'hidraulica' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Droplets className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'hidraulica' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Hidráulica
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Encanamento e Reparos
                       </p>
                     </button>
                   </div>
@@ -1056,20 +1232,55 @@ export function CompanySettings() {
             {activeTab === 'contrato' && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-xl font-bold text-navy mb-2">Contrato Padrão</h2>
-                  <p className="text-sm text-slate-600 mb-4">
-                    Defina o texto padrão do contrato. Use variáveis que serão substituídas automaticamente.
-                  </p>
+                  <h2 className="text-xl font-bold text-navy mb-2">Modelo de Contrato</h2>
+                  
+                  {/* Info Alert */}
+                  <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-blue-800 font-medium mb-1">
+                          ℹ️ Isto é um Modelo
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          Configure aqui o texto padrão da sua empresa. As palavras entre chaves <code className="bg-blue-100 px-1 rounded">{`{...}`}</code> serão substituídas automaticamente pelos dados do cliente em cada orçamento.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview Mode Toggle */}
+                  <div className="mb-4 flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={previewMode}
+                        onChange={(e) => setPreviewMode(e.target.checked)}
+                        className="w-4 h-4 text-navy focus:ring-navy border-slate-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-slate-700">Modo Visualização</span>
+                    </label>
+                    <p className="text-xs text-slate-500">
+                      {previewMode ? 'Visualizando com dados de exemplo' : 'Editando modelo'}
+                    </p>
+                  </div>
                   
                   <ContractVariablesToolbar onInsert={handleInsertVariable} />
                   
                   <textarea
                     ref={contractTextareaRef}
-                    value={formData.contractTemplate}
-                    onChange={(e) => setFormData({ ...formData, contractTemplate: e.target.value })}
+                    value={previewMode ? getPreviewText(formData.contractTemplate) : formData.contractTemplate}
+                    onChange={(e) => {
+                      if (!previewMode) {
+                        setFormData({ ...formData, contractTemplate: e.target.value });
+                      }
+                    }}
+                    readOnly={previewMode}
                     placeholder="CONTRATO DE PRESTAÇÃO DE SERVIÇOS..."
                     rows={20}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy font-mono text-sm"
+                    className={`w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy font-mono text-sm ${
+                      previewMode ? 'bg-slate-50 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
               </div>

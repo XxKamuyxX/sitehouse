@@ -137,6 +137,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const finalSuccessUrl = successUrl || `${baseUrl}/admin/settings?status=success`;
     const finalCancelUrl = cancelUrl || `${baseUrl}/admin/settings?status=cancel`;
 
+    // Check if user's trial has expired (only offer trial on first subscription)
+    let shouldOfferTrial = false;
+    try {
+      // Get company data to check creation date
+      const companyDoc = await db.collection('companies').doc(companyId).get();
+      if (companyDoc.exists) {
+        const companyData = companyDoc.data();
+        const createdAt = companyData?.createdAt;
+        
+        if (createdAt) {
+          // Convert Firestore timestamp to Date
+          const createdDate = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+          const now = new Date();
+          const daysSinceCreation = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Only offer trial if account was created less than 7 days ago
+          shouldOfferTrial = daysSinceCreation < 7;
+          
+          console.log(`Account created ${daysSinceCreation} days ago. Trial offer: ${shouldOfferTrial}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking trial eligibility:', error);
+      // If we can't check, don't offer trial (safer)
+      shouldOfferTrial = false;
+    }
+
     // Create checkout session parameters
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: stripeCustomerId,
@@ -158,12 +185,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ...(affiliateId && { affiliateId: affiliateId }),
       },
       subscription_data: {
-        trial_period_days: 7, // 7-day free trial - user pays nothing today
+        // Only add trial_period_days if account was created recently (< 7 days)
+        ...(shouldOfferTrial && { trial_period_days: 7 }),
         metadata: {
           companyId: companyId,
           ...(affiliateId && { affiliateId: affiliateId }),
         },
       },
+      // If no trial, require immediate payment
+      payment_behavior: shouldOfferTrial ? undefined : 'default_incomplete',
     };
 
     // Apply discount coupon if referral discount is active or valid code found

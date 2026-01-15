@@ -44,6 +44,14 @@ export function SignUp() {
       return;
     }
 
+    // Security Layer 1: Validate Email Domain (Block disposable emails)
+    const emailValidation = validateEmailDomain(formData.email);
+    if (!emailValidation.valid) {
+      setError(emailValidation.reason || 'Email inválido');
+      setLoading(false);
+      return;
+    }
+
     if (formData.password.length < 6) {
       setError('A senha deve ter pelo menos 6 caracteres');
       setLoading(false);

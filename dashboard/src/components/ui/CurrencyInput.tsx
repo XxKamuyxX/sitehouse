@@ -42,24 +42,37 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
   };
 
   /**
-   * Parse input string to number (ATM-style: treats all digits as cents)
-   * Example: "1234" -> 12.34, "5" -> 0.05
+   * Parse input string to number
+   * Logic: If contains comma/dot, treat as decimal. Otherwise, treat as integer value.
+   * Example: "300" -> 300.00, "300,50" -> 300.50, "300.50" -> 300.50
    */
   const parseATMInput = (str: string): number => {
-    // Remove all non-numeric characters
-    const digitsOnly = str.replace(/\D/g, '');
+    // Remove currency symbols and spaces, but keep comma and dot
+    let cleaned = str.replace(/[R$\s]/g, '').trim();
     
-    if (digitsOnly === '') {
+    if (cleaned === '' || cleaned === ',') {
       return 0;
     }
     
-    // Treat the integer as cents
-    const cents = parseInt(digitsOnly, 10);
-    // Convert cents to reais
-    const reais = cents / 100;
+    // Check if contains comma or dot (decimal separator)
+    const hasComma = cleaned.includes(',');
+    const hasDot = cleaned.includes('.');
     
-    // Round to 2 decimal places to prevent floating-point errors
-    return roundCurrency(reais);
+    if (hasComma || hasDot) {
+      // Has decimal separator - parse as decimal number
+      // Replace comma with dot for parsing
+      const normalized = cleaned.replace(',', '.');
+      const parsed = parseFloat(normalized);
+      return isNaN(parsed) ? 0 : roundCurrency(parsed);
+    } else {
+      // No decimal separator - treat as integer (reais)
+      const digitsOnly = cleaned.replace(/\D/g, '');
+      if (digitsOnly === '') {
+        return 0;
+      }
+      const integer = parseInt(digitsOnly, 10);
+      return isNaN(integer) ? 0 : roundCurrency(integer);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,11 +90,11 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
 
   const handleFocus = () => {
     setIsFocused(true);
-    // When focused, show raw digits (no formatting) for easier editing
+    // When focused, show raw number (no formatting) for easier editing
     if (value > 0) {
-      // Convert to cents and show as digits
-      const cents = Math.round(value * 100);
-      setDisplayValue(cents.toString());
+      // Show as number with 2 decimal places (comma as separator)
+      const formatted = value.toFixed(2).replace('.', ',');
+      setDisplayValue(formatted);
     } else {
       setDisplayValue('');
     }

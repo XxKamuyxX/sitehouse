@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Star, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -21,6 +21,7 @@ export function Feedback() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [googleReviewUrl, setGoogleReviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (osId) {
@@ -57,6 +58,24 @@ export function Feedback() {
         setSubmitted(true);
         setRating(wo.feedbackRating || 0);
       }
+
+      // Load company data to get Google Review URL
+      const companyId = (data as any).companyId;
+      if (companyId) {
+        try {
+          const companyQuery = query(collection(db, 'companies'), where('__name__', '==', companyId));
+          const companySnapshot = await getDocs(companyQuery);
+          if (!companySnapshot.empty) {
+            const companyData = companySnapshot.docs[0].data();
+            const reviewUrl = (companyData as any).googleReviewUrl || (companyData as any).googleReviewLink;
+            if (reviewUrl) {
+              setGoogleReviewUrl(reviewUrl);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading company data:', err);
+        }
+      }
     } catch (err) {
       console.error('Error loading work order:', err);
       setError('Erro ao carregar ordem de serviço');
@@ -85,8 +104,11 @@ export function Feedback() {
   };
 
   const handleGoogleReview = () => {
-    const googleReviewUrl = 'https://g.page/r/CbwrbzEhhph2EAE/review';
-    window.open(googleReviewUrl, '_blank');
+    if (googleReviewUrl) {
+      window.open(googleReviewUrl, '_blank');
+    } else {
+      alert('Link de avaliação não configurado. Entre em contato com a empresa.');
+    }
   };
 
   if (loading) {
@@ -176,8 +198,8 @@ export function Feedback() {
               ))}
             </div>
 
-            {/* Google Review Button - Only show if 5 stars */}
-            {rating === 5 && (
+            {/* Google Review Button - Only show if 5 stars and URL is available */}
+            {rating === 5 && googleReviewUrl && (
               <div className="mt-6">
                 <button
                   onClick={handleGoogleReview}

@@ -24,6 +24,9 @@ export interface UserMetadata {
   subscriptionStatus?: 'trial' | 'trialing' | 'active' | 'expired' | 'canceled' | 'past_due';
   trialEndsAt?: any;
   isActive?: boolean;
+  mobileVerified?: boolean;
+  phone?: string;
+  phoneVerifiedAt?: any;
   // Payout Information (for affiliates/users who receive commissions)
   payoutInfo?: {
     pixKey: string;
@@ -76,6 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           trialEndsAt: data.trialEndsAt,
           isActive: data.isActive !== false, // Default to true if not set
           payoutInfo: data.payoutInfo,
+          mobileVerified: data.mobileVerified || false,
+          phone: data.phone,
+          phoneVerifiedAt: data.phoneVerifiedAt,
         });
       } else {
         console.error('User document does not exist for userId:', userId);
@@ -179,8 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const newUser = userCredential.user;
 
-    // Calculate trial end date (14 days from now)
-    const trialEndsAt = Timestamp.fromDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
+    // Calculate trial end date (7 days from now) - ONLY on account creation
+    const trialEndsAt = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
     // Create user document
     await setDoc(doc(db, 'users', newUser.uid), {

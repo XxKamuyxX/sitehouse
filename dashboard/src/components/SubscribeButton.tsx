@@ -69,7 +69,7 @@ interface SubscribeButtonProps {
 }
 
 export function SubscribeButton({
-  label = 'Assinar Premium (7 Dias Grátis)',
+  label,
   variant = 'primary',
   size = 'lg',
   className = '',
@@ -80,6 +80,26 @@ export function SubscribeButton({
   onError,
 }: SubscribeButtonProps) {
   const { userMetadata } = useAuth();
+  
+  // Determine label based on trial status
+  const getLabel = () => {
+    if (label) return label; // Use custom label if provided
+    
+    // Check if trial has expired
+    const trialEndDate = userMetadata?.trialEndsAt 
+      ? (userMetadata.trialEndsAt?.toDate ? userMetadata.trialEndsAt.toDate() : new Date(userMetadata.trialEndsAt))
+      : null;
+    const isTrialExpired = trialEndDate ? new Date() > trialEndDate : false;
+    const isActive = userMetadata?.subscriptionStatus === 'active' || userMetadata?.subscriptionStatus === 'trialing';
+    
+    if (isTrialExpired && !isActive) {
+      return 'Assinar Agora (Liberar Acesso)';
+    }
+    
+    return 'Assinar Premium (7 Dias Grátis)';
+  };
+  
+  const buttonLabel = getLabel();
   const { company, loading: companyLoading } = useCompany();
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
@@ -318,7 +338,7 @@ export function SubscribeButton({
         ) : (
           <>
             <CreditCard className="w-5 h-5" />
-            {label}
+            {buttonLabel}
           </>
         )}
       </Button>
