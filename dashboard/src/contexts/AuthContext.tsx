@@ -4,10 +4,13 @@ import {
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { generateAffiliateCode } from '../utils/affiliateCode';
 import { syncStripeCustomer } from '../services/stripe';
 
@@ -39,6 +42,8 @@ interface AuthContextType {
   userMetadata: UserMetadata | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   createUser: (email: string, password: string, companyId: string, role: UserRole, name?: string) => Promise<void>;
   signUp: (email: string, password: string, companyName: string, ownerName: string, phone: string, referredBy?: string) => Promise<void>;
@@ -103,6 +108,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    
+    // Check if user document exists
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    if (!userDoc.exists()) {
+      // New user - create a basic user document
+      // They'll need to complete signup flow
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email || '',
+        name: user.displayName || '',
+        photoURL: user.photoURL || '',
+        createdAt: Timestamp.now(),
+        // Note: companyId and role will need to be set via signup flow
+      });
+    } else {
+      // Existing user - update photoURL and displayName if changed
+      const userData = userDoc.data();
+      if (user.photoURL !== userData.photoURL || user.displayName !== userData.name || user.email !== userData.email) {
+        await updateDoc(doc(db, 'users', user.uid), {
+          photoURL: user.photoURL || userData.photoURL || '',
+          name: user.displayName || userData.name || '',
+          email: user.email || userData.email || '',
+        });
+      }
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
   };
 
   const signOut = async () => {
@@ -203,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userMetadata, loading, signIn, signOut, createUser, signUp }}>
+    <AuthContext.Provider value={{ user, userMetadata, loading, signIn, signInWithGoogle, resetPassword, signOut, createUser, signUp }}>
       {children}
     </AuthContext.Provider>
   );

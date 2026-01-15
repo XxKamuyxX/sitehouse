@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { roundCurrency } from '../../lib/utils';
 
 interface CurrencyInputProps {
   value: number;
@@ -9,6 +10,10 @@ interface CurrencyInputProps {
   disabled?: boolean;
 }
 
+/**
+ * CurrencyInput with ATM-style behavior
+ * Typing digits shifts them into cents (e.g., typing "5" -> 0.05, "50" -> 0.50, "500" -> 5.00)
+ */
 export function CurrencyInput({ value, onChange, onBlur, placeholder, className = '', disabled = false }: CurrencyInputProps) {
   const [displayValue, setDisplayValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -26,69 +31,84 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
     }
   }, [value, isFocused]);
 
+  /**
+   * Format number as BRL currency (R$ 1.234,56)
+   */
   const formatCurrency = (num: number): string => {
-    // Convert number to string with 2 decimal places
-    const numStr = num.toFixed(2);
-    // Split into integer and decimal parts
-    const [intPart, decPart] = numStr.split('.');
-    // Add thousand separators
-    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    // Return formatted string
-    return `${formattedInt},${decPart}`;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(num);
   };
 
-  const parseCurrency = (str: string): number => {
-    // Remove all non-digit characters except comma and dot
-    const cleaned = str.replace(/[^\d,.]/g, '');
-    // Handle both comma and dot as decimal separator
-    const normalized = cleaned.replace(',', '.');
-    // Remove extra dots (keep only the last one as decimal separator)
-    const parts = normalized.split('.');
-    if (parts.length > 2) {
-      const intPart = parts.slice(0, -1).join('');
-      const decPart = parts[parts.length - 1];
-      const finalValue = `${intPart}.${decPart}`;
-      return parseFloat(finalValue) || 0;
+  /**
+   * Parse input string to number (ATM-style: treats all digits as cents)
+   * Example: "1234" -> 12.34, "5" -> 0.05
+   */
+  const parseATMInput = (str: string): number => {
+    // Remove all non-numeric characters
+    const digitsOnly = str.replace(/\D/g, '');
+    
+    if (digitsOnly === '') {
+      return 0;
     }
-    // Parse to float
-    const num = parseFloat(normalized) || 0;
-    return num;
+    
+    // Treat the integer as cents
+    const cents = parseInt(digitsOnly, 10);
+    // Convert cents to reais
+    const reais = cents / 100;
+    
+    // Round to 2 decimal places to prevent floating-point errors
+    return roundCurrency(reais);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     
-    // Store raw input value while typing (no formatting to prevent cursor jumps)
+    // Store raw input value while typing
     setDisplayValue(inputValue);
     
-    // Parse and update the numeric value
-    const numValue = parseCurrency(inputValue);
+    // Parse using ATM logic (digits as cents)
+    const numValue = parseATMInput(inputValue);
+    
+    // Update the numeric value (rounded)
     onChange(numValue);
   };
 
   const handleFocus = () => {
     setIsFocused(true);
-    // When focused, show raw numeric value for easier editing
+    // When focused, show raw digits (no formatting) for easier editing
     if (value > 0) {
-      // Remove formatting for easier editing
-      const rawValue = value.toFixed(2).replace('.', ',');
-      setDisplayValue(rawValue);
+      // Convert to cents and show as digits
+      const cents = Math.round(value * 100);
+      setDisplayValue(cents.toString());
+    } else {
+      setDisplayValue('');
     }
+    // Keep cursor at end
+    setTimeout(() => {
+      if (inputRef.current) {
+        const len = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(len, len);
+      }
+    }, 0);
   };
 
   const handleBlur = () => {
     setIsFocused(false);
-    // Format only on blur (when user leaves the field)
-    const numValue = parseCurrency(displayValue);
-    if (numValue > 0) {
-      const formatted = formatCurrency(numValue);
+    // Format on blur
+    const numValue = parseATMInput(displayValue);
+    const roundedValue = roundCurrency(numValue);
+    
+    if (roundedValue > 0) {
+      const formatted = formatCurrency(roundedValue);
       setDisplayValue(formatted);
-      // Ensure the numeric value is updated
-      onChange(numValue);
+      onChange(roundedValue);
     } else {
       setDisplayValue('');
       onChange(0);
     }
+    
     // Call custom onBlur if provided
     if (onBlur) {
       onBlur();
@@ -103,10 +123,10 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
       onChange={handleChange}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      placeholder={placeholder || '0,00'}
+      placeholder={placeholder || 'R$ 0,00'}
       className={className}
       disabled={disabled}
-      inputMode="decimal"
+      inputMode="numeric"
     />
   );
 }

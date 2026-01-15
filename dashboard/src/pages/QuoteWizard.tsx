@@ -11,7 +11,7 @@ import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { ClientForm } from '../components/ClientForm';
 import { MaintenanceCategorySelector } from '../components/MaintenanceCategorySelector';
 import { MaintenanceServiceSelector } from '../components/MaintenanceServiceSelector';
-import { Search, Plus, Square, Wrench, ArrowLeft, ArrowRight, Save, Download, X, Trash2 } from 'lucide-react';
+import { Search, Plus, Wrench, ArrowLeft, ArrowRight, Save, Download, X, Trash2, Hammer } from 'lucide-react';
 import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { queryWithCompanyId } from '../lib/queries';
@@ -411,39 +411,33 @@ export function QuoteWizard() {
         </div>
 
         {/* Step Content - Takes remaining space with padding for fixed footer */}
-        <div className="flex-1 overflow-y-auto pb-40">
+        <div className="flex-1 overflow-y-auto pb-20">
           {/* STEP 1: CLIENT SELECTION */}
           {currentStep === 1 && (
-            <div className="p-4 space-y-4">
-              <div>
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    placeholder="Buscar cliente por nome, telefone ou email..."
-                    className="w-full pl-10 pr-4 py-3 text-lg border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                    autoFocus
-                  />
-                </div>
+            <div className="p-4">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  placeholder="Buscar cliente por nome, telefone ou email..."
+                  className="w-full pl-10 pr-4 py-3 text-lg border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                  autoFocus
+                />
+              </div>
 
-                {filteredClients.length === 0 ? (
-                  <Card className="p-8 text-center">
-                    <p className="text-slate-600 mb-4">
-                      {clientSearch ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
-                    </p>
-                  </Card>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredClients.map((client) => (
-                      <div
-                        key={client.id}
-                        className={`p-4 cursor-pointer transition-all border border-slate-200 rounded-lg bg-white ${
-                          selectedClientId === client.id
-                            ? 'border-2 border-primary bg-glass-blue'
-                            : 'hover:bg-slate-50'
-                        }`}
+              {filteredClients.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-slate-600">
+                    {clientSearch ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+                  </p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {filteredClients.map((client) => (
+                    <li key={client.id}>
+                      <button
                         onClick={() => {
                           setSelectedClientId(client.id);
                           // Auto-advance to next step after a short delay for visual feedback
@@ -453,26 +447,19 @@ export function QuoteWizard() {
                             }
                           }, 300);
                         }}
+                        className={`w-full flex flex-row items-center justify-between p-3 transition-colors ${
+                          selectedClientId === client.id
+                            ? 'bg-primary/10 border-l-4 border-l-primary'
+                            : 'hover:bg-gray-50'
+                        }`}
                       >
-                        <h3 className="font-bold text-secondary">{client.name}</h3>
-                        <p className="text-sm text-slate-600">{client.phone}</p>
-                        {client.email && (
-                          <p className="text-xs text-slate-500">{client.email}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Button
-                  variant="outline"
-                  onClick={() => setShowClientModal(true)}
-                  className="w-full mt-4 flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Novo Cliente
-                </Button>
-              </div>
+                        <span className="text-sm font-semibold text-gray-900">{client.name}</span>
+                        <span className="text-xs text-gray-500">{client.phone || ''}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -485,62 +472,64 @@ export function QuoteWizard() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
+                {/* Installation Card */}
                 <div
-                  className={`p-6 cursor-pointer transition-all border-2 rounded-lg ${
+                  className={`p-6 cursor-pointer transition-all duration-200 rounded-lg h-full ${
                     serviceType === 'installation'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:border-blue-300 bg-white'
+                      ? 'border-2 border-blue-600 bg-blue-50 shadow-md ring-1 ring-blue-600'
+                      : 'border border-gray-200 bg-white hover:border-blue-300'
                   }`}
                   onClick={() => setServiceType('installation')}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <Square className="w-8 h-8 text-blue-600" />
+                    <div className="p-3 bg-blue-100 rounded-lg flex-shrink-0">
+                      <Hammer className="w-8 h-8 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-secondary mb-2">
-                        Instalação / Vidros
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
+                        Instalação
                       </h3>
-                      <p className="text-sm text-slate-600">
-                        Cortinas de vidro, box, guarda-corpos, portas e janelas
+                      <p className="text-sm text-gray-700 mb-2">
+                        Instalação de novos produtos ou execução de projetos.
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        Inclui campos para dimensões, cor do vidro e perfil
+                      <p className="text-xs text-gray-500">
+                        Orçamento para itens novos e mão de obra.
                       </p>
                     </div>
                     {serviceType === 'installation' && (
-                      <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                      <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">
                         ✓
                       </div>
                     )}
                   </div>
                 </div>
 
+                {/* Maintenance Card */}
                 <div
-                  className={`p-6 cursor-pointer transition-all border-2 rounded-lg ${
+                  className={`p-6 cursor-pointer transition-all duration-200 rounded-lg h-full ${
                     serviceType === 'maintenance'
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-slate-200 hover:border-orange-300 bg-white'
+                      ? 'border-2 border-orange-600 bg-orange-50 shadow-md ring-1 ring-orange-600'
+                      : 'border border-gray-200 bg-white hover:border-orange-300'
                   }`}
                   onClick={() => setServiceType('maintenance')}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-orange-100 rounded-lg">
+                    <div className="p-3 bg-orange-100 rounded-lg flex-shrink-0">
                       <Wrench className="w-8 h-8 text-orange-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-secondary mb-2">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
                         Manutenção / Reparo
                       </h3>
-                      <p className="text-sm text-slate-600">
-                        Troca de peças, manutenção, reparos e serviços gerais
+                      <p className="text-sm text-gray-700 mb-2">
+                        Consertos, trocas de peças e ajustes técnicos.
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        Sem dimensões, foco em peças e mão de obra
+                      <p className="text-xs text-gray-500">
+                        Orçamento focado em serviço e peças de reposição.
                       </p>
                     </div>
                     {serviceType === 'maintenance' && (
-                      <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
+                      <div className="w-6 h-6 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold flex-shrink-0">
                         ✓
                       </div>
                     )}
@@ -735,27 +724,47 @@ export function QuoteWizard() {
         </div>
 
         {/* Fixed Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4 flex gap-3 shadow-lg z-50">
-          {currentStep > 1 && (
-            <Button
-              variant="outline"
-              onClick={() => setCurrentStep(currentStep - 1)}
-              className="flex-1 flex items-center justify-center gap-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Voltar
-            </Button>
-          )}
-          {currentStep < 4 ? (
-            <Button
-              variant="primary"
-              onClick={() => setCurrentStep(currentStep + 1)}
-              disabled={!canGoNext()}
-              className="flex-1 flex items-center justify-center gap-2"
-            >
-              Próximo
-              <ArrowRight className="w-5 h-5" />
-            </Button>
+        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-3 flex gap-3 shadow-lg z-50">
+          {currentStep === 1 ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowClientModal(true)}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Cliente
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setCurrentStep(2)}
+                disabled={!canGoNext()}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                Próximo
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </>
+          ) : currentStep > 1 && currentStep < 4 ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep(currentStep - 1)}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Voltar
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setCurrentStep(currentStep + 1)}
+                disabled={!canGoNext()}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                Próximo
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </>
           ) : (
             <>
               <Button

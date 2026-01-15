@@ -25,7 +25,7 @@
 import Stripe from 'stripe';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { calculateCommission, getTierName } from '../../src/utils/referralTiers';
+import { getTierName } from '../../src/utils/referralTiers';
 
 // Initialize Firebase Admin (only if not already initialized)
 if (!getApps().length) {
@@ -61,79 +61,224 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 /**
- * Process affiliate commission (server-side version)
+ * Check if setting affiliateParentId would create a cycle
+ * Returns true if newParentId is already a descendant of userId
+ */
+async function wouldCreateCycle(userId: string, newParentId: string): Promise<boolean> {
+  let currentId = newParentId;
+  const visited = new Set<string>([userId]); // Prevent self-reference
+  
+  // Traverse up the chain (max 10 levels to prevent infinite loops)
+  for (let i = 0; i < 10; i++) {
+    if (currentId === userId) {
+      return true; // Cycle detected
+    }
+    
+    const userDoc = await db.collection('users').doc(currentId).get();
+    if (!userDoc.exists) {
+      break; // End of chain
+    }
+    
+    const userData = userDoc.data()!;
+    const parentId = userData.affiliateParentId;
+    
+    if (!parentId) {
+      break; // End of chain
+    }
+    
+    if (visited.has(parentId)) {
+      return true; // Cycle detected
+    }
+    
+    visited.add(parentId);
+    currentId = parentId;
+  }
+  
+  return false;
+}
+
+/**
+ * Process 3-tier MLM affiliate commission
+ * Tier 1 (Direct): 15%
+ * Tier 2 (Parent of Referrer): 8%
+ * Tier 3 (Grandparent): 2%
  */
 async function processAffiliateCommission(payingCompanyId: string, paymentAmount: number): Promise<void> {
   try {
-    // Get the company that made the payment
-    const payingCompanyDoc = await db.collection('companies').doc(payingCompanyId).get();
-    if (!payingCompanyDoc.exists) {
-      console.log(`Company ${payingCompanyId} not found`);
+    // Step 1: Get the user who made the payment (owner/admin of the company)
+    const payingUserDoc = await db.collection('users')
+      .where('companyId', '==', payingCompanyId)
+      .where('role', 'in', ['owner', 'admin'])
+      .limit(1)
+      .get();
+    
+    if (payingUserDoc.empty) {
+      console.log(`No owner/admin user found for company ${payingCompanyId}`);
       return;
     }
-
-    const payingCompanyData = payingCompanyDoc.data()!;
-    const referredBy = payingCompanyData.referredBy;
-
-    // If no referrer, no commission to process
-    if (!referredBy) {
-      console.log(`Company ${payingCompanyId} has no referrer. No commission to process.`);
+    
+    const payingUserId = payingUserDoc.docs[0].id;
+    const payingUserData = payingUserDoc.docs[0].data();
+    
+    // Step 2: Get Tier 1 (Direct Affiliate) - the immediate parent
+    const tier1ParentId = payingUserData.affiliateParentId;
+    
+    if (!tier1ParentId) {
+      console.log(`User ${payingUserId} has no affiliate parent. No commission to process.`);
       return;
     }
-
-    // Get the referrer company
-    const referrerDoc = await db.collection('companies').doc(referredBy).get();
-    if (!referrerDoc.exists) {
-      console.error(`Referrer company ${referredBy} not found`);
+    
+    // Ensure Tier 1 is not the payer
+    if (tier1ParentId === payingUserId) {
+      console.log(`Tier 1 parent is the same as payer. Skipping commission.`);
       return;
     }
+    
+    // Step 3: Process Tier 1 Commission (15%)
+    const tier1Amount = paymentAmount * 0.15;
+    await processTierCommission(
+      tier1ParentId,
+      payingCompanyId,
+      paymentAmount,
+      tier1Amount,
+      1,
+      'Nível 1 - Venda Direta'
+    );
+    
+    // Step 4: Get Tier 2 (Parent of Tier 1)
+    const tier1UserDoc = await db.collection('users').doc(tier1ParentId).get();
+    if (!tier1UserDoc.exists) {
+      console.log(`Tier 1 user ${tier1ParentId} not found. Stopping at Tier 1.`);
+      return;
+    }
+    
+    const tier1UserData = tier1UserDoc.data()!;
+    const tier2ParentId = tier1UserData.affiliateParentId;
+    
+    if (tier2ParentId && tier2ParentId !== payingUserId) {
+      // Step 5: Process Tier 2 Commission (8%)
+      const tier2Amount = paymentAmount * 0.08;
+      await processTierCommission(
+        tier2ParentId,
+        payingCompanyId,
+        paymentAmount,
+        tier2Amount,
+        2,
+        'Nível 2 - Indicação Indireta'
+      );
+      
+      // Step 6: Get Tier 3 (Parent of Tier 2)
+      const tier2UserDoc = await db.collection('users').doc(tier2ParentId).get();
+      if (tier2UserDoc.exists) {
+        const tier2UserData = tier2UserDoc.data()!;
+        const tier3ParentId = tier2UserData.affiliateParentId;
+        
+        if (tier3ParentId && tier3ParentId !== payingUserId) {
+          // Step 7: Process Tier 3 Commission (2%)
+          const tier3Amount = paymentAmount * 0.02;
+          await processTierCommission(
+            tier3ParentId,
+            payingCompanyId,
+            paymentAmount,
+            tier3Amount,
+            3,
+            'Nível 3 - Rede de Liderança'
+          );
+        }
+      }
+    }
+    
+    console.log(`3-tier MLM commission processed for payment: ${paymentAmount.toFixed(2)} BRL`);
+  } catch (error: any) {
+    console.error('Error processing affiliate commission:', error);
+    throw error;
+  }
+}
 
-    const referrerData = referrerDoc.data()!;
-    const activeReferrals = referrerData.referralStats?.activeReferrals || 0;
-
-    // Calculate commission based on tier
-    const tier = getTierName(activeReferrals);
-    const commissionAmount = calculateCommission(paymentAmount, activeReferrals);
+/**
+ * Process commission for a specific tier
+ */
+async function processTierCommission(
+  referrerUserId: string,
+  payingCompanyId: string,
+  paymentAmount: number,
+  commissionAmount: number,
+  tierLevel: 1 | 2 | 3,
+  tierLabel: string
+): Promise<void> {
+  try {
+    // Get referrer user's company
+    const referrerUserDoc = await db.collection('users').doc(referrerUserId).get();
+    if (!referrerUserDoc.exists) {
+      console.error(`Referrer user ${referrerUserId} not found`);
+      return;
+    }
+    
+    const referrerUserData = referrerUserDoc.data()!;
+    const referrerCompanyId = referrerUserData.companyId;
+    
+    if (!referrerCompanyId) {
+      console.error(`Referrer user ${referrerUserId} has no companyId`);
+      return;
+    }
+    
+    // Get referrer company
+    const referrerCompanyDoc = await db.collection('companies').doc(referrerCompanyId).get();
+    if (!referrerCompanyDoc.exists) {
+      console.error(`Referrer company ${referrerCompanyId} not found`);
+      return;
+    }
+    
+    const referrerCompanyData = referrerCompanyDoc.data()!;
     const commissionPercent = (commissionAmount / paymentAmount) * 100;
-
+    
     // Create referral ledger entry
     const releaseDate = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); // 30 days from now
-
+    
     await db.collection('referral_ledger').add({
-      referrerId: referredBy,
+      referrerId: referrerCompanyId, // Store company ID for compatibility
+      referrerUserId: referrerUserId, // Store user ID for MLM tracking
       referredCompanyId: payingCompanyId,
       amount: commissionAmount,
       paymentAmount: paymentAmount,
       commissionPercent: commissionPercent,
-      tier: tier,
+      tier: tierLevel.toString(), // Store tier level (1, 2, 3)
+      tierLabel: tierLabel, // Human-readable label
       status: 'pending',
       releaseDate: releaseDate,
       createdAt: Timestamp.now(),
     });
-
+    
     // Update referrer's wallet.pending balance
-    const currentPending = referrerData.wallet?.pending || 0;
+    const currentPending = referrerCompanyData.wallet?.pending || 0;
     const newPending = currentPending + commissionAmount;
-
+    
     // Update referrer's referralStats.totalEarnings
-    const currentTotalEarnings = referrerData.referralStats?.totalEarnings || 0;
+    const currentTotalEarnings = referrerCompanyData.referralStats?.totalEarnings || 0;
     const newTotalEarnings = currentTotalEarnings + commissionAmount;
-
-    // Check if tier needs to be updated
-    const newActiveReferrals = activeReferrals + 1;
-    const newTier = getTierName(newActiveReferrals);
-
-    await db.collection('companies').doc(referredBy).update({
+    
+    // Only increment activeReferrals for Tier 1 (direct sales)
+    let updateData: any = {
       'wallet.pending': newPending,
       'referralStats.totalEarnings': newTotalEarnings,
-      'referralStats.activeReferrals': newActiveReferrals,
-      'referralStats.currentTier': newTier,
       updatedAt: Timestamp.now(),
-    });
-
-    console.log(`Commission processed: ${commissionAmount.toFixed(2)} BRL for referrer ${referredBy} (Tier: ${tier})`);
+    };
+    
+    if (tierLevel === 1) {
+      // Only Tier 1 increments activeReferrals count
+      const activeReferrals = referrerCompanyData.referralStats?.activeReferrals || 0;
+      const newActiveReferrals = activeReferrals + 1;
+      const newTier = getTierName(newActiveReferrals);
+      
+      updateData['referralStats.activeReferrals'] = newActiveReferrals;
+      updateData['referralStats.currentTier'] = newTier;
+    }
+    
+    await db.collection('companies').doc(referrerCompanyId).update(updateData);
+    
+    console.log(`Tier ${tierLevel} commission processed: ${commissionAmount.toFixed(2)} BRL for referrer ${referrerCompanyId} (${tierLabel})`);
   } catch (error: any) {
-    console.error('Error processing affiliate commission:', error);
+    console.error(`Error processing Tier ${tierLevel} commission:`, error);
     throw error;
   }
 }
@@ -253,39 +398,82 @@ async function handleInvoicePaymentSucceeded(event: Stripe.Invoice): Promise<voi
 /**
  * Handle checkout session completed
  * This fires when checkout is completed (before trial starts)
- * We use this to track affiliate from referral code entered during checkout
+ * We use this to set affiliateParentId on the user when referral code is used
  */
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
   try {
     const companyId = session.metadata?.companyId;
-    const affiliateId = session.metadata?.affiliateId;
+    const affiliateId = session.metadata?.affiliateId; // This is the company ID of the affiliate
 
     if (!companyId) {
       console.log('No companyId in checkout session metadata');
       return;
     }
 
-    // If affiliateId is present in metadata, update company.referredBy
-    // This will be used later when processing commissions on first payment
+    // If affiliateId is present in metadata, set affiliateParentId on the user
     if (affiliateId) {
       try {
-        const companyDoc = await db.collection('companies').doc(companyId).get();
-        if (companyDoc.exists) {
-          const companyData = companyDoc.data()!;
+        // Get the owner/admin user of the paying company
+        const payingUsersSnapshot = await db.collection('users')
+          .where('companyId', '==', companyId)
+          .where('role', 'in', ['owner', 'admin'])
+          .limit(1)
+          .get();
+        
+        if (payingUsersSnapshot.empty) {
+          console.log(`No owner/admin user found for company ${companyId}`);
+          return;
+        }
+        
+        const payingUserId = payingUsersSnapshot.docs[0].id;
+        const payingUserData = payingUsersSnapshot.docs[0].data();
+        
+        // Only set affiliateParentId if not already set (first subscription)
+        if (!payingUserData.affiliateParentId) {
+          // Get the owner/admin user of the affiliate company
+          const affiliateUsersSnapshot = await db.collection('users')
+            .where('companyId', '==', affiliateId)
+            .where('role', 'in', ['owner', 'admin'])
+            .limit(1)
+            .get();
           
-          // Only update referredBy if it's not already set (first subscription)
-          if (!companyData.referredBy) {
-            await db.collection('companies').doc(companyId).update({
-              referredBy: affiliateId,
-              updatedAt: Timestamp.now(),
-            });
-            console.log('Updated company with referredBy:', affiliateId, 'from checkout session');
-          } else {
-            console.log('Company already has referredBy set, skipping update');
+          if (affiliateUsersSnapshot.empty) {
+            console.log(`No owner/admin user found for affiliate company ${affiliateId}`);
+            return;
           }
+          
+          const affiliateUserId = affiliateUsersSnapshot.docs[0].id;
+          
+          // Check for cycles before setting
+          const wouldCycle = await wouldCreateCycle(payingUserId, affiliateUserId);
+          if (wouldCycle) {
+            console.error(`Setting affiliateParentId would create a cycle. Skipping.`);
+            return;
+          }
+          
+          await db.collection('users').doc(payingUserId).update({
+            affiliateParentId: affiliateUserId,
+            updatedAt: Timestamp.now(),
+          });
+          
+          console.log(`Set affiliateParentId: ${affiliateUserId} for user ${payingUserId} (company ${companyId})`);
+          
+          // Also update company.referredBy for backward compatibility
+          const companyDoc = await db.collection('companies').doc(companyId).get();
+          if (companyDoc.exists) {
+            const companyData = companyDoc.data()!;
+            if (!companyData.referredBy) {
+              await db.collection('companies').doc(companyId).update({
+                referredBy: affiliateId,
+                updatedAt: Timestamp.now(),
+              });
+            }
+          }
+        } else {
+          console.log(`User ${payingUserId} already has affiliateParentId set, skipping update`);
         }
       } catch (error: any) {
-        console.error('Error updating company with affiliateId:', error);
+        console.error('Error updating user with affiliateParentId:', error);
         // Don't throw - this is non-critical
       }
     }

@@ -10,6 +10,7 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { roundCurrency } from '../lib/utils';
 
 interface VisualQuoteBuilderProps {
   isOpen: boolean;
@@ -236,24 +237,27 @@ export function VisualQuoteBuilder({ isOpen, onClose, onSave }: VisualQuoteBuild
     // Calculate based on segment
     if (segment === 'locksmith' || segment === 'handyman') {
       // Simple: quantity * unit price OR total price
-      finalTotal = parseFloat(totalPrice) || (parseFloat(unitPrice) * qty);
-      finalUnitPrice = parseFloat(unitPrice) || (finalTotal / qty);
+      const rawTotal = parseFloat(totalPrice) || (parseFloat(unitPrice) * qty);
+      finalTotal = roundCurrency(rawTotal);
+      finalUnitPrice = roundCurrency(parseFloat(unitPrice) || (finalTotal / qty));
     } else if (segment === 'plumber') {
       // Can use linear meters or quantity
       const meters = parseFloat(linearMeters) || qty;
       if (pricePerM2) {
-        finalTotal = parseFloat(pricePerM2) * meters * qty;
-        finalUnitPrice = parseFloat(pricePerM2);
+        const rawTotal = parseFloat(pricePerM2) * meters * qty;
+        finalTotal = roundCurrency(rawTotal);
+        finalUnitPrice = roundCurrency(parseFloat(pricePerM2));
       } else {
-        finalTotal = parseFloat(totalPrice) || 0;
-        finalUnitPrice = finalTotal / (meters * qty || 1);
+        finalTotal = roundCurrency(parseFloat(totalPrice) || 0);
+        finalUnitPrice = roundCurrency(finalTotal / (meters * qty || 1));
       }
     } else {
       // Glazier: m² calculation
       const m2 = parseFloat(calculateM2());
       const price = parseFloat(pricePerM2) || 0;
-      finalTotal = parseFloat(calculateTotal()) || parseFloat(totalPrice) || 0;
-      finalUnitPrice = price > 0 ? price : finalTotal / (m2 * qty || 1);
+      const rawTotal = parseFloat(calculateTotal()) || parseFloat(totalPrice) || 0;
+      finalTotal = roundCurrency(rawTotal);
+      finalUnitPrice = roundCurrency(price > 0 ? price : finalTotal / (m2 * qty || 1));
     }
 
     const serviceName = segment === 'locksmith' || segment === 'handyman'

@@ -1,14 +1,15 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { DollarSign, TrendingUp, CreditCard, Receipt, Target, Plus, Users, BarChart3 } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Receipt, Target, Plus, BarChart3, ArrowUp, ArrowDown, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getDocs, addDoc, Timestamp, collection } from 'firebase/firestore';
+import { getDocs, addDoc, Timestamp, collection, orderBy, limit, query } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ExpenseModal } from '../components/ExpenseModal';
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
+import { roundCurrency } from '../lib/utils';
 
 interface FinanceStats {
   faturamento: number;
@@ -32,6 +33,15 @@ interface FinanceStats {
   quantidadeOS: number;
   origemClientes: { [key: string]: number };
   faturamentoPorMes: { mes: string; valor: number }[];
+}
+
+interface Transaction {
+  id: string;
+  type: 'income' | 'expense';
+  title: string;
+  amount: number;
+  date: Date;
+  description?: string;
 }
 
 export function Finance() {
@@ -63,12 +73,76 @@ export function Finance() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     if (companyId) {
       loadFinanceData();
+      loadRecentTransactions();
     }
   }, [period, companyId]);
+
+  const loadRecentTransactions = async () => {
+    if (!companyId) return;
+
+    try {
+      const transactionsList: Transaction[] = [];
+
+      // Load recent expenses
+      const expensesQuery = query(
+        queryWithCompanyId('expenses', companyId),
+        orderBy('paymentDate', 'desc'),
+        limit(10)
+      );
+      const expensesSnapshot = await getDocs(expensesQuery);
+      expensesSnapshot.docs.forEach((doc) => {
+        const expense = doc.data();
+        const paymentDate = expense.paymentDate?.toDate ? expense.paymentDate.toDate() : new Date();
+        transactionsList.push({
+          id: doc.id,
+          type: 'expense',
+          title: expense.description || 'Despesa',
+          amount: expense.amount || 0,
+          date: paymentDate,
+          description: expense.category,
+        });
+      });
+
+      // Load recent income from paid quotes (completed work orders)
+      const workOrdersQuery = queryWithCompanyId('workOrders', companyId);
+      const workOrdersSnapshot = await getDocs(workOrdersQuery);
+      const quotesQuery = queryWithCompanyId('quotes', companyId);
+      const quotesSnapshot = await getDocs(quotesQuery);
+      const quotesMap = new Map();
+      quotesSnapshot.docs.forEach((doc) => {
+        quotesMap.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+
+      workOrdersSnapshot.docs.forEach((doc) => {
+        const wo = doc.data();
+        if (wo.status === 'completed' && wo.completedDate) {
+          const quote = quotesMap.get(wo.quoteId);
+          if (quote && quote.paid && quote.total) {
+            const completedDate = wo.completedDate?.toDate ? wo.completedDate.toDate() : new Date();
+            transactionsList.push({
+              id: `income-${doc.id}`,
+              type: 'income',
+              title: `Pagamento OS #${doc.id.substring(0, 8)}`,
+              amount: quote.total,
+              date: completedDate,
+              description: quote.clientName || 'Cliente',
+            });
+          }
+        }
+      });
+
+      // Sort by date (most recent first) and take top 10
+      transactionsList.sort((a, b) => b.date.getTime() - a.date.getTime());
+      setTransactions(transactionsList.slice(0, 10));
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    }
+  };
 
   const loadFinanceData = async () => {
     if (!companyId) return;
@@ -109,11 +183,12 @@ export function Finance() {
       completedOrders.forEach((order: any) => {
         const quote = quotesMap.get(order.quoteId);
         if (quote && quote.total) {
-          faturamento += quote.total || 0;
+          const total = roundCurrency(quote.total || 0);
+          faturamento = roundCurrency(faturamento + total);
           if (quote.paid) {
-            recebido += quote.total || 0;
+            recebido = roundCurrency(recebido + total);
           } else {
-            valoresAReceber += quote.total || 0;
+            valoresAReceber = roundCurrency(valoresAReceber + total);
           }
         }
       });
@@ -129,19 +204,11 @@ export function Finance() {
       let outrasDespesas = 0;
 
       try {
-        const now = new Date();
-        const startOfPeriod = period === 'month' 
-          ? new Date(now.getFullYear(), now.getMonth(), 1)
-          : new Date(now.getFullYear(), 0, 1);
-        const endOfPeriod = period === 'month'
-          ? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
-          : new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-
         const expensesQuery = queryWithCompanyId('expenses', companyId);
         const expensesSnapshot = await getDocs(expensesQuery);
         expensesSnapshot.docs.forEach((doc) => {
           const expense = doc.data();
-          const amount = expense.amount || 0;
+          const amount = roundCurrency(expense.amount || 0);
           const paymentDate = expense.paymentDate?.toDate ? expense.paymentDate.toDate() : null;
           
           // Filter by period if paymentDate exists
@@ -150,32 +217,32 @@ export function Finance() {
           }
 
           if (expense.paid) {
-            contasPagas += amount;
+            contasPagas = roundCurrency(contasPagas + amount);
           } else {
-            contasAPagar += amount;
+            contasAPagar = roundCurrency(contasAPagar + amount);
           }
 
           // Categorizar despesas
           switch (expense.category) {
             case 'marketing':
-              investimentoMarketing += amount;
+              investimentoMarketing = roundCurrency(investimentoMarketing + amount);
               break;
             case 'mao-de-obra':
             case 'mão de obra':
-              maoDeObra += amount;
+              maoDeObra = roundCurrency(maoDeObra + amount);
               break;
             case 'alimentacao':
             case 'alimentação':
-              alimentacao += amount;
+              alimentacao = roundCurrency(alimentacao + amount);
               break;
             case 'estacionamento':
-              estacionamento += amount;
+              estacionamento = roundCurrency(estacionamento + amount);
               break;
             case 'ferramentas':
-              ferramentas += amount;
+              ferramentas = roundCurrency(ferramentas + amount);
               break;
             default:
-              outrasDespesas += amount;
+              outrasDespesas = roundCurrency(outrasDespesas + amount);
           }
         });
       } catch (error) {
@@ -184,9 +251,9 @@ export function Finance() {
 
       // Calcular margens
       const custos = contasPagas; // Custo total
-      const margemBruta = faturamento > 0 ? ((faturamento - custos) / faturamento) * 100 : 0;
-      const lucroLiquido = faturamento - custos - investimentoMarketing;
-      const margemLiquida = faturamento > 0 ? (lucroLiquido / faturamento) * 100 : 0;
+      const margemBruta = faturamento > 0 ? roundCurrency(((faturamento - custos) / faturamento) * 100) : 0;
+      const lucroLiquido = roundCurrency(faturamento - custos - investimentoMarketing);
+      const margemLiquida = faturamento > 0 ? roundCurrency((lucroLiquido / faturamento) * 100) : 0;
 
       // Calcular KPIs adicionais
       const clientsQuery = queryWithCompanyId('clients', companyId);
@@ -208,10 +275,10 @@ export function Finance() {
       
       // Taxa de conversão (OS aprovadas / Orçamentos totais)
       const orcamentosAprovados = allQuotes.filter((q: any) => q.status === 'approved').length;
-      const taxaConversao = quantidadeOrcamentos > 0 ? (orcamentosAprovados / quantidadeOrcamentos) * 100 : 0;
+      const taxaConversao = quantidadeOrcamentos > 0 ? roundCurrency((orcamentosAprovados / quantidadeOrcamentos) * 100) : 0;
 
       // Ticket médio (faturamento / quantidade de OS concluídas)
-      const ticketMedio = completedOrders.length > 0 ? faturamento / completedOrders.length : 0;
+      const ticketMedio = completedOrders.length > 0 ? roundCurrency(faturamento / completedOrders.length) : 0;
 
       // Faturamento por mês (últimos 6 meses)
       const faturamentoPorMes: { mes: string; valor: number }[] = [];
@@ -233,7 +300,7 @@ export function Finance() {
         monthOrders.forEach((order: any) => {
           const quote = quotesMap.get(order.quoteId);
           if (quote && quote.total) {
-            monthRevenue += quote.total || 0;
+            monthRevenue = roundCurrency(monthRevenue + quote.total);
           }
         });
 
@@ -284,6 +351,27 @@ export function Finance() {
     return `${value.toFixed(2)}%`;
   };
 
+  const formatDate = (date: Date) => {
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        return diffMinutes <= 1 ? 'Agora' : `Há ${diffMinutes}min`;
+      }
+      return `Há ${diffHours}h`;
+    } else if (diffDays === 1) {
+      return 'Ontem';
+    } else if (diffDays < 7) {
+      return `Há ${diffDays}d`;
+    } else {
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    }
+  };
+
   const handleSaveExpense = async (expense: {
     description: string;
     amount: number;
@@ -305,6 +393,7 @@ export function Finance() {
       });
       setShowExpenseModal(false);
       loadFinanceData();
+      loadRecentTransactions();
     } catch (error) {
       console.error('Error saving expense:', error);
       alert('Erro ao salvar despesa');
@@ -320,6 +409,9 @@ export function Finance() {
       </Layout>
     );
   }
+
+  // Calculate total expenses for display
+  const totalDespesas = roundCurrency(stats.contasPagas + stats.contasAPagar);
 
   return (
     <Layout>
@@ -362,166 +454,73 @@ export function Finance() {
           </div>
         </div>
 
-        {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Faturamento */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Faturamento</p>
-                <p className="text-3xl font-bold text-navy">{formatCurrency(stats.faturamento)}</p>
+        {/* Main Stats Grid - 2 Columns Compact */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {/* Row 1: Faturamento (Green) */}
+          <Card className="p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
               </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <DollarSign className="w-8 h-8 text-green-600" />
-              </div>
+              <p className="text-2xl font-bold text-green-600 mb-1">{formatCurrency(stats.faturamento)}</p>
+              <p className="text-xs text-slate-600">Faturamento</p>
             </div>
           </Card>
 
-          {/* Contas a Pagar */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Contas a Pagar</p>
-                <p className="text-3xl font-bold text-red-600">{formatCurrency(stats.contasAPagar)}</p>
+          {/* Row 1: Lucro Líquido (Blue) */}
+          <Card className="p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-2">
+                <TrendingUp className={`w-5 h-5 ${stats.lucroLiquido >= 0 ? 'text-blue-600' : 'text-red-600'}`} />
               </div>
-              <div className="bg-red-100 rounded-full p-3">
-                <CreditCard className="w-8 h-8 text-red-600" />
-              </div>
+              <p className={`text-2xl font-bold mb-1 ${stats.lucroLiquido >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                {formatCurrency(stats.lucroLiquido)}
+              </p>
+              <p className="text-xs text-slate-600">Lucro Líquido</p>
             </div>
           </Card>
 
-          {/* Contas Pagas */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Contas Pagas</p>
-                <p className="text-3xl font-bold text-slate-700">{formatCurrency(stats.contasPagas)}</p>
+          {/* Row 2: Contas a Pagar (Red) */}
+          <Card className="p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-2">
+                <CreditCard className="w-5 h-5 text-red-600" />
               </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <Receipt className="w-8 h-8 text-blue-600" />
-              </div>
+              <p className="text-2xl font-bold text-red-600 mb-1">{formatCurrency(stats.contasAPagar)}</p>
+              <p className="text-xs text-slate-600">Contas a Pagar</p>
             </div>
           </Card>
 
-          {/* Valores a Receber */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Valores a Receber</p>
-                <p className="text-3xl font-bold text-amber-600">{formatCurrency(stats.valoresAReceber)}</p>
+          {/* Row 2: Despesas (Red) */}
+          <Card className="p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-2">
+                <Receipt className="w-5 h-5 text-red-600" />
               </div>
-              <div className="bg-amber-100 rounded-full p-3">
-                <TrendingUp className="w-8 h-8 text-amber-600" />
-              </div>
+              <p className="text-2xl font-bold text-red-600 mb-1">{formatCurrency(totalDespesas)}</p>
+              <p className="text-xs text-slate-600">Despesas</p>
             </div>
           </Card>
 
-          {/* Recebido */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Recebido</p>
-                <p className="text-3xl font-bold text-green-600">{formatCurrency(stats.recebido)}</p>
+          {/* Row 3: Ticket Médio */}
+          <Card className="p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-2">
+                <BarChart3 className="w-5 h-5 text-navy" />
               </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <DollarSign className="w-8 h-8 text-green-600" />
-              </div>
+              <p className="text-2xl font-bold text-navy mb-1">{formatCurrency(stats.ticketMedio)}</p>
+              <p className="text-xs text-slate-600">Ticket Médio</p>
             </div>
           </Card>
 
-          {/* Lucro Líquido */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Lucro Líquido</p>
-                <p className={`text-3xl font-bold ${stats.lucroLiquido >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(stats.lucroLiquido)}
-                </p>
+          {/* Row 3: Margem de Lucro */}
+          <Card className="p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between mb-2">
+                <Target className="w-5 h-5 text-navy" />
               </div>
-              <div className={`rounded-full p-3 ${stats.lucroLiquido >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                <TrendingUp className={`w-8 h-8 ${stats.lucroLiquido >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-              </div>
-            </div>
-          </Card>
-
-          {/* Margem Líquida */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Margem Líquida</p>
-                <p className="text-3xl font-bold text-navy">{formatPercent(stats.margemLiquida)}</p>
-              </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <Target className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Margem Bruta */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Margem Bruta</p>
-                <p className="text-3xl font-bold text-navy">{formatPercent(stats.margemBruta)}</p>
-              </div>
-              <div className="bg-purple-100 rounded-full p-3">
-                <TrendingUp className="w-8 h-8 text-purple-600" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Investimento Marketing */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Investimento Marketing</p>
-                <p className="text-3xl font-bold text-gold">{formatCurrency(stats.investimentoMarketing)}</p>
-              </div>
-              <div className="bg-gold-100 rounded-full p-3">
-                <Target className="w-8 h-8 text-gold-600" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Ticket Médio */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Ticket Médio</p>
-                <p className="text-3xl font-bold text-navy">{formatCurrency(stats.ticketMedio)}</p>
-              </div>
-              <div className="bg-indigo-100 rounded-full p-3">
-                <BarChart3 className="w-8 h-8 text-indigo-600" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Quantidade de Clientes */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Total de Clientes</p>
-                <p className="text-3xl font-bold text-navy">{stats.quantidadeClientes}</p>
-              </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Taxa de Conversão */}
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Taxa de Conversão</p>
-                <p className="text-3xl font-bold text-green-600">{formatPercent(stats.taxaConversao)}</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {stats.quantidadeOrcamentos} orçamentos, {stats.quantidadeOS} OS
-                </p>
-              </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <Target className="w-8 h-8 text-green-600" />
-              </div>
+              <p className="text-2xl font-bold text-navy mb-1">{formatPercent(stats.margemLiquida)}</p>
+              <p className="text-xs text-slate-600">Margem de Lucro</p>
             </div>
           </Card>
         </div>
@@ -534,7 +533,13 @@ export function Finance() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={stats.faturamentoPorMes}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
+                <XAxis 
+                  dataKey="mes" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval={0}
+                />
                 <YAxis />
                 <Tooltip formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''} />
                 <Legend />
@@ -543,7 +548,7 @@ export function Finance() {
             </ResponsiveContainer>
           </Card>
 
-          {/* Origem dos Clientes */}
+          {/* Origem dos Clientes - Fixed Pie Chart */}
           <Card>
             <h2 className="text-xl font-bold text-navy mb-4">Origem dos Clientes</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -551,7 +556,7 @@ export function Finance() {
                 <Pie
                   data={Object.entries(stats.origemClientes).map(([name, value]) => ({ name, value }))}
                   cx="50%"
-                  cy="50%"
+                  cy="40%"
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`}
                   outerRadius={80}
@@ -563,7 +568,10 @@ export function Finance() {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend />
+                <Legend 
+                  verticalAlign="bottom"
+                  height={36}
+                />
               </RechartsPieChart>
             </ResponsiveContainer>
           </Card>
@@ -581,7 +589,13 @@ export function Finance() {
                 { name: 'Outras', valor: stats.outrasDespesas },
               ]}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                />
                 <YAxis />
                 <Tooltip formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''} />
                 <Legend />
@@ -602,7 +616,13 @@ export function Finance() {
                 { name: 'Lucro', valor: stats.lucroLiquido },
               ]}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                />
                 <YAxis />
                 <Tooltip formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''} />
                 <Legend />
@@ -612,14 +632,63 @@ export function Finance() {
           </Card>
         </div>
 
-        {/* Info Card */}
+        {/* Recent Transactions */}
         <Card>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Nota:</strong> Para registrar despesas, crie uma collection "expenses" no Firestore com os campos: 
-              amount (number), paid (boolean), category (string: 'marketing', 'mao-de-obra', 'alimentacao', 'estacionamento', 'ferramentas', ou outro), 
-              date (Timestamp), description (string).
-            </p>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-navy">Histórico de Movimentações</h2>
+          </div>
+          
+          {transactions.length === 0 ? (
+            <p className="text-center text-slate-500 py-8">Nenhuma movimentação recente</p>
+          ) : (
+            <div className="space-y-3">
+              {transactions.map((transaction) => (
+                <div
+                  key={transaction.id}
+                  className="flex items-center gap-4 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  {/* Icon */}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {transaction.type === 'income' ? (
+                      <ArrowUp className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <ArrowDown className="w-5 h-5 text-red-600" />
+                    )}
+                  </div>
+
+                  {/* Title & Date */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900 truncate">{transaction.title}</p>
+                    <p className="text-xs text-slate-500">{formatDate(transaction.date)}</p>
+                  </div>
+
+                  {/* Value */}
+                  <div className="flex-shrink-0">
+                    <p className={`font-bold text-lg ${
+                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-slate-200">
+            <Button
+              variant="outline"
+              onClick={() => {
+                // TODO: Navigate to full transaction history page or expand list
+                alert('Funcionalidade em desenvolvimento');
+              }}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Ver Extrato Completo
+            </Button>
           </div>
         </Card>
       </div>
@@ -633,4 +702,3 @@ export function Finance() {
     </Layout>
   );
 }
-

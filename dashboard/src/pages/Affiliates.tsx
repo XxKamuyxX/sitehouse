@@ -1,7 +1,7 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Copy, CheckCircle2, TrendingUp, Wallet, Clock, DollarSign, Gift } from 'lucide-react';
+import { Copy, CheckCircle2, TrendingUp, Wallet, Clock, DollarSign, Gift, Users, Network } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCompany } from '../hooks/useCompany';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +9,7 @@ import { REFERRAL_TIERS, getTierForReferrals } from '../utils/referralTiers';
 import { collection, addDoc, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { PayoutSettingsForm } from '../components/PayoutSettingsForm';
+import { ReferralLedgerEntry } from '../utils/referralCommission';
 
 export function Affiliates() {
   const { company, loading } = useCompany();
@@ -24,10 +25,13 @@ export function Affiliates() {
     requestedAt: any;
     paidAt?: any;
   }>>([]);
+  const [commissionHistory, setCommissionHistory] = useState<ReferralLedgerEntry[]>([]);
+  const [loadingCommissions, setLoadingCommissions] = useState(false);
 
   useEffect(() => {
     if (company?.id) {
       loadWithdrawHistory();
+      loadCommissionHistory();
     }
   }, [company?.id]);
 
@@ -56,6 +60,48 @@ export function Affiliates() {
       setWithdrawHistory(history);
     } catch (error) {
       console.error('Error loading withdraw history:', error);
+    }
+  };
+
+  const loadCommissionHistory = async () => {
+    if (!company?.id) return;
+    
+    setLoadingCommissions(true);
+    try {
+      // Query without orderBy first to avoid index requirement
+      // We'll sort in memory instead
+      const commissionsQuery = query(
+        collection(db, 'referral_ledger'),
+        where('referrerId', '==', company.id),
+        limit(100)
+      );
+      const snapshot = await getDocs(commissionsQuery);
+      const commissions = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ReferralLedgerEntry[];
+      
+      // Sort by createdAt descending in memory
+      commissions.sort((a, b) => {
+        const dateA = a.createdAt?.toDate 
+          ? a.createdAt.toDate().getTime()
+          : a.createdAt?.seconds
+          ? a.createdAt.seconds * 1000
+          : 0;
+        const dateB = b.createdAt?.toDate 
+          ? b.createdAt.toDate().getTime()
+          : b.createdAt?.seconds
+          ? b.createdAt.seconds * 1000
+          : 0;
+        return dateB - dateA;
+      });
+      
+      setCommissionHistory(commissions.slice(0, 50)); // Limit to 50 most recent
+    } catch (error) {
+      console.error('Error loading commission history:', error);
+    } finally {
+      setLoadingCommissions(false);
     }
   };
 
@@ -346,6 +392,120 @@ export function Affiliates() {
                 : `Saldo mínimo: R$ 50,00 (disponível: R$ ${available.toFixed(2)})`}
             </Button>
           </div>
+        </Card>
+
+        {/* Commission History by Tier */}
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Histórico de Comissões</h2>
+          {loadingCommissions ? (
+            <p className="text-center text-slate-600 py-4">Carregando comissões...</p>
+          ) : commissionHistory.length === 0 ? (
+            <p className="text-center text-slate-600 py-4">Nenhuma comissão registrada ainda.</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Minhas Vendas (Tier 1) */}
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5 text-green-600" />
+                    <h3 className="font-semibold text-green-800">Minhas Vendas (Nível 1)</h3>
+                  </div>
+                  <p className="text-2xl font-bold text-green-700">
+                    R$ {commissionHistory
+                      .filter(c => String(c.tier) === '1')
+                      .reduce((sum, c) => sum + c.amount, 0)
+                      .toFixed(2)
+                      .replace('.', ',')}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {commissionHistory.filter(c => String(c.tier) === '1').length} comissão{commissionHistory.filter(c => String(c.tier) === '1').length !== 1 ? 'ões' : ''} • 15% por venda
+                  </p>
+                </div>
+
+                {/* Vendas da Rede (Tier 2 & 3) */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Network className="w-5 h-5 text-blue-600" />
+                    <h3 className="font-semibold text-blue-800">Vendas da Rede (Níveis 2 & 3)</h3>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-700">
+                    R$ {commissionHistory
+                      .filter(c => String(c.tier) === '2' || String(c.tier) === '3')
+                      .reduce((sum, c) => sum + c.amount, 0)
+                      .toFixed(2)
+                      .replace('.', ',')}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {commissionHistory.filter(c => String(c.tier) === '2' || String(c.tier) === '3').length} comissão{commissionHistory.filter(c => String(c.tier) === '2' || String(c.tier) === '3').length !== 1 ? 'ões' : ''} • 8% (N2) + 2% (N3)
+                  </p>
+                </div>
+              </div>
+
+              {/* Commission List */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {commissionHistory.map((commission) => {
+                  const tierStr = String(commission.tier);
+                  const isTier1 = tierStr === '1';
+                  const isTier2 = tierStr === '2';
+                  const isTier3 = tierStr === '3';
+                  
+                  const tierConfig = isTier1 
+                    ? { label: 'Nível 1', color: 'bg-green-100 text-green-800', icon: Users }
+                    : isTier2
+                    ? { label: 'Nível 2', color: 'bg-blue-100 text-blue-800', icon: Network }
+                    : isTier3
+                    ? { label: 'Nível 3', color: 'bg-purple-100 text-purple-800', icon: Network }
+                    : { label: commission.tierLabel || commission.tier, color: 'bg-slate-100 text-slate-800', icon: Gift };
+                  
+                  const statusMap = {
+                    pending: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800' },
+                    released: { label: 'Disponível', color: 'bg-green-100 text-green-800' },
+                    paid: { label: 'Pago', color: 'bg-blue-100 text-blue-800' },
+                  };
+                  const statusInfo = statusMap[commission.status] || statusMap.pending;
+                  
+                  const createdDate = commission.createdAt?.toDate 
+                    ? commission.createdAt.toDate() 
+                    : commission.createdAt?.seconds
+                    ? new Date(commission.createdAt.seconds * 1000)
+                    : new Date(commission.createdAt);
+
+                  return (
+                    <div
+                      key={commission.id}
+                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${tierConfig.color}`}>
+                            {tierConfig.label}
+                          </span>
+                          {commission.tierLabel && (
+                            <span className="text-xs text-slate-600">{commission.tierLabel}</span>
+                          )}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-navy">
+                            R$ {commission.amount.toFixed(2).replace('.', ',')}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            de R$ {commission.paymentAmount.toFixed(2).replace('.', ',')} ({commission.commissionPercent.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {createdDate.toLocaleDateString('pt-BR')} às {createdDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Withdrawal History */}

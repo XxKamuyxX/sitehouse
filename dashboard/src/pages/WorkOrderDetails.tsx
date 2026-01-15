@@ -2,20 +2,22 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User, Eye } from 'lucide-react';
-import { ImageUpload } from '../components/ImageUpload';
+import { X, Plus, Copy, ExternalLink, FileText, ClipboardCheck, Trash2, Edit, Calendar, Clock, User, Eye, Camera, Image as ImageIcon } from 'lucide-react';
 import { TechnicalInspection } from '../components/TechnicalInspection';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { useCompany } from '../hooks/useCompany';
 import { useAuth } from '../contexts/AuthContext';
+import { useStorage } from '../hooks/useStorage';
+import { compressFile } from '../utils/compressImage';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
 import { pdf } from '@react-pdf/renderer';
 import { ReceiptPDF } from '../components/ReceiptPDF';
+import { roundCurrency } from '../lib/utils';
 
 interface ManualService {
   id: string;
@@ -82,6 +84,9 @@ export function WorkOrderDetails() {
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const { uploadImage, uploading: uploadingPhoto } = useStorage();
 
   useEffect(() => {
     if (id) {
@@ -280,6 +285,39 @@ export function WorkOrderDetails() {
       alert('Erro ao adicionar foto');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePhotoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione apenas imagens');
+      return;
+    }
+
+    if (!id) return;
+
+    try {
+      const compressedFile = await compressFile(file);
+      const timestamp = Date.now();
+      const fileName = `${timestamp}_${compressedFile.name}`;
+      const path = `work-orders/${id}/photos/${fileName}`;
+      
+      const url = await uploadImage(compressedFile, path);
+      await handlePhotoUpload(url);
+      
+      // Reset inputs
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = '';
+      }
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Erro ao fazer upload da foto');
     }
   };
 
@@ -833,7 +871,7 @@ export function WorkOrderDetails() {
                 <CurrencyInput
                   value={totalPrice}
                   onChange={(value) => {
-                    setTotalPrice(value);
+                    setTotalPrice(roundCurrency(value));
                   }}
                   onBlur={async () => {
                     if (id) {
@@ -857,7 +895,7 @@ export function WorkOrderDetails() {
               onClick={() => setActiveTab('info')}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeTab === 'info'
-                  ? 'border-b-2 border-navy text-navy'
+                  ? 'border-b-2 border-blue-600 text-blue-600 font-bold'
                   : 'text-slate-600 hover:text-navy'
               }`}
             >
@@ -868,7 +906,7 @@ export function WorkOrderDetails() {
               onClick={() => setActiveTab('inspection')}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeTab === 'inspection'
-                  ? 'border-b-2 border-navy text-navy'
+                  ? 'border-b-2 border-blue-600 text-blue-600 font-bold'
                   : 'text-slate-600 hover:text-navy'
               }`}
             >
@@ -879,7 +917,7 @@ export function WorkOrderDetails() {
               onClick={() => setActiveTab('photos')}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeTab === 'photos'
-                  ? 'border-b-2 border-navy text-navy'
+                  ? 'border-b-2 border-blue-600 text-blue-600 font-bold'
                   : 'text-slate-600 hover:text-navy'
               }`}
             >
@@ -893,34 +931,33 @@ export function WorkOrderDetails() {
         <div className={activeTab === 'info' ? 'block' : 'hidden'}>
           <>
             {/* WhatsApp Button - Share OS with approval link */}
-            <Card>
-              <div className="flex items-center justify-between">
+              <Card>
                 <div>
                   <h2 className="text-xl font-bold text-navy mb-2">Compartilhar OS</h2>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 mb-4">
                     Envie o link da ordem de serviço e aprovação para o cliente via WhatsApp
                   </p>
+                  <div className="flex flex-col gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={handleGeneratePdfPreview}
+                      className="w-full flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-5 h-5" />
+                      Pré-visualizar
+                    </Button>
+                    <WhatsAppButton
+                      phoneNumber={clientPhone}
+                      clientName={workOrder.clientName}
+                      docType="OS"
+                      docLink={`${window.location.origin}/p/os/${id}`}
+                      googleReviewUrl={(company as any)?.googleReviewUrl}
+                      data-whatsapp-button="true"
+                      className="w-full"
+                    />
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleGeneratePdfPreview}
-                    className="flex items-center gap-2"
-                  >
-                    <Eye className="w-5 h-5" />
-                    Pré-visualizar
-                  </Button>
-                  <WhatsAppButton
-                    phoneNumber={clientPhone}
-                    clientName={workOrder.clientName}
-                    docType="OS"
-                    docLink={`${window.location.origin}/p/os/${id}`}
-                    googleReviewUrl={(company as any)?.googleReviewUrl}
-                    data-whatsapp-button="true"
-                  />
-                </div>
-              </div>
-            </Card>
+              </Card>
 
             {/* Generate Receipt */}
             {workOrder.status === 'completed' && (
@@ -973,25 +1010,6 @@ export function WorkOrderDetails() {
               </Card>
             )}
 
-            {/* Delete Work Order */}
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-red-600 mb-2">Zona de Perigo</h2>
-                  <p className="text-sm text-slate-600">
-                    Excluir permanentemente esta ordem de serviço
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={handleDeleteWorkOrder}
-                  className="flex items-center gap-2 border-red-600 text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  Excluir OS
-                </Button>
-              </div>
-            </Card>
           </>
         </div>
 
@@ -1011,22 +1029,61 @@ export function WorkOrderDetails() {
           <Card>
             <h2 className="text-xl font-bold text-navy mb-4">Relatório Fotográfico</h2>
             
-            {/* Image Upload */}
-            <div className="mb-6 flex gap-2">
-              <div className="flex-1">
-                <ImageUpload
-                  onUploadComplete={handlePhotoUpload}
-                  path={`work-orders/${id}/photos`}
-                  label="Adicionar Foto"
-                />
+            {/* Photo Upload Options - Camera vs Gallery */}
+            <div className="mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                {/* Camera Button */}
+                <Button
+                  variant="outline"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="w-full flex items-center justify-center gap-2 border-2"
+                >
+                  <Camera className="w-5 h-5" />
+                  📷 Tirar Foto
+                </Button>
+                
+                {/* Gallery Button */}
+                <Button
+                  variant="outline"
+                  onClick={() => galleryInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="w-full flex items-center justify-center gap-2 border-2"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                  🖼️ Galeria
+                </Button>
               </div>
+              
+              {/* Hidden File Inputs */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoFileSelect}
+                className="hidden"
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoFileSelect}
+                className="hidden"
+              />
+              
+              {/* Library Button */}
               <Button
                 variant="outline"
                 onClick={() => setShowLibraryModal(true)}
-                className="flex items-center gap-2"
+                className="w-full flex items-center justify-center gap-2"
               >
                 📂 Escolher da Biblioteca
               </Button>
+              
+              {uploadingPhoto && (
+                <p className="text-sm text-slate-600 mt-2 text-center">Enviando foto...</p>
+              )}
             </div>
 
             {/* Photos Grid */}
@@ -1075,6 +1132,31 @@ export function WorkOrderDetails() {
               Salvar Observações
             </Button>
           </div>
+        </Card>
+
+        {/* Delete Work Order - Moved to bottom */}
+        <Card>
+          <details className="group">
+            <summary className="cursor-pointer list-none flex items-center justify-between p-4 hover:bg-slate-50 rounded-lg transition-colors">
+              <div>
+                <h2 className="text-lg font-semibold text-red-600 mb-1">Zona de Perigo</h2>
+                <p className="text-sm text-slate-600">
+                  Excluir permanentemente esta ordem de serviço
+                </p>
+              </div>
+              <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="p-4 pt-0">
+              <Button
+                variant="outline"
+                onClick={handleDeleteWorkOrder}
+                className="w-full flex items-center justify-center gap-2 border-red-600 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="w-5 h-5" />
+                Excluir Ordem de Serviço
+              </Button>
+            </div>
+          </details>
         </Card>
 
         {/* Service Selector Modal */}

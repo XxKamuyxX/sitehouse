@@ -1,8 +1,9 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Plus, FileText, ClipboardList, MessageCircle, Trash2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Input } from '../components/ui/Input';
+import { Plus, FileText, MessageCircle, Trash2, MoreVertical } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { getDocs, addDoc, doc, getDoc, deleteDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,11 +14,15 @@ import { TutorialGuide } from '../components/TutorialGuide';
 
 interface Quote {
   id: string;
-  clientName: string;
+  clientName?: string;
   status: 'draft' | 'sent' | 'approved' | 'cancelled';
   total: number;
   createdAt: any;
+  items?: any[];
+  clientId?: string;
 }
+
+type StatusFilter = 'all' | 'draft' | 'sent' | 'approved' | 'cancelled';
 
 const statusLabels = {
   draft: 'Rascunho',
@@ -27,7 +32,7 @@ const statusLabels = {
 };
 
 const statusColors = {
-  draft: 'bg-slate-100 text-slate-700',
+  draft: 'bg-gray-100 text-gray-700',
   sent: 'bg-blue-100 text-blue-700',
   approved: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
@@ -37,9 +42,14 @@ export function Quotes() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,6 +57,43 @@ export function Quotes() {
       loadQuotes();
     }
   }, [companyId]);
+
+  // Filter quotes based on search and status
+  useEffect(() => {
+    let filtered = quotes;
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((quote) => quote.status === statusFilter);
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((quote) => {
+        const clientName = quote.clientName || '';
+        return clientName.toLowerCase().includes(searchLower);
+      });
+    }
+
+    setFilteredQuotes(filtered);
+  }, [quotes, searchTerm, statusFilter]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId && menuRefs.current[openMenuId]) {
+        if (!menuRefs.current[openMenuId]?.contains(event.target as Node)) {
+          setOpenMenuId(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openMenuId]);
 
   const loadQuotes = async () => {
     if (!companyId) return;
@@ -71,6 +118,19 @@ export function Quotes() {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'Data não disponível';
+    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  };
+
+  const getItemCount = (quote: Quote) => {
+    if (quote.items && Array.isArray(quote.items)) {
+      return quote.items.length;
+    }
+    return 0;
   };
 
   const sanitizePhone = (phone: string): string => {
@@ -124,7 +184,8 @@ export function Quotes() {
 
       const sanitizedPhone = sanitizePhone(phone);
       const publicLink = `${window.location.origin}/p/${quote.id}`;
-      const message = `Olá ${quote.clientName}, aqui está o link do seu orçamento na House Manutenção: ${publicLink}`;
+      const clientName = quote.clientName || 'Cliente';
+      const message = `Olá ${clientName}, aqui está o link do seu orçamento na House Manutenção: ${publicLink}`;
       const encodedMessage = encodeURIComponent(message);
       const whatsappUrl = `https://wa.me/${sanitizedPhone}?text=${encodedMessage}`;
       
@@ -143,6 +204,7 @@ export function Quotes() {
 
     setSelectedQuote(quote);
     setShowDatePicker(true);
+    setOpenMenuId(null);
   };
 
   const handleDateConfirm = async (date: Date, time?: string) => {
@@ -162,16 +224,15 @@ export function Quotes() {
         technician: '',
         status: 'scheduled',
         notes: '',
-        companyId: companyId, // MANDATORY: Required by security rules
-        createdAt: serverTimestamp(), // Use serverTimestamp for consistency
+        companyId: companyId,
+        createdAt: serverTimestamp(),
       };
 
-      console.log('Creating work order with data:', { ...workOrderData, createdAt: '[serverTimestamp]' });
       await addDoc(collection(db, 'workOrders'), workOrderData);
       alert('Ordem de Serviço criada com sucesso!');
       setShowDatePicker(false);
       setSelectedQuote(null);
-      navigate('/work-orders');
+      navigate('/admin/work-orders');
     } catch (error) {
       console.error('Error creating work order:', error);
       alert('Erro ao criar Ordem de Serviço');
@@ -179,14 +240,15 @@ export function Quotes() {
   };
 
   const handleDeleteQuote = async (quote: Quote) => {
-    if (!confirm(`Tem certeza que deseja excluir o orçamento de ${quote.clientName}?\n\nEsta ação não pode ser desfeita.`)) {
+    if (!confirm(`Tem certeza que deseja excluir este orçamento?\n\nEsta ação não pode ser desfeita.`)) {
       return;
     }
 
     try {
       await deleteDoc(doc(db, 'quotes', quote.id));
       alert('Orçamento excluído com sucesso!');
-      loadQuotes(); // Reload the list
+      loadQuotes();
+      setOpenMenuId(null);
     } catch (error) {
       console.error('Error deleting quote:', error);
       alert('Erro ao excluir orçamento');
@@ -196,12 +258,13 @@ export function Quotes() {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-navy">Orçamentos</h1>
             <p className="text-slate-600 mt-1">Gerencie seus orçamentos</p>
           </div>
-          <Link to="/quotes/new">
+          <Link to="/admin/quotes/new">
             <Button id="btn-new-quote" variant="primary" size="lg" className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Novo Orçamento
@@ -209,79 +272,163 @@ export function Quotes() {
           </Link>
         </div>
 
+        {/* Search Bar */}
+        <Card>
+          <Input
+            placeholder="Buscar por cliente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+        </Card>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              statusFilter === 'all'
+                ? 'bg-navy text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setStatusFilter('draft')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              statusFilter === 'draft'
+                ? 'bg-navy text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Rascunho
+          </button>
+          <button
+            onClick={() => setStatusFilter('sent')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              statusFilter === 'sent'
+                ? 'bg-navy text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Enviado
+          </button>
+          <button
+            onClick={() => setStatusFilter('approved')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              statusFilter === 'approved'
+                ? 'bg-navy text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Aprovado
+          </button>
+        </div>
+
+        {/* Quotes List */}
         {loading ? (
           <Card>
             <p className="text-center text-slate-600 py-8">Carregando...</p>
           </Card>
-        ) : quotes.length === 0 ? (
+        ) : filteredQuotes.length === 0 ? (
           <Card>
-            <p className="text-center text-slate-600 py-8">Nenhum orçamento encontrado</p>
+            <p className="text-center text-slate-600 py-8">
+              {searchTerm || statusFilter !== 'all' 
+                ? 'Nenhum orçamento encontrado com os filtros aplicados'
+                : 'Nenhum orçamento encontrado'}
+            </p>
           </Card>
         ) : (
           <div id="quote-list" className="space-y-4">
-            {quotes.map((quote) => (
-              <Card key={quote.id}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">Cliente</p>
-                      <h3 className="text-lg font-bold text-navy">
-                        {quote.clientName || (quote as any).client?.name || 'Sem nome'}
+            {filteredQuotes.map((quote) => {
+              const itemCount = getItemCount(quote);
+              return (
+                <Card key={quote.id} className="p-4 mb-4">
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-base font-bold text-gray-900">
+                        {quote.clientName ? (
+                          quote.clientName
+                        ) : (
+                          <span className="text-gray-500 italic">Cliente a Definir</span>
+                        )}
                       </h3>
                     </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">Status</p>
+                    <div className="flex items-center gap-3">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium inline-block ${statusColors[quote.status]}`}
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[quote.status]}`}
                       >
                         {statusLabels[quote.status]}
                       </span>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">Total</p>
-                      <p className="text-lg font-bold text-navy">{formatCurrency(quote.total)}</p>
+                      <div className="relative" ref={(el) => (menuRefs.current[quote.id] = el)}>
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === quote.id ? null : quote.id)}
+                          className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                          aria-label="Mais opções"
+                        >
+                          <MoreVertical className="w-5 h-5 text-slate-600" />
+                        </button>
+                        {openMenuId === quote.id && (
+                          <div className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-10 min-w-[160px]">
+                            {quote.status === 'approved' && (
+                              <button
+                                onClick={() => convertToWorkOrder(quote)}
+                                className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 rounded-t-lg"
+                              >
+                                <FileText className="w-4 h-4" />
+                                Criar OS
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteQuote(quote)}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Excluir
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Link to={`/quotes/${quote.id}`}>
-                      <Button variant="outline" size="sm">
-                        <FileText className="w-4 h-4 mr-1" />
-                        Ver
-                      </Button>
-                    </Link>
+
+                  {/* Content Row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span>Criado em {formatDate(quote.createdAt)}</span>
+                      {itemCount > 0 && <span>{itemCount} {itemCount === 1 ? 'item' : 'itens'}</span>}
+                    </div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {formatCurrency(quote.total || 0)}
+                    </div>
+                  </div>
+
+                  {/* Action Footer */}
+                  <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200">
                     <Button
-                      variant="primary"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleSendWhatsApp(quote)}
-                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+                      className="flex items-center justify-center gap-2 border-green-200 text-green-700 hover:bg-green-50"
                     >
                       <MessageCircle className="w-4 h-4" />
                       WhatsApp
                     </Button>
-                    {quote.status === 'approved' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => convertToWorkOrder(quote)}
-                        className="flex items-center gap-1"
-                      >
-                        <ClipboardList className="w-4 h-4" />
-                        Criar OS
-                      </Button>
-                    )}
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteQuote(quote)}
-                      className="flex items-center gap-1 border-red-600 text-red-600 hover:bg-red-50"
+                      onClick={() => navigate(`/admin/quotes/${quote.id}`)}
+                      className="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      Excluir
+                      <FileText className="w-4 h-4" />
+                      Ver Detalhes
                     </Button>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -317,4 +464,3 @@ export function Quotes() {
     </Layout>
   );
 }
-

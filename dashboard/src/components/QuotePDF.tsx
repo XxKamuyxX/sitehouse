@@ -615,11 +615,11 @@ export function QuotePDF({
 
         {/* Custom Footer Text */}
         {pdfSettings.customFooterText && (
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
               {pdfSettings.customFooterText}
-            </Text>
-          </View>
+          </Text>
+        </View>
         )}
 
         {/* Risk Warning */}

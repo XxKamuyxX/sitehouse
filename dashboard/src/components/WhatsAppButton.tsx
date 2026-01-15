@@ -49,10 +49,10 @@ export function WhatsAppButton({
       // Para OS, sempre usar um único link que mostra tudo (OS + aprovação + PDF)
       message = `Olá ${clientName}, segue sua Ordem de Serviço digital:\n\n${docLink}\n\nNeste link você pode:\n✅ Ver todos os detalhes da OS\n✅ Aprovar ou rejeitar o serviço\n✅ Baixar o PDF`;
     } else {
-      const templates = {
-        'Orçamento': `Olá ${clientName}, segue o link do seu Orçamento: ${docLink}`,
-        'Recibo': `Olá ${clientName}, confirmamos seu pagamento. Segue o Recibo: ${docLink}`,
-      };
+    const templates = {
+      'Orçamento': `Olá ${clientName}, segue o link do seu Orçamento: ${docLink}`,
+      'Recibo': `Olá ${clientName}, confirmamos seu pagamento. Segue o Recibo: ${docLink}`,
+    };
       message = templates[docType];
     }
     

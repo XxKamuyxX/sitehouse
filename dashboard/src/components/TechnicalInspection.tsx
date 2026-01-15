@@ -53,7 +53,7 @@ export function TechnicalInspection({
   initialSurveyPhotos = [],
   onSave,
 }: TechnicalInspectionProps) {
-  const [numberOfLeaves, setNumberOfLeaves] = useState(initialLeaves.length || 0);
+  const [numberOfLeaves, setNumberOfLeaves] = useState<string>(initialLeaves.length > 0 ? initialLeaves.length.toString() : '');
   const [leaves, setLeaves] = useState<Leaf[]>(initialLeaves);
   const [selectedLeaf, setSelectedLeaf] = useState<number | null>(null);
   
@@ -78,13 +78,13 @@ export function TechnicalInspection({
   const [surveyPhotos, setSurveyPhotos] = useState<string[]>(initialSurveyPhotos);
   const { uploadImage, uploading } = useStorage();
 
-  const handleSetLeaves = () => {
-    if (numberOfLeaves <= 0) {
-      alert('Digite um número válido de folhas');
-      return;
+  const handleSetLeaves = (value: string) => {
+    const numValue = parseInt(value) || 0;
+    if (numValue <= 0) {
+      return; // Don't create leaves if invalid
     }
 
-    const newLeaves: Leaf[] = Array.from({ length: numberOfLeaves }, (_, i) => {
+    const newLeaves: Leaf[] = Array.from({ length: numValue }, (_, i) => {
       const existing = leaves.find((l) => l.id === i + 1);
       return existing || {
         id: i + 1,
@@ -95,7 +95,7 @@ export function TechnicalInspection({
 
     setLeaves(newLeaves);
     // Also update the survey field value for quantidade_folhas
-    handleSurveyFieldChange('quantidade_folhas', numberOfLeaves.toString());
+    handleSurveyFieldChange('quantidade_folhas', numValue.toString());
   };
 
   const updateLeafStatus = (leafId: number, status: 'perfect' | 'attention' | 'damaged') => {
@@ -253,22 +253,29 @@ export function TechnicalInspection({
     <div className="space-y-6">
       {/* Leaf Count Input (only for vidracaria) */}
       {profession === 'vidracaria' && (
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Quantidade de Folhas (Lâminas)</h2>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="1"
-              value={numberOfLeaves}
-              onChange={(e) => setNumberOfLeaves(parseInt(e.target.value) || 0)}
-              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-              placeholder="Digite o número de folhas"
-            />
-            <Button variant="primary" onClick={handleSetLeaves}>
-              Definir
-            </Button>
-          </div>
-        </Card>
+      <Card>
+        <h2 className="text-xl font-bold text-navy mb-4">Quantidade de Folhas (Lâminas)</h2>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={numberOfLeaves}
+          onChange={(e) => {
+            const value = e.target.value;
+            // Allow empty string or valid numbers
+            if (value === '' || /^\d+$/.test(value)) {
+              setNumberOfLeaves(value);
+            }
+          }}
+          onBlur={(e) => {
+            const value = e.target.value.trim();
+            if (value) {
+              handleSetLeaves(value);
+            }
+          }}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+          placeholder="Ex: 2 folhas"
+        />
+      </Card>
       )}
 
       {/* Leaves Visualization (only for vidracaria) */}
@@ -422,9 +429,9 @@ export function TechnicalInspection({
 
       {/* Dynamic Survey Fields (for non-vidracaria professions or in addition to leaves) */}
       {profession !== 'vidracaria' && surveyFields.length > 0 && (
-        <Card>
+      <Card>
           <h2 className="text-xl font-bold text-navy mb-4">Vistoria Técnica</h2>
-          <div className="space-y-4">
+        <div className="space-y-4">
             {surveyFields.map((field) => (
               <div key={field.id}>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -454,14 +461,14 @@ export function TechnicalInspection({
                     ))}
                   </select>
                 ) : (
-                  <input
+            <input
                     type={field.type}
                     value={surveyFieldValues[field.id] || ''}
                     onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
                     placeholder={field.placeholder}
                     required={field.required}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                  />
+            />
                 )}
               </div>
             ))}
@@ -480,7 +487,7 @@ export function TechnicalInspection({
                   {field.label} {field.required && <span className="text-red-500">*</span>}
                 </label>
                 {field.type === 'select' ? (
-                  <select
+              <select
                     value={surveyFieldValues[field.id] || ''}
                     onChange={(e) => handleSurveyFieldChange(field.id, e.target.value)}
                     required={field.required}
@@ -491,8 +498,8 @@ export function TechnicalInspection({
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
-                    ))}
-                  </select>
+                ))}
+              </select>
                 ) : (
                   <input
                     type={field.type}
@@ -630,7 +637,7 @@ export function TechnicalInspection({
             <p className="text-xs text-slate-500 mt-2">
               Adicione fotos como evidência da vistoria técnica
             </p>
-          </div>
+            </div>
 
           {surveyPhotos.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -644,11 +651,11 @@ export function TechnicalInspection({
                   <button
                     onClick={() => handleRemoveSurveyPhoto(index)}
                     className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
+              >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

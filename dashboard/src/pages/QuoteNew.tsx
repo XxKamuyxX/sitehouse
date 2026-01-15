@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
-import { Save, Trash2, Download, Plus, FileText, Square, DoorOpen as DoorIcon, Package, Shield, Home, Image, Lock, MoreHorizontal } from 'lucide-react';
+import { Save, Trash2, Download, Plus, FileText, Search } from 'lucide-react';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { pdf } from '@react-pdf/renderer';
@@ -15,6 +15,7 @@ import { ServiceSelectorModal } from '../components/ServiceSelectorModal';
 import { ClientForm } from '../components/ClientForm';
 import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
 import { getProfessionCatalog } from '../utils/professionCatalog';
+import { getCategoriesForIndustry, getIconComponent } from '../constants/serviceCategories';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -22,6 +23,7 @@ import { db } from '../lib/firebase';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../hooks/useCompany';
+import { roundCurrency } from '../lib/utils';
 
 interface Service {
   id: string;
@@ -158,16 +160,18 @@ export function QuoteNew() {
   const [loading, setLoading] = useState(true);
   const [activeServiceTab, setActiveServiceTab] = useState<'installation' | 'maintenance' | 'custom'>('installation');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
       if (companyId) {
-      await loadClients();
-      await loadServices();
-      if (id) {
-        await loadQuote(id);
-      } else {
-        setLoading(false);
+        await loadClients();
+        await loadServices();
+        if (id) {
+          await loadQuote(id);
+        } else {
+          setLoading(false);
         }
       }
     };
@@ -273,33 +277,41 @@ export function QuoteNew() {
         item.quantity = value;
         if (item.pricingMethod === 'm2' && item.dimensions) {
           const area = item.dimensions.width * item.dimensions.height;
-          item.total = area * item.quantity * item.unitPrice;
+          const rawTotal = area * item.quantity * item.unitPrice;
+          item.total = roundCurrency(rawTotal);
         } else if (item.pricingMethod === 'linear' && item.dimensions) {
-          item.total = item.dimensions.width * item.quantity * item.unitPrice;
+          const rawTotal = item.dimensions.width * item.quantity * item.unitPrice;
+          item.total = roundCurrency(rawTotal);
         } else {
-          item.total = item.quantity * item.unitPrice;
+          const rawTotal = item.quantity * item.unitPrice;
+          item.total = roundCurrency(rawTotal);
         }
       } else if (field === 'unitPrice' && item.isCustom) {
         // Only allow editing unitPrice for custom services
         item.unitPrice = value;
         if (item.pricingMethod === 'm2' && item.dimensions) {
           const area = item.dimensions.width * item.dimensions.height;
-          item.total = area * item.quantity * item.unitPrice;
+          const rawTotal = area * item.quantity * item.unitPrice;
+          item.total = roundCurrency(rawTotal);
         } else if (item.pricingMethod === 'linear' && item.dimensions) {
-          item.total = item.dimensions.width * item.quantity * item.unitPrice;
+          const rawTotal = item.dimensions.width * item.quantity * item.unitPrice;
+          item.total = roundCurrency(rawTotal);
         } else {
-          item.total = item.quantity * item.unitPrice;
+          const rawTotal = item.quantity * item.unitPrice;
+          item.total = roundCurrency(rawTotal);
         }
       }
     } else {
       // Standard calculation
       if (field === 'quantity') {
         item.quantity = value;
-        item.total = item.quantity * item.unitPrice;
+        const rawTotal = item.quantity * item.unitPrice;
+        item.total = roundCurrency(rawTotal);
       } else if (field === 'unitPrice' && item.isCustom) {
         // Only allow editing unitPrice for custom services
         item.unitPrice = value;
-        item.total = item.quantity * item.unitPrice;
+        const rawTotal = item.quantity * item.unitPrice;
+        item.total = roundCurrency(rawTotal);
       }
     }
     
@@ -368,8 +380,8 @@ export function QuoteNew() {
     }
   };
 
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const total = subtotal - discount;
+  const subtotal = roundCurrency(items.reduce((sum, item) => sum + item.total, 0));
+  const total = roundCurrency(subtotal - discount);
 
   const handleSave = async () => {
     if (!selectedClientId) {
@@ -798,7 +810,7 @@ export function QuoteNew() {
           {/* Main Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Client Selection */}
-            <Card className="relative pb-32">
+            <Card className="relative flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-navy">Cliente</h2>
               </div>
@@ -814,30 +826,31 @@ export function QuoteNew() {
                 />
               </div>
 
-              {/* Client List */}
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {clients
-                  .filter((client) => 
-                    clientSearchTerm === '' || 
-                    client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
-                    client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
-                  )
-                  .map((client) => (
-                    <button
-                      key={client.id}
-                      onClick={() => setSelectedClientId(client.id)}
-                      className={`w-full p-3 text-left border-2 rounded-lg transition-all ${
-                        selectedClientId === client.id
-                          ? 'border-navy bg-navy-50'
-                          : 'border-slate-200 hover:border-navy hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="font-medium text-navy">{client.name}</div>
-                      {client.condominium && (
-                        <div className="text-sm text-slate-600">{client.condominium}</div>
-                      )}
-                    </button>
-                  ))}
+              {/* Client List - Compact Dense List */}
+              <div className="flex-1 overflow-y-auto pb-20">
+                <ul className="divide-y divide-gray-100">
+                  {clients
+                    .filter((client) => 
+                      clientSearchTerm === '' || 
+                      client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                      client.condominium.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                    )
+                    .map((client) => (
+                      <li key={client.id}>
+                        <button
+                          onClick={() => setSelectedClientId(client.id)}
+                          className={`w-full flex flex-row items-center justify-between p-3 transition-colors ${
+                            selectedClientId === client.id
+                              ? 'bg-navy-50 border-l-4 border-l-navy'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="text-sm font-semibold text-gray-900">{client.name}</span>
+                          <span className="text-xs text-gray-500">{client.phone || ''}</span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
                 {clients.filter((client) => 
                   clientSearchTerm === '' || 
                   client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
@@ -848,7 +861,7 @@ export function QuoteNew() {
               </div>
 
               {/* Sticky Footer */}
-              <div className="fixed bottom-0 left-0 right-0 bg-white z-50 p-4 border-t border-slate-200 shadow-lg">
+              <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-3 z-50">
                 <div className="max-w-7xl mx-auto flex gap-3">
                   <Button
                     variant="outline"
@@ -856,7 +869,7 @@ export function QuoteNew() {
                     className="flex-1 flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Cadastrar Novo Cliente
+                    Novo Cliente
                   </Button>
                   <Button
                     variant="primary"
@@ -872,8 +885,8 @@ export function QuoteNew() {
                     disabled={!selectedClientId}
                   >
                     Avançar
-                  </Button>
-                </div>
+                </Button>
+              </div>
               </div>
             </Card>
 
@@ -918,25 +931,39 @@ export function QuoteNew() {
               </div>
 
               {/* Installation Category Grid */}
-              {activeServiceTab === 'installation' && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-navy mb-4">Selecione o tipo de instalação:</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { icon: Square, name: 'Janela', catalogName: 'Janela de Vidro' },
-                      { icon: DoorIcon, name: 'Porta', catalogName: 'Porta de Vidro' },
-                      { icon: Package, name: 'Box', catalogName: 'Box Padrão' },
-                      { icon: Shield, name: 'Guardacorpo', catalogName: 'Guarda-corpo' },
-                      { icon: Home, name: 'Sacada', catalogName: 'Cortina de Vidro' },
-                      { icon: Image, name: 'Espelho', catalogName: 'Divisória de Vidro' },
-                      { icon: Lock, name: 'Fixo', catalogName: 'Divisória de Vidro' },
-                      { icon: MoreHorizontal, name: 'Outro', catalogName: 'Outro' },
-                    ].map((category) => (
-                      <button
-                        key={category.name}
-                        onClick={() => {
-                          if (category.catalogName === 'Outro') {
-                            // Open modal with empty service name
+              {activeServiceTab === 'installation' && (() => {
+                // Get categories based on company industry/segment/profession
+                const industry = company?.segment || company?.profession || 'glazier';
+                const allCategories = getCategoriesForIndustry(industry);
+                
+                // Filter categories based on search
+                const filteredCategories = allCategories.filter(category =>
+                  category.label.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                );
+                
+                return (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-navy mb-4">Selecione a Categoria</h3>
+                    
+                    {/* Search Bar */}
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar categoria (ex: Janela, Fiação...)"
+                        value={categorySearchTerm}
+                        onChange={(e) => setCategorySearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                      />
+                    </div>
+                    
+                    {/* Category Grid */}
+                    {filteredCategories.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-slate-600 mb-4">Nenhum serviço encontrado</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
                             setEditingItemIndex(null);
                             setShowInstallationModal(true);
                             (window as any).__selectedInstallationCategory = {
@@ -944,39 +971,92 @@ export function QuoteNew() {
                               pricingMethod: 'm2',
                               defaultPrice: 0,
                             };
-                          } else {
-                            // Open library modal to select a model
-                            setSelectedCategoryForLibrary({ catalogName: category.catalogName, categoryName: category.name });
-                            setShowLibraryModal(true);
-                          }
-                        }}
-                        className="p-4 border-2 border-slate-200 rounded-lg hover:border-navy hover:bg-navy-50 transition-all text-center group"
-                      >
-                        <category.icon className="w-8 h-8 mx-auto mb-2 text-slate-600 group-hover:text-navy" />
-                        <div className="font-medium text-slate-700 group-hover:text-navy">{category.name}</div>
-                      </button>
-                    ))}
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Cadastrar Outro
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {filteredCategories.map((category) => {
+                          const IconComponent = getIconComponent(category.icon);
+                          return (
+                            <button
+                              key={category.id}
+                              onClick={() => {
+                                setSelectedCategoryId(category.id);
+                                // Auto-open modal immediately
+                                if (category.id === 'outros' || category.id === 'outro') {
+                                  // Open modal with empty service name
+                                  setEditingItemIndex(null);
+                                  setShowInstallationModal(true);
+                                  (window as any).__selectedInstallationCategory = {
+                                    serviceName: '',
+                                    pricingMethod: 'm2',
+                                    defaultPrice: 0,
+                                  };
+                                } else if (category.catalogName) {
+                                  // Open library modal to select a model
+                                  setSelectedCategoryForLibrary({ 
+                                    catalogName: category.catalogName, 
+                                    categoryName: category.label 
+                                  });
+                                  setShowLibraryModal(true);
+                                } else {
+                                  // Fallback: open installation modal
+                                  setEditingItemIndex(null);
+                                  setShowInstallationModal(true);
+                                  (window as any).__selectedInstallationCategory = {
+                                    serviceName: category.label,
+                                    pricingMethod: 'm2',
+                                    defaultPrice: 0,
+                                  };
+                                }
+                              }}
+                              className={`p-4 border-2 rounded-lg transition-all duration-200 text-center group ${
+                                selectedCategoryId === category.id
+                                  ? 'border-blue-600 bg-blue-50 shadow-md ring-1 ring-blue-600'
+                                  : 'border-slate-200 bg-white hover:border-blue-300'
+                              }`}
+                            >
+                              <IconComponent className={`w-8 h-8 mx-auto mb-2 ${
+                                selectedCategoryId === category.id
+                                  ? 'text-blue-600'
+                                  : 'text-slate-600 group-hover:text-blue-600'
+                              }`} />
+                              <div className={`font-medium ${
+                                selectedCategoryId === category.id
+                                  ? 'text-blue-600'
+                                  : 'text-slate-700 group-hover:text-blue-600'
+                              }`}>{category.label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Maintenance & Custom Services - Show Add Button */}
               {(activeServiceTab === 'maintenance' || activeServiceTab === 'custom') && (
                 <div className="mb-6">
-                  <Button
-                    variant="primary"
+                        <Button 
+                          variant="primary" 
                     size="lg"
                     onClick={() => {
                       setEditingItemIndex(null);
                       setShowServiceSelectorModal(true);
                     }}
                     className="w-full sm:w-auto flex items-center gap-2"
-                  >
+                        >
                     <Plus className="w-5 h-5" />
                     Adicionar Item
-                  </Button>
-                </div>
-              )}
+                        </Button>
+                  </div>
+                )}
 
               {/* Items List */}
               {items.length === 0 ? (
@@ -1083,7 +1163,8 @@ export function QuoteNew() {
                                         // Recalculate total
                                         if (width > 0 && (newItems[index].dimensions?.height || 0) > 0) {
                                           const area = width * (newItems[index].dimensions?.height || 0);
-                                          newItems[index].total = area * newItems[index].quantity * newItems[index].unitPrice;
+                                          const rawTotal = area * newItems[index].quantity * newItems[index].unitPrice;
+                                          newItems[index].total = roundCurrency(rawTotal);
                                         }
                                         setItems(newItems);
                                       }}
@@ -1112,7 +1193,8 @@ export function QuoteNew() {
                                         // Recalculate total
                                         if ((newItems[index].dimensions?.width || 0) > 0 && height > 0) {
                                           const area = (newItems[index].dimensions?.width || 0) * height;
-                                          newItems[index].total = area * newItems[index].quantity * newItems[index].unitPrice;
+                                          const rawTotal = area * newItems[index].quantity * newItems[index].unitPrice;
+                                          newItems[index].total = roundCurrency(rawTotal);
                                         }
                                         setItems(newItems);
                                       }}
@@ -1150,7 +1232,8 @@ export function QuoteNew() {
                                         // Recalculate total
                                         if (newItems[index].dimensions?.width && newItems[index].dimensions?.height) {
                                           const area = newItems[index].dimensions.width * newItems[index].dimensions.height;
-                                          newItems[index].total = area * quantity * newItems[index].unitPrice;
+                                          const rawTotal = area * quantity * newItems[index].unitPrice;
+                                          newItems[index].total = roundCurrency(rawTotal);
                                         }
                                         setItems(newItems);
                                       }}
@@ -1163,7 +1246,7 @@ export function QuoteNew() {
                                       value={item.total}
                                       onChange={(newTotal: number) => {
                                         const newItems = [...items];
-                                        newItems[index].total = newTotal;
+                                        newItems[index].total = roundCurrency(newTotal);
                                         // Recalculate unit price: New Unit Price = New Total / Quantity
                                         if (newItems[index].quantity > 0) {
                                           newItems[index].unitPrice = newTotal / newItems[index].quantity;
@@ -1204,14 +1287,12 @@ export function QuoteNew() {
                               <label className="block text-xs text-slate-600 mb-1">
                                 Preço / Unidade
                               </label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                              <CurrencyInput
                                 value={item.unitPrice}
-                                onChange={(e) =>
-                                  updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
+                                onChange={(newPrice) =>
+                                  updateItem(index, 'unitPrice', roundCurrency(newPrice))
                                 }
+                                placeholder="0,00"
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                               />
                             </div>
@@ -1232,10 +1313,11 @@ export function QuoteNew() {
                                 value={item.total}
                                 onChange={(newTotal: number) => {
                                   const newItems = [...items];
-                                  newItems[index].total = newTotal;
+                                  const roundedTotal = roundCurrency(newTotal);
+                                  newItems[index].total = roundedTotal;
                                   // Recalculate unit price: New Unit Price = New Total / Quantity
                                   if (newItems[index].quantity > 0) {
-                                    newItems[index].unitPrice = newTotal / newItems[index].quantity;
+                                    newItems[index].unitPrice = roundCurrency(roundedTotal / newItems[index].quantity);
                                   } else {
                                     newItems[index].unitPrice = newTotal;
                                   }
@@ -1244,8 +1326,8 @@ export function QuoteNew() {
                                 placeholder="0,00"
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy font-medium text-navy"
                               />
-                            </div>
                               </div>
+                            </div>
                             )}
                           </div>
                         ) : (
@@ -1266,10 +1348,11 @@ export function QuoteNew() {
                                   value={item.total}
                                   onChange={(newTotal: number) => {
                                     const newItems = [...items];
-                                    newItems[index].total = newTotal;
+                                    const roundedTotal = roundCurrency(newTotal);
+                                    newItems[index].total = roundedTotal;
                                     // Recalculate unit price: New Unit Price = New Total / Quantity
                                     if (newItems[index].quantity > 0) {
-                                      newItems[index].unitPrice = newTotal / newItems[index].quantity;
+                                      newItems[index].unitPrice = roundCurrency(roundedTotal / newItems[index].quantity);
                                     } else {
                                       newItems[index].unitPrice = newTotal;
                                     }
@@ -1302,12 +1385,10 @@ export function QuoteNew() {
                 </div>
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">Desconto (R$)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                  <CurrencyInput
                     value={discount}
-                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                    onChange={(newDiscount) => setDiscount(roundCurrency(newDiscount))}
+                    placeholder="0,00"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
                   />
                 </div>
@@ -1318,19 +1399,22 @@ export function QuoteNew() {
                     onChange={(newTotal: number) => {
                       // Proportional price adjustment: adjust unit prices instead of discount
                       if (subtotal > 0 && newTotal > 0) {
-                        const ratio = newTotal / subtotal;
+                        const ratio = roundCurrency(newTotal / subtotal);
                         const newItems = items.map(item => {
                           const updatedItem = { ...item };
                           // Update unit price proportionally
-                          updatedItem.unitPrice = item.unitPrice * ratio;
+                          updatedItem.unitPrice = roundCurrency(item.unitPrice * ratio);
                           // Recalculate total based on pricing method
                           if (updatedItem.pricingMethod === 'm2' && updatedItem.dimensions) {
                             const area = (updatedItem.dimensions.width * updatedItem.dimensions.height) || 0;
-                            updatedItem.total = area * updatedItem.quantity * updatedItem.unitPrice;
+                            const rawTotal = area * updatedItem.quantity * updatedItem.unitPrice;
+                            updatedItem.total = roundCurrency(rawTotal);
                           } else if (updatedItem.pricingMethod === 'linear' && updatedItem.dimensions) {
-                            updatedItem.total = updatedItem.dimensions.width * updatedItem.quantity * updatedItem.unitPrice;
+                            const rawTotal = updatedItem.dimensions.width * updatedItem.quantity * updatedItem.unitPrice;
+                            updatedItem.total = roundCurrency(rawTotal);
                           } else {
-                            updatedItem.total = updatedItem.quantity * updatedItem.unitPrice;
+                            const rawTotal = updatedItem.quantity * updatedItem.unitPrice;
+                            updatedItem.total = roundCurrency(rawTotal);
                           }
                           return updatedItem;
                         });

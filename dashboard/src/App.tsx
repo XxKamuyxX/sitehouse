@@ -29,8 +29,10 @@ import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
+import { AffiliateNetwork } from './pages/AffiliateNetwork';
 import { Landing } from './pages/Landing';
 import { MarketingLayout } from './components/MarketingLayout';
+import { VersionChecker } from './components/system/VersionChecker';
 
 // Helper function to check if subscription is expired
 function isSubscriptionExpired(userMetadata: any): boolean {
@@ -365,7 +367,15 @@ function AppRoutes() {
           </AdminRoute>
         }
       />
- {/* Rotas Legacy (redirecionam para admin) */}
+      <Route
+        path="/admin/affiliate/network"
+        element={
+          <AdminRoute>
+            <AffiliateNetwork />
+          </AdminRoute>
+        }
+      />
+      {/* Rotas Legacy (redirecionam para admin) */}
       <Route
         path="/dashboard"
         element={
@@ -454,7 +464,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
- {/* Rotas Tech */}
+      {/* Rotas Tech */}
       <Route
         path="/tech/dashboard"
         element={
@@ -519,9 +529,10 @@ function App() {
   return (
     <AuthProvider>
       <BrandingProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+        <BrowserRouter>
+          <AppRoutes />
+          <VersionChecker />
+        </BrowserRouter>
       </BrandingProvider>
     </AuthProvider>
   );

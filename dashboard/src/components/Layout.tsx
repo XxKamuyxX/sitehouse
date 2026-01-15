@@ -21,7 +21,8 @@ import {
   Building2,
   Crown,
   BookOpen,
-  Gift
+  Gift,
+  Network as NetworkIcon
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -128,18 +129,19 @@ export function Layout({ children }: LayoutProps) {
         ] : []),
         // Owner/Admin: Full access
         ...((isOwner || isAdmin) ? [
-          { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-          { path: '/clients', icon: Users, label: 'Clientes' },
-          { path: '/quotes', icon: FileText, label: 'Orçamentos' },
-          { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
-          { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
-          { path: '/finance', icon: DollarSign, label: 'Financeiro' },
-          { path: '/admin/team', icon: UserCog, label: 'Equipe' },
-          { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/clients', icon: Users, label: 'Clientes' },
+    { path: '/quotes', icon: FileText, label: 'Orçamentos' },
+    { path: '/work-orders', icon: ClipboardList, label: 'Ordens de Serviço' },
+    { path: '/calendar', icon: CalendarIcon, label: 'Agenda' },
+    { path: '/finance', icon: DollarSign, label: 'Financeiro' },
+      { path: '/admin/team', icon: UserCog, label: 'Equipe' },
+      { path: '/admin/company', icon: Building2, label: 'Dados da Empresa' },
           { path: '/admin/affiliates', icon: Gift, label: 'Indique e Ganhe' },
+          { path: '/admin/affiliate/network', icon: NetworkIcon, label: 'Minha Rede' },
           { path: '/settings', icon: SettingsIcon, label: 'Configurações' },
-        ] : []),
-      ];
+    ] : []),
+  ];
 
   const isActive = (path: string) => location.pathname === path;
 

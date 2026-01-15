@@ -1,18 +1,28 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { FileText, Users, ClipboardList, Plus, DollarSign, TrendingUp } from 'lucide-react';
+import { FileText, Users, ClipboardList, Plus, DollarSign, TrendingUp, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getDocs } from 'firebase/firestore';
+import { getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { maturePendingCommissions } from '../utils/referralCommission';
 import { TutorialGuide } from '../components/TutorialGuide';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { roundCurrency } from '../lib/utils';
+
+interface ActivityItem {
+  id: string;
+  type: 'quote' | 'workOrder';
+  title: string;
+  updatedAt: any;
+  status?: string;
+}
 
 export function Dashboard() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     openQuotes: 0,
     monthlyRevenue: 0,
@@ -20,10 +30,14 @@ export function Dashboard() {
     averageTicket: 0,
     conversionRate: 0,
   });
+  const [chartData, setChartData] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
     if (companyId) {
       loadDashboardStats();
+      loadChartData();
+      loadRecentActivity();
     }
   }, [companyId]);
 
@@ -98,20 +112,19 @@ export function Dashboard() {
       });
 
       // Calculate monthly revenue from completed OS
-      // Try to get total from quoteId if available
       let monthlyRevenue = 0;
       for (const os of completedThisMonth) {
         if (os.quoteId) {
           const quote = quotes.find((q) => q.id === os.quoteId);
           if (quote && quote.total) {
-            monthlyRevenue += quote.total || 0;
+            monthlyRevenue = roundCurrency(monthlyRevenue + (quote.total || 0));
           }
         } else if (os.total) {
-          monthlyRevenue += os.total;
+          monthlyRevenue = roundCurrency(monthlyRevenue + os.total);
         }
       }
 
-      const averageTicket = completedThisMonth.length > 0 ? monthlyRevenue / completedThisMonth.length : 0;
+      const averageTicket = completedThisMonth.length > 0 ? roundCurrency(monthlyRevenue / completedThisMonth.length) : 0;
 
       setStats({
         openQuotes,
@@ -125,11 +138,120 @@ export function Dashboard() {
     }
   };
 
+  const loadChartData = async () => {
+    if (!companyId) return;
+
+    try {
+      // Generate last 30 days of data
+      const data: Array<{ date: string; revenue: number }> = [];
+      const now = new Date();
+      
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+        
+        // Mock revenue data (in real app, aggregate from work orders/quotes)
+        // For now, generate random data between 0 and 2000
+        const revenue = Math.random() * 2000;
+        data.push({ date: dateStr, revenue: roundCurrency(revenue) });
+      }
+      
+      setChartData(data);
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    if (!companyId) return;
+
+    try {
+      const activities: ActivityItem[] = [];
+
+      // Load recent quotes
+      const quotesQuery = query(
+        queryWithCompanyId('quotes', companyId),
+        orderBy('updatedAt', 'desc'),
+        limit(3)
+      );
+      const quotesSnapshot = await getDocs(quotesQuery);
+      quotesSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'quote',
+          title: `Orçamento ${data.clientName || 'Sem nome'}`,
+          updatedAt: data.updatedAt,
+          status: data.status,
+        });
+      });
+
+      // Load recent work orders
+      const workOrdersQuery = query(
+        queryWithCompanyId('workOrders', companyId),
+        orderBy('updatedAt', 'desc'),
+        limit(3)
+      );
+      const workOrdersSnapshot = await getDocs(workOrdersQuery);
+      workOrdersSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'workOrder',
+          title: `OS ${data.clientName || 'Sem nome'}`,
+          updatedAt: data.updatedAt,
+          status: data.status,
+        });
+      });
+
+      // Sort by updatedAt and take top 3
+      activities.sort((a, b) => {
+        const aTime = a.updatedAt?.toDate?.() || a.updatedAt || new Date(0);
+        const bTime = b.updatedAt?.toDate?.() || b.updatedAt || new Date(0);
+        return bTime.getTime() - aTime.getTime();
+      });
+
+      setRecentActivity(activities.slice(0, 3));
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  };
+
+  const formatTimeAgo = (timestamp: any) => {
+    if (!timestamp) return 'Há muito tempo';
+    
+    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `Há ${diffMins}min`;
+    if (diffHours < 24) return `Há ${diffHours}h`;
+    if (diffDays < 7) return `Há ${diffDays}d`;
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
+
+  const handleStatCardDoubleClick = (route: string) => {
+    navigate(route);
+  };
+
+  const handleActivityClick = (item: ActivityItem) => {
+    if (item.type === 'quote') {
+      navigate(`/admin/quotes/${item.id}`);
+    } else {
+      navigate(`/admin/work-orders/${item.id}`);
+    }
   };
 
   return (
@@ -141,51 +263,66 @@ export function Dashboard() {
             <h1 className="text-3xl font-bold text-navy">Dashboard</h1>
             <p className="text-slate-600 mt-1">Visão geral do seu negócio</p>
           </div>
-          <Link to="/quotes/new">
-            <Button variant="primary" size="lg" className="flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Novo Orçamento
-            </Button>
-          </Link>
         </div>
 
-        {/* Stats Grid */}
-        <div id="kpi-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Orçamentos Abertos</p>
-                <p className="text-3xl font-bold text-navy">{stats.openQuotes}</p>
+        {/* Stats Grid with Double-Click Navigation */}
+        <div id="kpi-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div
+            className="select-none cursor-pointer"
+            onDoubleClick={() => handleStatCardDoubleClick('/admin/quotes?status=pending')}
+            title="Toque 2x para ver orçamentos abertos"
+          >
+            <Card className="active:scale-95 transition-transform">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">Orçamentos Abertos</p>
+                  <p className="text-3xl font-bold text-navy">{stats.openQuotes}</p>
+                  <p className="text-xs text-slate-400 mt-1">Toque 2x para ver</p>
+                </div>
+                <div className="bg-blue-100 rounded-full p-3">
+                  <FileText className="w-8 h-8 text-blue-600" />
+                </div>
               </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <FileText className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
 
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Total Faturado (Mês)</p>
-                <p className="text-3xl font-bold text-navy">{formatCurrency(stats.monthlyRevenue)}</p>
+          <div
+            className="select-none cursor-pointer"
+            onDoubleClick={() => handleStatCardDoubleClick('/admin/finance')}
+            title="Toque 2x para ver detalhes financeiros"
+          >
+            <Card className="active:scale-95 transition-transform">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">Total Faturado (Mês)</p>
+                  <p className="text-3xl font-bold text-navy">{formatCurrency(stats.monthlyRevenue)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Toque 2x para ver</p>
+                </div>
+                <div className="bg-gold-100 rounded-full p-3">
+                  <DollarSign className="w-8 h-8 text-gold-600" />
+                </div>
               </div>
-              <div className="bg-gold-100 rounded-full p-3">
-                <DollarSign className="w-8 h-8 text-gold-600" />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
 
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">Ticket Médio</p>
-                <p className="text-3xl font-bold text-navy">{formatCurrency(stats.averageTicket)}</p>
+          <div
+            className="select-none cursor-pointer"
+            onDoubleClick={() => handleStatCardDoubleClick('/admin/finance')}
+            title="Toque 2x para ver detalhes financeiros"
+          >
+            <Card className="active:scale-95 transition-transform">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">Ticket Médio</p>
+                  <p className="text-3xl font-bold text-navy">{formatCurrency(stats.averageTicket)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Toque 2x para ver</p>
+                </div>
+                <div className="bg-purple-100 rounded-full p-3">
+                  <TrendingUp className="w-8 h-8 text-purple-600" />
+                </div>
               </div>
-              <div className="bg-purple-100 rounded-full p-3">
-                <TrendingUp className="w-8 h-8 text-purple-600" />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
 
           <Card>
             <div className="flex items-center justify-between">
@@ -199,49 +336,131 @@ export function Dashboard() {
             </div>
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">OS em Andamento</p>
-                <p className="text-3xl font-bold text-navy">{stats.activeWorkOrders}</p>
+          <div
+            className="select-none cursor-pointer"
+            onDoubleClick={() => handleStatCardDoubleClick('/admin/work-orders?status=in-progress')}
+            title="Toque 2x para ver OS em andamento"
+          >
+            <Card className="active:scale-95 transition-transform">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">OS em Andamento</p>
+                  <p className="text-3xl font-bold text-navy">{stats.activeWorkOrders}</p>
+                  <p className="text-xs text-slate-400 mt-1">Toque 2x para ver</p>
+                </div>
+                <div className="bg-orange-100 rounded-full p-3">
+                  <ClipboardList className="w-8 h-8 text-orange-600" />
+                </div>
               </div>
-              <div className="bg-orange-100 rounded-full p-3">
-                <ClipboardList className="w-8 h-8 text-orange-600" />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Revenue Chart */}
+        <Card>
+          <h2 className="text-xl font-bold text-navy mb-4">Receita (Últimos 30 dias)</h2>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0F172A" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#0F172A" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#64748B"
+                  style={{ fontSize: '12px' }}
+                />
+                <YAxis 
+                  stroke="#64748B"
+                  style={{ fontSize: '12px' }}
+                  tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '8px',
+                  }}
+                  formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#0F172A" 
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Quick Actions - 2x2 Grid */}
         <Card>
           <h2 className="text-xl font-bold text-navy mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link to="/quotes/new">
-              <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
-                <Plus className="w-8 h-8 text-navy mx-auto mb-2" />
-                <p className="font-medium text-navy">Novo Orçamento</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Link to="/admin/quotes/new">
+              <div className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
+                <Plus className="w-6 h-6 text-navy mx-auto mb-1" />
+                <p className="text-sm font-medium text-navy">Novo Orçamento</p>
               </div>
             </Link>
-            <Link to="/clients/new">
-              <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
-                <Users className="w-8 h-8 text-navy mx-auto mb-2" />
-                <p className="font-medium text-navy">Novo Cliente</p>
+            <Link to="/admin/clients/new">
+              <div className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
+                <Users className="w-6 h-6 text-navy mx-auto mb-1" />
+                <p className="text-sm font-medium text-navy">Novo Cliente</p>
               </div>
             </Link>
-            <Link to="/quotes">
-              <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
-                <FileText className="w-8 h-8 text-navy mx-auto mb-2" />
-                <p className="font-medium text-navy">Ver Orçamentos</p>
+            <Link to="/admin/quotes">
+              <div className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
+                <FileText className="w-6 h-6 text-navy mx-auto mb-1" />
+                <p className="text-sm font-medium text-navy">Ver Orçamentos</p>
               </div>
             </Link>
-            <Link to="/work-orders">
-              <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
-                <ClipboardList className="w-8 h-8 text-navy mx-auto mb-2" />
-                <p className="font-medium text-navy">Ver OS</p>
+            <Link to="/admin/work-orders">
+              <div className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center">
+                <ClipboardList className="w-6 h-6 text-navy mx-auto mb-1" />
+                <p className="text-sm font-medium text-navy">Ver OS</p>
               </div>
             </Link>
           </div>
         </Card>
+
+        {/* Recent Activity Feed */}
+        {recentActivity.length > 0 && (
+          <Card>
+            <h2 className="text-xl font-bold text-navy mb-4">Últimas Atualizações</h2>
+            <div className="space-y-3">
+              {recentActivity.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleActivityClick(item)}
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    {item.type === 'quote' ? (
+                      <FileText className="w-5 h-5 text-blue-600" />
+                    ) : (
+                      <ClipboardList className="w-5 h-5 text-orange-600" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {item.type === 'quote' ? 'Orçamento' : 'Ordem de Serviço'} • {formatTimeAgo(item.updatedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Tutorial Guide */}
@@ -261,7 +480,7 @@ export function Dashboard() {
           },
           {
             target: '#kpi-summary',
-            content: 'Acompanhe aqui o resumo financeiro do mês.',
+            content: 'Acompanhe aqui o resumo financeiro do mês. Toque 2x nos cards para ver detalhes.',
             placement: 'top',
           },
           {

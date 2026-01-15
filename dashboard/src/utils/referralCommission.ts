@@ -10,11 +10,13 @@ import { calculateCommission, getTierName } from './referralTiers';
 export interface ReferralLedgerEntry {
   id?: string;
   referrerId: string; // Company ID of the referrer
+  referrerUserId?: string; // User ID of the referrer (for MLM tracking)
   referredCompanyId: string; // Company ID of the company that made payment
   amount: number; // Commission amount in BRL
   paymentAmount: number; // Original payment amount
   commissionPercent: number; // Commission percentage applied
-  tier: string; // Tier at time of payment (bronze, silver, gold, diamond)
+  tier: string; // Tier level: "1", "2", "3" (MLM) or legacy tier name (bronze, silver, gold, diamond)
+  tierLabel?: string; // Human-readable tier label (e.g., "Nível 1 - Venda Direta")
   status: 'pending' | 'released' | 'paid';
   releaseDate: any; // Timestamp when funds become available (now + 30 days)
   createdAt: any; // Timestamp when commission was created

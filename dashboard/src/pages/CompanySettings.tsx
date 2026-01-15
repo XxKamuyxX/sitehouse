@@ -2,7 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Save, Upload, X, Plus, Edit2, Trash2, Package, AppWindow, Wrench, Key, Zap } from 'lucide-react';
+import { Save, Upload, X, Plus, Edit2, Trash2, Package, AppWindow, Wrench, Key, Building2, Palette, FileText, Settings } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../hooks/useCompany';
 import { useStorage } from '../hooks/useStorage';
@@ -13,12 +13,105 @@ import { db } from '../lib/firebase';
 import { queryWithCompanyId } from '../lib/queries';
 import { getDefaultContractTemplate } from '../utils/contractTemplates';
 
+// Contract Variables Toolbar Component
+function ContractVariablesToolbar({ onInsert }: { onInsert: (variable: string) => void }) {
+  const variables = [
+    { label: 'Nome Cliente', value: '{CLIENT_NAME}' },
+    { label: 'CPF/CNPJ Cliente', value: '{CLIENT_CPF_CNPJ}' },
+    { label: 'Endereço Cliente', value: '{CLIENT_ADDRESS}' },
+    { label: 'Total', value: '{TOTAL}' },
+    { label: 'Data', value: '{DATE}' },
+    { label: 'Cidade', value: '{CITY}' },
+    { label: 'Nome Empresa', value: '{COMPANY_NAME}' },
+    { label: 'CNPJ Empresa', value: '{COMPANY_CNPJ}' },
+    { label: 'Endereço Empresa', value: '{COMPANY_ADDRESS}' },
+    { label: 'Data Início', value: '{START_DATE}' },
+    { label: 'Data Entrega', value: '{DELIVERY_DATE}' },
+    { label: 'Método Pagamento', value: '{PAYMENT_METHOD}' },
+    { label: 'Detalhes Pagamento', value: '{PAYMENT_DETAILS}' },
+    { label: 'Testemunha 1 Nome', value: '{WITNESS1_NAME}' },
+    { label: 'Testemunha 1 CPF', value: '{WITNESS1_CPF}' },
+    { label: 'Testemunha 2 Nome', value: '{WITNESS2_NAME}' },
+    { label: 'Testemunha 2 CPF', value: '{WITNESS2_CPF}' },
+  ];
+
+  return (
+    <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+      <p className="text-xs font-medium text-slate-700 mb-2">Variáveis Disponíveis (clique para inserir):</p>
+      <div className="flex flex-wrap gap-2">
+        {variables.map((variable) => (
+          <button
+            key={variable.value}
+            type="button"
+            onClick={() => onInsert(variable.value)}
+            className="px-2 py-1 text-xs bg-white border border-slate-300 rounded-md hover:bg-slate-100 hover:border-navy transition-colors"
+          >
+            {variable.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// PDF Preview Component
+function PDFPreview({ 
+  companyName, 
+  logoUrl, 
+  primaryColor, 
+  documentTitle 
+}: { 
+  companyName: string; 
+  logoUrl: string | null; 
+  primaryColor: string; 
+  documentTitle: string;
+}) {
+  return (
+    <div className="bg-white border-2 border-slate-300 rounded-lg shadow-lg p-4">
+      <p className="text-xs font-medium text-slate-600 mb-3">Preview do Cabeçalho do PDF:</p>
+      <div className="border border-slate-200 rounded">
+        {/* PDF Header Preview */}
+        <div 
+          className="p-4 rounded-t"
+          style={{ backgroundColor: primaryColor + '15', borderBottom: `2px solid ${primaryColor}` }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {logoUrl && (
+                <img 
+                  src={logoUrl} 
+                  alt="Logo" 
+                  className="h-12 w-12 object-contain"
+                />
+              )}
+              <div>
+                <h3 className="font-bold text-sm" style={{ color: primaryColor }}>
+                  {companyName || 'Nome da Empresa'}
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 bg-white rounded-b">
+          <h2 className="text-lg font-bold text-center" style={{ color: primaryColor }}>
+            {documentTitle || 'ORÇAMENTO DE SERVIÇOS'}
+          </h2>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CompanySettings() {
   const { company, loading, updateCompany } = useCompany();
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { uploadImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contractTextareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'perfil' | 'marca' | 'contrato' | 'ajustes'>('perfil');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -322,6 +415,24 @@ export function CompanySettings() {
     }
   };
 
+  const handleInsertVariable = (variable: string) => {
+    const textarea = contractTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = formData.contractTemplate;
+    const newText = text.substring(0, start) + variable + text.substring(end);
+    
+    setFormData({ ...formData, contractTemplate: newText });
+    
+    // Set cursor position after inserted variable
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + variable.length, start + variable.length);
+    }, 0);
+  };
+
   const handleSave = async () => {
     if (!formData.name || !formData.address || !formData.phone) {
       alert('Preencha pelo menos Nome, Endereço e Telefone');
@@ -401,9 +512,16 @@ export function CompanySettings() {
   // Check if onboarding is incomplete
   const isOnboardingIncomplete = !formData.profession || !formData.name || formData.name.trim() === '';
 
+  const tabs = [
+    { id: 'perfil' as const, label: '🏢 Perfil & Contato', icon: Building2 },
+    { id: 'marca' as const, label: '🎨 Marca & PDF', icon: Palette },
+    { id: 'contrato' as const, label: '📄 Contrato & Termos', icon: FileText },
+    { id: 'ajustes' as const, label: '⚙️ Ajustes & Financeiro', icon: Settings },
+  ];
+
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-6 pb-24">
         <div>
           <h1 className="text-3xl font-bold text-navy">Dados da Empresa</h1>
           <p className="text-slate-600 mt-1">Configure as informações da sua empresa para aparecer nos PDFs</p>
@@ -443,792 +561,696 @@ export function CompanySettings() {
           )}
         </div>
 
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Personalização da Marca</h2>
-          <div className="space-y-4">
-            <Input
-              label="Nome de Exibição *"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Nome que aparecerá no sistema e nos PDFs"
-              required
-            />
-
-            {/* Profession Selection - Mandatory for Onboarding */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-3">
-                Tipo de Serviço/Ramo de Atividade *
-              </label>
-              <p className="text-xs text-slate-500 mb-4">
-                Selecione o tipo principal de serviço que sua empresa oferece. Esta informação é obrigatória.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Vidraçaria */}
+        {/* Tabs Navigation */}
+        <Card className="p-0">
+          <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
                 <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, profession: 'vidracaria', segment: 'glazier' })}
-                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
-                    formData.profession === 'vidracaria'
-                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-navy text-navy bg-navy-50'
+                      : 'border-transparent text-slate-600 hover:text-navy hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${
-                      formData.profession === 'vidracaria' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      <AppWindow className="w-6 h-6" />
-                    </div>
-                    <h3 className={`font-bold text-lg ${
-                      formData.profession === 'vidracaria' ? 'text-navy' : 'text-slate-700'
-                    }`}>
-                      Vidraçaria
-                    </h3>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Instalação, manutenção e reparo de vidros e estruturas de vidro
-                  </p>
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                 </button>
+              );
+            })}
+          </div>
 
-                {/* Serralheria */}
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, profession: 'serralheria', segment: 'metalwork' })}
-                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
-                    formData.profession === 'serralheria'
-                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${
-                      formData.profession === 'serralheria' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      <Wrench className="w-6 h-6" />
-                    </div>
-                    <h3 className={`font-bold text-lg ${
-                      formData.profession === 'serralheria' ? 'text-navy' : 'text-slate-700'
-                    }`}>
-                      Serralheria
-                    </h3>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Trabalhos em metal, portões, grades e estruturas metálicas
-                  </p>
-                </button>
-
-                {/* Chaveiro */}
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, profession: 'chaveiro', segment: 'locksmith' })}
-                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
-                    formData.profession === 'chaveiro'
-                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${
-                      formData.profession === 'chaveiro' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      <Key className="w-6 h-6" />
-                    </div>
-                    <h3 className={`font-bold text-lg ${
-                      formData.profession === 'chaveiro' ? 'text-navy' : 'text-slate-700'
-                    }`}>
-                      Chaveiro
-                    </h3>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Serviços de chaveiro, cópia de chaves e segurança
-                  </p>
-                </button>
-
-                {/* Marido de Aluguel */}
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, profession: 'marido-de-aluguel', segment: 'handyman' })}
-                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
-                    formData.profession === 'marido-de-aluguel'
-                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${
-                      formData.profession === 'marido-de-aluguel' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      <Wrench className="w-6 h-6" />
-                    </div>
-                    <h3 className={`font-bold text-lg ${
-                      formData.profession === 'marido-de-aluguel' ? 'text-navy' : 'text-slate-700'
-                    }`}>
-                      Marido de Aluguel
-                    </h3>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Serviços gerais de manutenção e reparos residenciais
-                  </p>
-                </button>
-
-                {/* Elétrica/Hidráulica */}
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, profession: 'eletrica-hidraulica', segment: 'electrician' })}
-                  className={`p-6 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
-                    formData.profession === 'eletrica-hidraulica'
-                      ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${
-                      formData.profession === 'eletrica-hidraulica' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      <Zap className="w-6 h-6" />
-                    </div>
-                    <h3 className={`font-bold text-lg ${
-                      formData.profession === 'eletrica-hidraulica' ? 'text-navy' : 'text-slate-700'
-                    }`}>
-                      Elétrica/Hidráulica
-                    </h3>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Instalação e reparo elétrico e hidráulico
-                  </p>
-                </button>
-              </div>
-              {!formData.profession && (
-                <p className="text-xs text-red-600 mt-2">⚠️ Por favor, selecione um tipo de serviço para continuar</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Logo da Empresa
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="logo-upload"
-                />
-                <label
-                  htmlFor="logo-upload"
-                  className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
-                >
-                  <Upload className="w-5 h-5" />
-                  {compressing ? 'Comprimindo...' : uploading ? 'Enviando...' : 'Selecionar Logo'}
-                </label>
-                {logoPreview && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRemoveLogo}
-                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <X className="w-4 h-4" />
-                    Remover
-                  </Button>
-                )}
-              </div>
-              {logoPreview && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-600 mb-2">Preview:</p>
-                  <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
-                    <img
-                      src={logoPreview}
-                      alt="Logo preview"
-                      className="max-h-32 max-w-64 object-contain"
+          {/* Tab Content */}
+          <div className="p-6">
+            {/* Tab 1: Perfil & Contato */}
+            {activeTab === 'perfil' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold text-navy mb-4">Informações Básicas *</h2>
+                  <div className="space-y-4">
+                    <Input
+                      label="Nome da Empresa *"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Nome da sua empresa"
+                      required
                     />
+
+                    <Input
+                      label="Endereço Completo *"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Rua, número, bairro, cidade - UF"
+                      required
+                    />
+
+                    <Input
+                      label="Telefone/WhatsApp *"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="(31) 99999-9999"
+                      required
+                    />
+
+                    <Input
+                      label="CNPJ"
+                      value={formData.cnpj}
+                      onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                    />
+
+                    <Input
+                      label="Email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="contato@empresa.com.br"
+                    />
+
+                    <div>
+                      <Input
+                        label="Link de Avaliação Google"
+                        type="url"
+                        value={formData.googleReviewUrl}
+                        onChange={(e) => setFormData({ ...formData, googleReviewUrl: e.target.value })}
+                        placeholder="https://g.page/r/..."
+                      />
+                      <p className="text-xs text-slate-500 mt-1">
+                        Cole aqui o link que você manda para o cliente te avaliar. Este link será incluído automaticamente nas mensagens do WhatsApp quando você enviar orçamentos e recibos.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )}
-              {!logoPreview && logoUrl && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-600 mb-2">Logo atual:</p>
-                  <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
-                    <img
-                      src={logoUrl}
-                      alt="Logo atual"
-                      className="max-h-32 max-w-64 object-contain"
-                    />
-                  </div>
-                </div>
-              )}
-              <p className="text-xs text-slate-500 mt-2">
-                O logo aparecerá no cabeçalho do sistema e dos PDFs. Se não houver logo, será exibido apenas o nome da empresa.
-              </p>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-3">
-                Cor do Tema (Opcional)
-              </label>
-              
-              {/* Preset Colors */}
-              <div className="mb-4">
-                <p className="text-xs text-slate-600 mb-2">Cores pré-definidas:</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { name: 'Navy', value: '#0F172A' },
-                    { name: 'Azul', value: '#1E40AF' },
-                    { name: 'Verde', value: '#059669' },
-                    { name: 'Amarelo', value: '#D97706' },
-                    { name: 'Vermelho', value: '#DC2626' },
-                    { name: 'Roxo', value: '#7C3AED' },
-                    { name: 'Rosa', value: '#DB2777' },
-                    { name: 'Teal', value: '#0D9488' },
-                  ].map((color) => (
+                {/* Profession Selection - 2x2 Grid */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-3">
+                    Tipo de Serviço/Ramo de Atividade *
+                  </label>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Selecione o tipo principal de serviço que sua empresa oferece. Esta informação é obrigatória.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Vidraçaria */}
                     <button
-                      key={color.value}
                       type="button"
-                      onClick={() => setFormData({ ...formData, primaryColor: color.value })}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                        formData.primaryColor === color.value
-                          ? 'border-navy bg-navy-50'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      onClick={() => setFormData({ ...formData, profession: 'vidracaria', segment: 'glazier' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'vidracaria'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
-                      <div
-                        className="w-6 h-6 rounded border border-slate-300"
-                        style={{ backgroundColor: color.value }}
-                      />
-                      <span className="text-xs font-medium text-slate-700">{color.name}</span>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'vidracaria' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <AppWindow className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'vidracaria' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Vidraçaria
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Instalação, manutenção e reparo de vidros
+                      </p>
                     </button>
-                  ))}
+
+                    {/* Serralheria */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, profession: 'serralheria', segment: 'metalwork' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'serralheria'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'serralheria' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Wrench className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'serralheria' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Serralheria
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Trabalhos em metal, portões e estruturas
+                      </p>
+                    </button>
+
+                    {/* Chaveiro */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, profession: 'chaveiro', segment: 'locksmith' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'chaveiro'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'chaveiro' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Key className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'chaveiro' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Chaveiro
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Serviços de chaveiro e segurança
+                      </p>
+                    </button>
+
+                    {/* Marido de Aluguel */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, profession: 'marido-de-aluguel', segment: 'handyman' })}
+                      className={`p-4 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        formData.profession === 'marido-de-aluguel'
+                          ? 'border-navy bg-navy-50 shadow-md ring-2 ring-navy ring-offset-2'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.profession === 'marido-de-aluguel' ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Wrench className="w-5 h-5" />
+                        </div>
+                        <h3 className={`font-bold text-base ${
+                          formData.profession === 'marido-de-aluguel' ? 'text-navy' : 'text-slate-700'
+                        }`}>
+                          Marido de Aluguel
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Manutenção e reparos residenciais
+                      </p>
+                    </button>
+                  </div>
+                  {!formData.profession && (
+                    <p className="text-xs text-red-600 mt-2">⚠️ Por favor, selecione um tipo de serviço para continuar</p>
+                  )}
                 </div>
               </div>
+            )}
 
-              {/* Custom Color Picker */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={formData.primaryColor}
-                    onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                    className="h-12 w-16 rounded-lg border-2 border-slate-300 cursor-pointer"
-                    title="Selecionar cor personalizada"
-                  />
-                  <span className="text-xs text-slate-600">Personalizada</span>
-                </div>
-                <Input
-                  value={formData.primaryColor}
-                  onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                  placeholder="#0F172A"
-                  className="flex-1 max-w-xs"
-                />
-              </div>
-              
-              {/* Preview */}
-              <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
-                <p className="text-xs text-slate-600 mb-2">Preview:</p>
-                <div 
-                  className="h-8 rounded flex items-center justify-center text-white font-medium text-sm"
-                  style={{ backgroundColor: formData.primaryColor }}
-                >
-                  Cor selecionada
-                </div>
-              </div>
-              
-              <p className="text-xs text-slate-500 mt-2">
-                Cor principal usada no tema do sistema (para uso futuro).
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Informações da Empresa</h2>
-          
-          {/* Basic Information */}
-          <div className="mb-6 pb-6 border-b border-slate-200">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">Informações Básicas *</h3>
-            <div className="space-y-4">
-              <Input
-                label="Nome da Empresa *"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Nome da sua empresa"
-                required
-              />
-
-              <Input
-                label="Endereço Completo *"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Rua, número, bairro, cidade - UF"
-                required
-              />
-
-              <Input
-                label="Telefone/WhatsApp *"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="(31) 99999-9999"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Advanced Information */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">Informações Avançadas</h3>
-            <div className="space-y-4">
-              <Input
-                label="CNPJ"
-                value={formData.cnpj}
-                onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                placeholder="00.000.000/0000-00"
-              />
-
-              <Input
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="contato@empresa.com.br"
-              />
-
-              <div>
-                <Input
-                  label="Link de Avaliação Google"
-                  type="url"
-                  value={formData.googleReviewUrl}
-                  onChange={(e) => setFormData({ ...formData, googleReviewUrl: e.target.value })}
-                  placeholder="https://g.page/r/..."
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  Cole aqui o link que você manda para o cliente te avaliar. Este link será incluído automaticamente nas mensagens do WhatsApp quando você enviar orçamentos e recibos.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Services Management - Custom Services */}
-        <Card>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-navy">Meus Serviços Personalizados</h2>
-              <p className="text-sm text-slate-600 mt-1">
-                Adicione os serviços que sua empresa oferece. Eles aparecerão no catálogo ao criar orçamentos.
-              </p>
-            </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setEditingService(null);
-                setServiceForm({ name: '', description: '', defaultPrice: 0, type: 'unit', category: 'manutencao' });
-                setShowServiceModal(true);
-              }}
-              className="flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Adicionar Serviço
-            </Button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b border-slate-200">
-            <button
-              onClick={() => setServiceFilter('all')}
-              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                serviceFilter === 'all'
-                  ? 'border-navy text-navy'
-                  : 'border-transparent text-slate-600 hover:text-navy'
-              }`}
-            >
-              Todos ({services.length})
-            </button>
-            <button
-              onClick={() => setServiceFilter('instalacao')}
-              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                serviceFilter === 'instalacao'
-                  ? 'border-navy text-navy'
-                  : 'border-transparent text-slate-600 hover:text-navy'
-              }`}
-            >
-              Instalação ({services.filter(s => s.category === 'instalacao').length})
-            </button>
-            <button
-              onClick={() => setServiceFilter('manutencao')}
-              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                serviceFilter === 'manutencao'
-                  ? 'border-navy text-navy'
-                  : 'border-transparent text-slate-600 hover:text-navy'
-              }`}
-            >
-              Manutenção ({services.filter(s => s.category === 'manutencao').length})
-            </button>
-          </div>
-          
-          {(() => {
-            const filteredServices = serviceFilter === 'all' 
-              ? services 
-              : services.filter(s => s.category === serviceFilter);
-            
-            return filteredServices.length === 0 ? (
-              <p className="text-center text-slate-500 py-8">
-                {serviceFilter === 'all' 
-                  ? 'Nenhum serviço cadastrado. Clique em "Adicionar Serviço" para começar.'
-                  : `Nenhum serviço de ${serviceFilter === 'instalacao' ? 'instalação' : 'manutenção'} cadastrado.`
-                }
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {filteredServices.map((service) => (
-                <div
-                  key={service.id}
-                  className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex justify-between items-start"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Package className="w-5 h-5 text-navy" />
-                      <h3 className="font-bold text-navy">{service.name}</h3>
-                      <span className="px-2 py-1 bg-navy-100 text-navy-700 rounded text-xs">
-                        {service.type === 'unit' ? 'Unidade' : service.type === 'meter' ? 'Metro' : 'Pacote'}
-                      </span>
+            {/* Tab 2: Marca & PDF */}
+            {activeTab === 'marca' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-navy mb-4">Logo da Empresa</h2>
+                    <div className="flex items-center gap-4">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="logo-upload"
+                      />
+                      <label
+                        htmlFor="logo-upload"
+                        className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <Upload className="w-5 h-5" />
+                        {compressing ? 'Comprimindo...' : uploading ? 'Enviando...' : 'Selecionar Logo'}
+                      </label>
+                      {logoPreview && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemoveLogo}
+                          className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4" />
+                          Remover
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-sm text-slate-600 mb-2">{service.description}</p>
-                    <p className="text-sm font-medium text-navy">
-                      Preço padrão: R$ {service.defaultPrice.toFixed(2)}
+                    {logoPreview && (
+                      <div className="mt-4">
+                        <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            className="max-h-32 max-w-64 object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {!logoPreview && logoUrl && (
+                      <div className="mt-4">
+                        <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
+                          <img
+                            src={logoUrl}
+                            alt="Logo atual"
+                            className="max-h-32 max-w-64 object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-500 mt-2">
+                      O logo aparecerá no cabeçalho do sistema e dos PDFs.
                     </p>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditService(service)}
-                      className="flex items-center gap-1"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      <span className="hidden sm:inline">Editar</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteService(service.id)}
-                      className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span className="hidden sm:inline">Excluir</span>
-                    </Button>
+
+                  <div>
+                    <h2 className="text-xl font-bold text-navy mb-4">Cores do Tema</h2>
+                    
+                    {/* Preset Colors */}
+                    <div className="mb-4">
+                      <p className="text-xs text-slate-600 mb-2">Cores pré-definidas:</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { name: 'Navy', value: '#0F172A' },
+                          { name: 'Azul', value: '#1E40AF' },
+                          { name: 'Verde', value: '#059669' },
+                          { name: 'Amarelo', value: '#D97706' },
+                          { name: 'Vermelho', value: '#DC2626' },
+                          { name: 'Roxo', value: '#7C3AED' },
+                          { name: 'Rosa', value: '#DB2777' },
+                          { name: 'Teal', value: '#0D9488' },
+                        ].map((color) => (
+                          <button
+                            key={color.value}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, primaryColor: color.value });
+                              setPdfSettings({ ...pdfSettings, primaryColor: color.value });
+                            }}
+                            className={`p-2 rounded-lg border-2 transition-all ${
+                              pdfSettings.primaryColor === color.value
+                                ? 'border-navy bg-navy-50 ring-2 ring-navy ring-offset-1'
+                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                            }`}
+                          >
+                            <div
+                              className="w-full h-8 rounded border border-slate-300"
+                              style={{ backgroundColor: color.value }}
+                            />
+                            <span className="text-xs font-medium text-slate-700 mt-1 block">{color.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Color Picker */}
+                    <div className="border-t border-slate-200 pt-4">
+                      <p className="text-xs text-slate-600 mb-2">Cor personalizada:</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={pdfSettings.primaryColor}
+                            onChange={(e) => {
+                              setPdfSettings({ ...pdfSettings, primaryColor: e.target.value });
+                              setFormData({ ...formData, primaryColor: e.target.value });
+                            }}
+                            className="h-12 w-16 rounded-lg border-2 border-slate-300 cursor-pointer"
+                            title="Selecionar cor personalizada"
+                          />
+                        </div>
+                        <Input
+                          value={pdfSettings.primaryColor}
+                          onChange={(e) => {
+                            setPdfSettings({ ...pdfSettings, primaryColor: e.target.value });
+                            setFormData({ ...formData, primaryColor: e.target.value });
+                          }}
+                          placeholder="#0F172A"
+                          className="flex-1 max-w-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Secondary Color */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Cor Secundária (Hex)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={pdfSettings.secondaryColor}
+                          onChange={(e) => setPdfSettings({ ...pdfSettings, secondaryColor: e.target.value })}
+                          className="w-16 h-10 border border-slate-300 rounded-lg cursor-pointer"
+                        />
+                        <Input
+                          value={pdfSettings.secondaryColor}
+                          onChange={(e) => setPdfSettings({ ...pdfSettings, secondaryColor: e.target.value })}
+                          placeholder="#2563EB"
+                          className="flex-1 max-w-xs"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">Cor de destaque/accent nos PDFs</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="text-xl font-bold text-navy mb-4">Configurações do PDF</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Título do Documento
+                        </label>
+                        <Input
+                          value={pdfSettings.documentTitle}
+                          onChange={(e) => setPdfSettings({ ...pdfSettings, documentTitle: e.target.value })}
+                          placeholder="ORÇAMENTO DE SERVIÇOS"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Título que aparece no topo dos PDFs</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Texto do Rodapé
+                        </label>
+                        <textarea
+                          value={pdfSettings.customFooterText}
+                          onChange={(e) => setPdfSettings({ ...pdfSettings, customFooterText: e.target.value })}
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                          rows={2}
+                          placeholder="Ex: Obrigado pela preferência! Visite nosso site."
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Texto que aparece no rodapé dos PDFs (opcional)</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Termos Legais / Garantia
+                        </label>
+                        <textarea
+                          value={pdfSettings.legalTerms}
+                          onChange={(e) => setPdfSettings({ ...pdfSettings, legalTerms: e.target.value })}
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                          rows={4}
+                          placeholder="Ex: Garantia de 90 dias contra defeitos de execução..."
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Texto padrão sobre garantia e termos de serviço</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={pdfSettings.showCnpj}
+                          onChange={(e) => setPdfSettings({ ...pdfSettings, showCnpj: e.target.checked })}
+                          className="w-5 h-5 text-navy focus:ring-navy border-slate-300 rounded"
+                          id="showCnpj"
+                        />
+                        <label htmlFor="showCnpj" className="text-sm font-medium text-slate-700 cursor-pointer">
+                          Exibir CNPJ nos documentos
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="text-xl font-bold text-navy mb-4">Assinatura Digital</h2>
+                    <div className="flex items-center gap-4">
+                      <input
+                        ref={signatureInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSignatureSelect}
+                        className="hidden"
+                        id="signature-upload"
+                      />
+                      <label
+                        htmlFor="signature-upload"
+                        className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <Upload className="w-5 h-5" />
+                        {compressingSignature ? 'Comprimindo...' : uploading ? 'Enviando...' : 'Selecionar Assinatura'}
+                      </label>
+                      {signaturePreview && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemoveSignature}
+                          className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4" />
+                          Remover
+                        </Button>
+                      )}
+                    </div>
+                    {signaturePreview && (
+                      <div className="mt-4">
+                        <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
+                          <img
+                            src={signaturePreview}
+                            alt="Assinatura preview"
+                            className="max-h-32 max-w-64 object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {!signaturePreview && signatureUrl && (
+                      <div className="mt-4">
+                        <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
+                          <img
+                            src={signatureUrl}
+                            alt="Assinatura atual"
+                            className="max-h-32 max-w-64 object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-500 mt-2">
+                      A assinatura aparecerá nos PDFs de orçamentos e recibos.
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-            );
-          })()}
-        </Card>
 
-        {/* Payment Settings */}
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Configurações de Pagamento</h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Desconto PIX (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={paymentSettings.pixDiscount}
-                  onChange={(e) => setPaymentSettings({ ...paymentSettings, pixDiscount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="5"
-                />
-                <p className="text-xs text-slate-500 mt-1">Desconto aplicado em pagamentos via PIX</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Máximo de Parcelas
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={paymentSettings.maxInstallments}
-                  onChange={(e) => setPaymentSettings({ ...paymentSettings, maxInstallments: parseInt(e.target.value) || 1 })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="3"
-                />
-                <p className="text-xs text-slate-500 mt-1">Número máximo de parcelas permitidas</p>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Observações de Pagamento
-              </label>
-              <textarea
-                value={paymentSettings.paymentNotes}
-                onChange={(e) => setPaymentSettings({ ...paymentSettings, paymentNotes: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                rows={3}
-                placeholder="Ex: Entrada de 50% + restante na entrega."
-              />
-              <p className="text-xs text-slate-500 mt-1">Texto padrão que aparece nos orçamentos sobre condições de pagamento</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* PDF Customization Settings */}
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Personalização de PDFs</h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Cor Principal (Hex)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={pdfSettings.primaryColor}
-                    onChange={(e) => setPdfSettings({ ...pdfSettings, primaryColor: e.target.value })}
-                    className="w-16 h-10 border border-slate-300 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={pdfSettings.primaryColor}
-                    onChange={(e) => setPdfSettings({ ...pdfSettings, primaryColor: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                    placeholder="#0F172A"
-                  />
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Cor usada em bordas e cabeçalhos dos PDFs</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Cor Secundária (Hex)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={pdfSettings.secondaryColor}
-                    onChange={(e) => setPdfSettings({ ...pdfSettings, secondaryColor: e.target.value })}
-                    className="w-16 h-10 border border-slate-300 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={pdfSettings.secondaryColor}
-                    onChange={(e) => setPdfSettings({ ...pdfSettings, secondaryColor: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                    placeholder="#2563EB"
-                  />
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Cor de destaque/accent nos PDFs</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Título do Documento
-                </label>
-                <input
-                  type="text"
-                  value={pdfSettings.documentTitle}
-                  onChange={(e) => setPdfSettings({ ...pdfSettings, documentTitle: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="ORÇAMENTO DE SERVIÇOS"
-                />
-                <p className="text-xs text-slate-500 mt-1">Título que aparece no topo dos PDFs</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Validade do Orçamento (dias)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={pdfSettings.quoteValidityDays}
-                  onChange={(e) => setPdfSettings({ ...pdfSettings, quoteValidityDays: parseInt(e.target.value) || 15 })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="15"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Texto do Rodapé
-              </label>
-              <textarea
-                value={pdfSettings.customFooterText}
-                onChange={(e) => setPdfSettings({ ...pdfSettings, customFooterText: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                rows={2}
-                placeholder="Ex: Obrigado pela preferência! Visite nosso site."
-              />
-              <p className="text-xs text-slate-500 mt-1">Texto que aparece no rodapé dos PDFs (opcional)</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={pdfSettings.showCnpj}
-                onChange={(e) => setPdfSettings({ ...pdfSettings, showCnpj: e.target.checked })}
-                className="w-5 h-5 text-navy focus:ring-navy border-slate-300 rounded"
-                id="showCnpj"
-              />
-              <label htmlFor="showCnpj" className="text-sm font-medium text-slate-700 cursor-pointer">
-                Exibir CNPJ nos documentos
-              </label>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Termos Legais / Garantia
-              </label>
-              <textarea
-                value={pdfSettings.legalTerms}
-                onChange={(e) => setPdfSettings({ ...pdfSettings, legalTerms: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
-                rows={4}
-                placeholder="Ex: Garantia de 90 dias contra defeitos de execução..."
-              />
-              <p className="text-xs text-slate-500 mt-1">Texto padrão sobre garantia e termos de serviço</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Contract Template */}
-        <Card>
-          <h2 className="text-xl font-bold text-secondary mb-4">Contrato Padrão</h2>
-          <p className="text-sm text-slate-600 mb-4">
-            Defina o texto padrão do contrato. Use variáveis como {'{CLIENT_NAME}'}, {'{CLIENT_ADDRESS}'}, {'{DELIVERY_DATE}'}, {'{TOTAL}'} que serão substituídas automaticamente.
-          </p>
-          <textarea
-            value={formData.contractTemplate}
-            onChange={(e) => setFormData({ ...formData, contractTemplate: e.target.value })}
-            placeholder="CONTRATO DE PRESTAÇÃO DE SERVIÇOS
-
-Pelo presente instrumento particular de contrato de prestação de serviços, de um lado {'{COMPANY_NAME}'}, inscrita no CNPJ sob o nº {'{COMPANY_CNPJ}'}, com sede em {'{COMPANY_ADDRESS}'}, doravante denominada CONTRATADA, e de outro lado {'{CLIENT_NAME}'}, {'{CLIENT_CPF_CNPJ}'}, RG {'{CLIENT_RG}'}, residente e domiciliado em {'{CLIENT_ADDRESS}'}, doravante denominado CONTRATANTE, têm entre si justo e contratado o seguinte:
-
-CLÁUSULA 1ª - DO OBJETO
-O presente contrato tem por objeto a prestação de serviços de instalação/manutenção de vidros conforme especificado no orçamento anexo, no valor total de R$ {'{TOTAL}'}.
-
-CLÁUSULA 2ª - DO PRAZO
-O serviço terá início em {'{START_DATE}'} e será concluído até {'{DELIVERY_DATE}'}.
-
-CLÁUSULA 3ª - DO PAGAMENTO
-O pagamento será efetuado da seguinte forma: {'{PAYMENT_DETAILS}'} através de {'{PAYMENT_METHOD}'}.
-
-CLÁUSULA 4ª - DAS OBRIGAÇÕES DA CONTRATADA
-A CONTRATADA se compromete a executar os serviços com qualidade e dentro do prazo estabelecido.
-
-CLÁUSULA 5ª - DAS OBRIGAÇÕES DO CONTRATANTE
-O CONTRATANTE se compromete a fornecer acesso ao local e condições adequadas para a execução dos serviços.
-
-CLÁUSULA 6ª - DA GARANTIA
-Os serviços executados terão garantia de 90 (noventa) dias contra defeitos de execução.
-
-E, por estarem assim justos e contratados, firmam o presente contrato em duas vias de igual teor e forma, na presença das testemunhas abaixo assinadas.
-
-{'{CITY}'}, {'{DATE}'}
-
-_________________________________
-{'{COMPANY_NAME}'}
-CNPJ: {'{COMPANY_CNPJ}'}
-
-_________________________________
-{'{CLIENT_NAME}'}
-CPF/CNPJ: {'{CLIENT_CPF_CNPJ}'}
-
-Testemunhas:
-{'{WITNESS1_NAME}'} - CPF: {'{WITNESS1_CPF}'}
-{'{WITNESS2_NAME}'} - CPF: {'{WITNESS2_CPF}'}"
-            rows={20}
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-          />
-          <p className="text-xs text-slate-500 mt-2">
-            Variáveis disponíveis: {'{CLIENT_NAME}'}, {'{CLIENT_CPF_CNPJ}'}, {'{CLIENT_RG}'}, {'{CLIENT_ADDRESS}'}, {'{START_DATE}'}, {'{DELIVERY_DATE}'}, {'{PAYMENT_METHOD}'}, {'{PAYMENT_DETAILS}'}, {'{TOTAL}'}, {'{COMPANY_NAME}'}, {'{COMPANY_CNPJ}'}, {'{COMPANY_ADDRESS}'}, {'{WITNESS1_NAME}'}, {'{WITNESS1_CPF}'}, {'{WITNESS2_NAME}'}, {'{WITNESS2_CPF}'}, {'{DATE}'}, {'{CITY}'}
-          </p>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-bold text-navy mb-4">Assinatura Digital</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Assinatura da Empresa (para PDFs)
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  ref={signatureInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleSignatureSelect}
-                  className="hidden"
-                  id="signature-upload"
-                />
-                <label
-                  htmlFor="signature-upload"
-                  className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
-                >
-                  <Upload className="w-5 h-5" />
-                  {compressingSignature ? 'Comprimindo...' : uploading ? 'Enviando...' : 'Selecionar Assinatura'}
-                </label>
-                {signaturePreview && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRemoveSignature}
-                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <X className="w-4 h-4" />
-                    Remover
-                  </Button>
-                )}
-              </div>
-              {signaturePreview && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-600 mb-2">Preview:</p>
-                  <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
-                    <img
-                      src={signaturePreview}
-                      alt="Assinatura preview"
-                      className="max-h-32 max-w-64 object-contain"
+                {/* Live Preview - Right Side (Desktop) */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-6">
+                    <PDFPreview
+                      companyName={formData.name}
+                      logoUrl={logoPreview || logoUrl}
+                      primaryColor={pdfSettings.primaryColor}
+                      documentTitle={pdfSettings.documentTitle}
                     />
                   </div>
                 </div>
-              )}
-              {!signaturePreview && signatureUrl && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-600 mb-2">Assinatura atual:</p>
-                  <div className="inline-block p-4 border border-slate-200 rounded-lg bg-white">
-                    <img
-                      src={signatureUrl}
-                      alt="Assinatura atual"
-                      className="max-h-32 max-w-64 object-contain"
-                    />
+              </div>
+            )}
+
+            {/* Tab 3: Contrato & Termos */}
+            {activeTab === 'contrato' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-bold text-navy mb-2">Contrato Padrão</h2>
+                  <p className="text-sm text-slate-600 mb-4">
+                    Defina o texto padrão do contrato. Use variáveis que serão substituídas automaticamente.
+                  </p>
+                  
+                  <ContractVariablesToolbar onInsert={handleInsertVariable} />
+                  
+                  <textarea
+                    ref={contractTextareaRef}
+                    value={formData.contractTemplate}
+                    onChange={(e) => setFormData({ ...formData, contractTemplate: e.target.value })}
+                    placeholder="CONTRATO DE PRESTAÇÃO DE SERVIÇOS..."
+                    rows={20}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy font-mono text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Ajustes & Financeiro */}
+            {activeTab === 'ajustes' && (
+              <div className="space-y-6">
+                {/* Payment Settings */}
+                <div>
+                  <h2 className="text-xl font-bold text-navy mb-4">Configurações de Pagamento</h2>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Desconto PIX (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={paymentSettings.pixDiscount}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, pixDiscount: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                          placeholder="5"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Desconto aplicado em pagamentos via PIX</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Máximo de Parcelas
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="12"
+                          value={paymentSettings.maxInstallments}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, maxInstallments: parseInt(e.target.value) || 1 })}
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                          placeholder="3"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Número máximo de parcelas permitidas</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Observações de Pagamento
+                      </label>
+                      <textarea
+                        value={paymentSettings.paymentNotes}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, paymentNotes: e.target.value })}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy"
+                        rows={3}
+                        placeholder="Ex: Entrada de 50% + restante na entrega."
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Texto padrão que aparece nos orçamentos sobre condições de pagamento</p>
+                    </div>
                   </div>
                 </div>
-              )}
-              <p className="text-xs text-slate-500 mt-2">
-                A assinatura aparecerá nos PDFs de orçamentos e recibos.
-              </p>
-            </div>
+
+                {/* Services Management */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-navy">Meus Serviços Personalizados</h2>
+                      <p className="text-sm text-slate-600 mt-1">
+                        Adicione os serviços que sua empresa oferece. Eles aparecerão no catálogo ao criar orçamentos.
+                      </p>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setEditingService(null);
+                        setServiceForm({ name: '', description: '', defaultPrice: 0, type: 'unit', category: 'manutencao' });
+                        setShowServiceModal(true);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Serviço
+                    </Button>
+                  </div>
+
+                  {/* Service Filter Tabs */}
+                  <div className="flex gap-2 mb-6 border-b border-slate-200">
+                    <button
+                      onClick={() => setServiceFilter('all')}
+                      className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        serviceFilter === 'all'
+                          ? 'border-navy text-navy'
+                          : 'border-transparent text-slate-600 hover:text-navy'
+                      }`}
+                    >
+                      Todos ({services.length})
+                    </button>
+                    <button
+                      onClick={() => setServiceFilter('instalacao')}
+                      className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        serviceFilter === 'instalacao'
+                          ? 'border-navy text-navy'
+                          : 'border-transparent text-slate-600 hover:text-navy'
+                      }`}
+                    >
+                      Instalação ({services.filter(s => s.category === 'instalacao').length})
+                    </button>
+                    <button
+                      onClick={() => setServiceFilter('manutencao')}
+                      className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        serviceFilter === 'manutencao'
+                          ? 'border-navy text-navy'
+                          : 'border-transparent text-slate-600 hover:text-navy'
+                      }`}
+                    >
+                      Manutenção ({services.filter(s => s.category === 'manutencao').length})
+                    </button>
+                  </div>
+                  
+                  {(() => {
+                    const filteredServices = serviceFilter === 'all' 
+                      ? services 
+                      : services.filter(s => s.category === serviceFilter);
+                    
+                    return filteredServices.length === 0 ? (
+                      <p className="text-center text-slate-500 py-8">
+                        {serviceFilter === 'all' 
+                          ? 'Nenhum serviço cadastrado. Clique em "Adicionar Serviço" para começar.'
+                          : `Nenhum serviço de ${serviceFilter === 'instalacao' ? 'instalação' : 'manutenção'} cadastrado.`
+                        }
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredServices.map((service) => (
+                        <div
+                          key={service.id}
+                          className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex justify-between items-start"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Package className="w-5 h-5 text-navy" />
+                              <h3 className="font-bold text-navy">{service.name}</h3>
+                              <span className="px-2 py-1 bg-navy-100 text-navy-700 rounded text-xs">
+                                {service.type === 'unit' ? 'Unidade' : service.type === 'meter' ? 'Metro' : 'Pacote'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 mb-2">{service.description}</p>
+                            <p className="text-sm font-medium text-navy">
+                              Preço padrão: R$ {service.defaultPrice.toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditService(service)}
+                              className="flex items-center gap-1"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              <span className="hidden sm:inline">Editar</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteService(service.id)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="hidden sm:inline">Excluir</span>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
-
-        <div className="flex justify-end">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleSave}
-            disabled={saving || uploading || compressing || compressingSignature}
-            className="flex items-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            {saving ? 'Salvando...' : 'Salvar Dados'}
-          </Button>
-        </div>
 
         {/* Service Modal */}
         {showServiceModal && (
@@ -1337,6 +1359,22 @@ Testemunhas:
             </Card>
           </div>
         )}
+      </div>
+
+      {/* Sticky Save Button Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-50 p-4">
+        <div className="max-w-7xl mx-auto flex justify-end">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleSave}
+            disabled={saving || uploading || compressing || compressingSignature}
+            className="flex items-center gap-2"
+          >
+            <Save className="w-5 h-5" />
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </Button>
+        </div>
       </div>
     </Layout>
   );

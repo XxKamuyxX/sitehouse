@@ -4,6 +4,7 @@ import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Select } from './ui/Select';
 import { ChipSelector } from './ui/ChipSelector';
+import { roundCurrency } from '../lib/utils';
 
 interface InstallationItemModalProps {
   isOpen: boolean;
@@ -135,21 +136,24 @@ export function InstallationItemModal({
         if (width > 0 && height > 0 && unitPrice > 0) {
           // Convert mm² to m²: (width_mm * height_mm) / 1000000
           const areaM2 = (width * height) / 1000000;
-          calculatedTotal = areaM2 * quantity * unitPrice;
+          const rawTotal = areaM2 * quantity * unitPrice;
+          calculatedTotal = roundCurrency(rawTotal);
         }
         break;
       case 'linear':
         if (width > 0 && unitPrice > 0) {
-          calculatedTotal = width * quantity * unitPrice;
+          const rawTotal = width * quantity * unitPrice;
+          calculatedTotal = roundCurrency(rawTotal);
         }
         break;
       case 'fixed':
         // Total is manually set
-        calculatedTotal = totalPrice;
+        calculatedTotal = roundCurrency(totalPrice);
         break;
       case 'unit':
       default:
-        calculatedTotal = quantity * unitPrice;
+        const rawTotal = quantity * unitPrice;
+        calculatedTotal = roundCurrency(rawTotal);
         break;
     }
 
