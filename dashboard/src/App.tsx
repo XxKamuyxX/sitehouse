@@ -230,7 +230,7 @@ function ExpiredRoute({ children }: { children: React.ReactNode }) {
 
 // Special route for activation page - allows unverified users, redirects verified users
 function ActivateRoute({ children }: { children: React.ReactNode }) {
-  const { user, userMetadata, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
