@@ -92,10 +92,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/master" replace />;
   }
 
-  // Check phone verification - redirect to /activate if not verified
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
-  }
+  // Phone verification temporarily disabled
+  // if (userMetadata && !userMetadata.mobileVerified) {
+  //   return <Navigate to="/activate" replace />;
+  // }
 
   // Check subscription status
   if (userMetadata && isSubscriptionExpired(userMetadata)) {
@@ -128,10 +128,10 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/master" replace />;
   }
 
-  // Check phone verification - redirect to /activate if not verified
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
-  }
+  // Phone verification temporarily disabled
+  // if (userMetadata && !userMetadata.mobileVerified) {
+  //   return <Navigate to="/activate" replace />;
+  // }
 
   if (!userMetadata || userMetadata.role !== 'admin') {
     return <Navigate to="/tech/dashboard" />;
@@ -163,10 +163,10 @@ function TechRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  // Check phone verification - redirect to /activate if not verified
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
-  }
+  // Phone verification temporarily disabled
+  // if (userMetadata && !userMetadata.mobileVerified) {
+  //   return <Navigate to="/activate" replace />;
+  // }
 
   if (!userMetadata || userMetadata.role !== 'technician') {
     return <Navigate to="/admin/dashboard" />;
@@ -247,12 +247,12 @@ function ActivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  // If user is already verified, redirect to dashboard
-  if (userMetadata?.mobileVerified) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Phone verification temporarily disabled - redirect to dashboard
+  // if (userMetadata?.mobileVerified) {
+  //   return <Navigate to="/dashboard" replace />;
+  // }
 
-  // Allow access for unverified users
+  // Allow access (verification disabled)
   return <>{children}</>;
 }
 
