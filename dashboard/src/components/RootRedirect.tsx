@@ -16,6 +16,12 @@ export function RootRedirect() {
       return;
     }
 
+    // CRITICAL: Check phone verification first - redirect to /activate if not verified
+    if (userMetadata && !userMetadata.mobileVerified) {
+      navigate('/activate', { replace: true });
+      return;
+    }
+
     if (userMetadata?.role === 'master') {
       navigate('/master', { replace: true });
       return;

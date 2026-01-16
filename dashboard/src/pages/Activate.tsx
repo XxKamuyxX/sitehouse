@@ -187,13 +187,26 @@ export function Activate() {
     } catch (error: any) {
       console.error('Error verifying code:', error);
       
+      // Handle Firebase Auth errors
       if (error.code === 'auth/invalid-verification-code') {
         setError('Código inválido. Verifique e tente novamente.');
       } else if (error.code === 'auth/code-expired') {
         setError('Código expirado. Solicite um novo código.');
         setStep('input');
         setConfirmationResult(null);
-      } else {
+      } 
+      // Handle Firestore permission errors
+      else if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
+        setError('Erro de permissão: Não foi possível salvar a verificação. Entre em contato com o suporte.');
+        console.error('Firestore permission denied. Check firestore.rules for users collection update permissions.');
+      }
+      // Handle Firestore other errors
+      else if (error.code?.startsWith('firestore/') || error.code?.startsWith('PERMISSION')) {
+        setError('Erro ao salvar verificação no banco de dados. Verifique suas permissões ou entre em contato com o suporte.');
+        console.error('Firestore error:', error);
+      }
+      // Generic error
+      else {
         setError(error.message || 'Erro ao verificar código. Tente novamente.');
       }
     } finally {
