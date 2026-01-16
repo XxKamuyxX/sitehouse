@@ -75,27 +75,8 @@ export function Calendar() {
   const [eventEndTime, setEventEndTime] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Set default view based on screen size
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        // On mobile, default to agenda view (list)
-        if (currentView === 'month' || currentView === 'week') {
-          setCurrentView('agenda');
-        }
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [currentView]);
-  
-  // Set initial view based on screen size
-  useEffect(() => {
-    if (window.innerWidth < 768) {
-      setCurrentView('agenda');
-    }
-  }, []);
+  // Default view is 'month' - user can switch to any view
+  // Removed mobile restrictions to allow all views
 
   useEffect(() => {
     if (companyId) {
@@ -363,27 +344,27 @@ export function Calendar() {
             </button>
           </div>
 
-          {/* View Switcher - Hide Month/Week on mobile */}
+          {/* View Switcher - All views visible */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {/* Month - Hidden on mobile */}
+            {/* Month */}
             <button
               onClick={() => goToView('month')}
-              className={`hidden md:block px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                 toolbar.view === 'month' ? 'bg-white text-navy shadow-sm' : 'text-slate-600 hover:text-navy'
               }`}
             >
               Mês
             </button>
-            {/* Week - Hidden on mobile */}
+            {/* Week */}
             <button
               onClick={() => goToView('week')}
-              className={`hidden md:block px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                 toolbar.view === 'week' ? 'bg-white text-navy shadow-sm' : 'text-slate-600 hover:text-navy'
               }`}
             >
               Semana
             </button>
-            {/* Day - Always visible */}
+            {/* Day */}
             <button
               onClick={() => goToView('day')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
@@ -392,7 +373,7 @@ export function Calendar() {
             >
               Dia
             </button>
-            {/* Agenda/List - Always visible */}
+            {/* Agenda/List */}
             <button
               onClick={() => goToView('agenda')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${

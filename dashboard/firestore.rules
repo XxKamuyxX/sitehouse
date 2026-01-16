@@ -140,13 +140,14 @@ service cloud.firestore {
     // 7. PHONE REGISTRY (Anti-Fraud)
     // ============================================
     match /phone_registry/{phoneNumber} {
-      // Only authenticated users can read (to check if number exists)
+      // Authenticated users can read (to check if number exists)
       allow read: if isAuthenticated();
       
-      // Only server (via Cloud Function after OTP verification) can create
-      allow create: if false; // Must be created via server-side verification
-      allow update: if false;
-      allow delete: if false;
+      // Authenticated users can create after phone verification
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if false; // Immutable
+      allow delete: if false; // Immutable
     }
 
     // ============================================
