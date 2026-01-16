@@ -11,7 +11,7 @@ import { DatePickerModal } from '../components/DatePickerModal';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { TutorialGuide } from '../components/TutorialGuide';
-import { useSecurityGate } from '../hooks/useSecurityGate';
+// Removed useSecurityGate - phone verification is now handled globally at /activate
 import { PaywallModal } from '../components/PaywallModal';
 
 interface Quote {
@@ -44,7 +44,7 @@ export function Quotes() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const navigate = useNavigate();
-  const { verifyGate } = useSecurityGate();
+  // Removed verifyGate - phone verification is now handled globally
   const [showPaywall, setShowPaywall] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
@@ -252,21 +252,19 @@ export function Quotes() {
   };
 
   const handleDeleteQuote = async (quote: Quote) => {
-    verifyGate(async () => {
-      if (!confirm(`Tem certeza que deseja excluir este orçamento?\n\nEsta ação não pode ser desfeita.`)) {
-        return;
-      }
+    if (!confirm(`Tem certeza que deseja excluir este orçamento?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
 
-      try {
-        await deleteDoc(doc(db, 'quotes', quote.id));
-        alert('Orçamento excluído com sucesso!');
-        loadQuotes();
-        setOpenMenuId(null);
-      } catch (error) {
-        console.error('Error deleting quote:', error);
-        alert('Erro ao excluir orçamento');
-      }
-    });
+    try {
+      await deleteDoc(doc(db, 'quotes', quote.id));
+      alert('Orçamento excluído com sucesso!');
+      loadQuotes();
+      setOpenMenuId(null);
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      alert('Erro ao excluir orçamento');
+    }
   };
 
   return (
@@ -283,7 +281,7 @@ export function Quotes() {
             variant="primary"
             size="lg"
             className="flex items-center gap-2"
-            onClick={() => verifyGate(() => navigate('/admin/quotes/new'), 'criar orçamentos')}
+            onClick={() => navigate('/admin/quotes/new')}
           >
             <Plus className="w-5 h-5" />
             Novo Orçamento

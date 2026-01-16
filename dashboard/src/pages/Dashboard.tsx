@@ -10,7 +10,7 @@ import { maturePendingCommissions } from '../utils/referralCommission';
 import { TutorialGuide } from '../components/TutorialGuide';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { roundCurrency } from '../lib/utils';
-import { useSecurityGate } from '../hooks/useSecurityGate';
+// Removed useSecurityGate - phone verification is now handled globally at /activate
 import { PaywallModal } from '../components/PaywallModal';
 
 interface ActivityItem {
@@ -25,7 +25,7 @@ export function Dashboard() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const navigate = useNavigate();
-  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  // Removed useSecurityGate - phone verification is now handled globally
   const [showPaywall, setShowPaywall] = useState(false);
   const [stats, setStats] = useState({
     openQuotes: 0,
@@ -404,7 +404,7 @@ export function Dashboard() {
           <h2 className="text-xl font-bold text-navy mb-4">Ações Rápidas</h2>
           <div className="grid grid-cols-2 gap-3">
             <div
-              onClick={() => verifyGate(() => navigate('/admin/quotes/new'), 'criar orçamentos')}
+              onClick={() => navigate('/admin/quotes/new')}
               className="p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-navy hover:bg-navy-50 transition-colors cursor-pointer text-center"
             >
               <Plus className="w-6 h-6 text-navy mx-auto mb-1" />
@@ -497,8 +497,7 @@ export function Dashboard() {
         onClose={() => setShowPaywall(false)}
       />
       
-      {/* Phone Verification Modal */}
-      <PhoneVerificationModalComponent requiredFor="criar orçamentos" />
+      {/* Removed PhoneVerificationModalComponent - phone verification is now handled globally at /activate */}
     </Layout>
   );
 }

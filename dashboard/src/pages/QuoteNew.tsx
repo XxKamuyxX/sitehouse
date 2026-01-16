@@ -23,7 +23,7 @@ import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../hooks/useCompany';
 import { roundCurrency } from '../lib/utils';
-import { useSecurityGate } from '../hooks/useSecurityGate';
+// Removed useSecurityGate - phone verification is now handled globally at /activate
 import { PaywallModal } from '../components/PaywallModal';
 
 interface Service {
@@ -137,7 +137,7 @@ export function QuoteNew() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { company } = useCompany();
-  const { verifyGate } = useSecurityGate();
+  // Removed verifyGate - phone verification is now handled globally
   const [showPaywall, setShowPaywall] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -171,14 +171,35 @@ export function QuoteNew() {
   
   const isEditMode = !!id;
 
+  // Reset form state when switching between new and edit mode
+  const resetFormState = () => {
+    setSelectedClientId('');
+    setItems([]);
+    setDiscount(0);
+    setStatus('draft');
+    setWarranty('');
+    setObservations('');
+    setDiagnosis({
+      beforePhotos: [],
+      afterPhotos: [],
+      notes: '',
+    });
+    setSelectedCategoryId(null);
+    setCategorySearchTerm('');
+    setClientSearchTerm('');
+  };
+
   useEffect(() => {
     const init = async () => {
       if (companyId) {
         await loadClients();
         await loadServices();
         if (id) {
+          // Edit mode: load quote data
           await loadQuote(id);
         } else {
+          // New mode: reset all form state to ensure clean slate
+          resetFormState();
           setLoading(false);
         }
       }
@@ -403,7 +424,6 @@ export function QuoteNew() {
   const total = roundCurrency(subtotal - discount);
 
   const handleSave = async () => {
-    verifyGate(async () => {
       if (!selectedClientId) {
         alert('Selecione um cliente');
         return;
@@ -553,7 +573,6 @@ export function QuoteNew() {
       const errorMessage = error?.message || 'Erro desconhecido';
       alert(`Erro ao salvar orçamento: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
     }
-    });
   };
 
 
