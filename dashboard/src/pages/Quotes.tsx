@@ -44,7 +44,7 @@ export function Quotes() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const navigate = useNavigate();
-  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  const { verifyGate } = useSecurityGate();
   const [showPaywall, setShowPaywall] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
@@ -484,9 +484,6 @@ export function Quotes() {
           isOpen={showPaywall}
           onClose={() => setShowPaywall(false)}
         />
-        
-        {/* Phone Verification Modal */}
-        <PhoneVerificationModalComponent requiredFor="criar ou excluir orçamentos" />
       </div>
     </Layout>
   );

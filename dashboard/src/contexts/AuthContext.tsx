@@ -50,6 +50,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   createUser: (email: string, password: string, companyId: string, role: UserRole, name?: string) => Promise<void>;
   signUp: (email: string, password: string, companyName: string, ownerName: string, phone: string, referredBy?: string) => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -248,8 +249,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshUserProfile = async () => {
+    if (user) {
+      await loadUserMetadata(user.uid);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, userMetadata, loading, signIn, signInWithGoogle, resetPassword, signOut, createUser, signUp }}>
+    <AuthContext.Provider value={{ user, userMetadata, loading, signIn, signInWithGoogle, resetPassword, signOut, createUser, signUp, refreshUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

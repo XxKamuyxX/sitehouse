@@ -137,7 +137,7 @@ export function QuoteNew() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { company } = useCompany();
-  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  const { verifyGate } = useSecurityGate();
   const [showPaywall, setShowPaywall] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -1764,9 +1764,6 @@ export function QuoteNew() {
         isOpen={showPaywall}
         onClose={() => setShowPaywall(false)}
       />
-      
-      {/* Phone Verification Modal */}
-      <PhoneVerificationModalComponent requiredFor="salvar orçamentos" />
     </Layout>
   );
 }

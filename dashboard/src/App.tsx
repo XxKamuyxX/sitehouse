@@ -27,6 +27,7 @@ import { TemplateManager } from './pages/master/TemplateManager';
 import { PayoutManagement } from './pages/master/PayoutManagement';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
+import { Activate } from './pages/Activate';
 import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
 import { Landing } from './pages/Landing';
@@ -91,6 +92,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/master" replace />;
   }
 
+  // Check phone verification - redirect to /activate if not verified
+  if (userMetadata && !userMetadata.mobileVerified) {
+    return <Navigate to="/activate" replace />;
+  }
+
   // Check subscription status
   if (userMetadata && isSubscriptionExpired(userMetadata)) {
     return <Navigate to="/subscription-expired" replace />;
@@ -122,6 +128,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/master" replace />;
   }
 
+  // Check phone verification - redirect to /activate if not verified
+  if (userMetadata && !userMetadata.mobileVerified) {
+    return <Navigate to="/activate" replace />;
+  }
+
   if (!userMetadata || userMetadata.role !== 'admin') {
     return <Navigate to="/tech/dashboard" />;
   }
@@ -150,6 +161,11 @@ function TechRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  // Check phone verification - redirect to /activate if not verified
+  if (userMetadata && !userMetadata.mobileVerified) {
+    return <Navigate to="/activate" replace />;
   }
 
   if (!userMetadata || userMetadata.role !== 'technician') {
@@ -212,6 +228,34 @@ function ExpiredRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Special route for activation page - allows unverified users, redirects verified users
+function ActivateRoute({ children }: { children: React.ReactNode }) {
+  const { user, userMetadata, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+          <p className="mt-4 text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // If user is already verified, redirect to dashboard
+  if (userMetadata?.mobileVerified) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Allow access for unverified users
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -231,6 +275,14 @@ function AppRoutes() {
       {/* Public Auth Routes - No Layout */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route 
+        path="/activate" 
+        element={
+          <ActivateRoute>
+            <Activate />
+          </ActivateRoute>
+        } 
+      />
       <Route 
         path="/subscription-expired" 
         element={
