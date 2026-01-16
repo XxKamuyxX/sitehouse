@@ -25,7 +25,7 @@
 import Stripe from 'stripe';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getTierName } from '../../src/utils/referralTiers';
+// Removed getTierName import - no longer using multi-tier system
 
 // Initialize Firebase Admin (only if not already initialized)
 if (!getApps().length) {
@@ -98,10 +98,8 @@ async function wouldCreateCycle(userId: string, newParentId: string): Promise<bo
 }
 
 /**
- * Process 3-tier MLM affiliate commission
- * Tier 1 (Direct): 15%
- * Tier 2 (Parent of Referrer): 8%
- * Tier 3 (Grandparent): 2%
+ * Process single-tier affiliate commission (25% flat rate)
+ * Only processes commission for the direct referrer
  */
 async function processAffiliateCommission(payingCompanyId: string, paymentAmount: number): Promise<void> {
   try {
@@ -120,97 +118,29 @@ async function processAffiliateCommission(payingCompanyId: string, paymentAmount
     const payingUserId = payingUserDoc.docs[0].id;
     const payingUserData = payingUserDoc.docs[0].data();
     
-    // Step 2: Get Tier 1 (Direct Affiliate) - the immediate parent
-    const tier1ParentId = payingUserData.affiliateParentId;
+    // Step 2: Get referrerId from user document (direct referrer)
+    // Fallback to affiliateParentId for backward compatibility
+    const referrerId = payingUserData.referrerId || payingUserData.affiliateParentId;
     
-    if (!tier1ParentId) {
-      console.log(`User ${payingUserId} has no affiliate parent. No commission to process.`);
+    if (!referrerId) {
+      console.log(`User ${payingUserId} has no referrer. No commission to process.`);
       return;
     }
     
-    // Ensure Tier 1 is not the payer
-    if (tier1ParentId === payingUserId) {
-      console.log(`Tier 1 parent is the same as payer. Skipping commission.`);
+    // Ensure referrer is not the payer (self-referral protection)
+    if (referrerId === payingUserId) {
+      console.log(`Referrer is the same as payer. Skipping commission.`);
       return;
     }
     
-    // Step 3: Process Tier 1 Commission (15%)
-    const tier1Amount = paymentAmount * 0.15;
-    await processTierCommission(
-      tier1ParentId,
-      payingCompanyId,
-      paymentAmount,
-      tier1Amount,
-      1,
-      'Nível 1 - Venda Direta'
-    );
+    // Step 3: Calculate commission (25% flat rate)
+    const commissionAmount = paymentAmount * 0.25;
+    const commissionPercent = 25;
     
-    // Step 4: Get Tier 2 (Parent of Tier 1)
-    const tier1UserDoc = await db.collection('users').doc(tier1ParentId).get();
-    if (!tier1UserDoc.exists) {
-      console.log(`Tier 1 user ${tier1ParentId} not found. Stopping at Tier 1.`);
-      return;
-    }
-    
-    const tier1UserData = tier1UserDoc.data()!;
-    const tier2ParentId = tier1UserData.affiliateParentId;
-    
-    if (tier2ParentId && tier2ParentId !== payingUserId) {
-      // Step 5: Process Tier 2 Commission (8%)
-      const tier2Amount = paymentAmount * 0.08;
-      await processTierCommission(
-        tier2ParentId,
-        payingCompanyId,
-        paymentAmount,
-        tier2Amount,
-        2,
-        'Nível 2 - Indicação Indireta'
-      );
-      
-      // Step 6: Get Tier 3 (Parent of Tier 2)
-      const tier2UserDoc = await db.collection('users').doc(tier2ParentId).get();
-      if (tier2UserDoc.exists) {
-        const tier2UserData = tier2UserDoc.data()!;
-        const tier3ParentId = tier2UserData.affiliateParentId;
-        
-        if (tier3ParentId && tier3ParentId !== payingUserId) {
-          // Step 7: Process Tier 3 Commission (2%)
-          const tier3Amount = paymentAmount * 0.02;
-          await processTierCommission(
-            tier3ParentId,
-            payingCompanyId,
-            paymentAmount,
-            tier3Amount,
-            3,
-            'Nível 3 - Rede de Liderança'
-          );
-        }
-      }
-    }
-    
-    console.log(`3-tier MLM commission processed for payment: ${paymentAmount.toFixed(2)} BRL`);
-  } catch (error: any) {
-    console.error('Error processing affiliate commission:', error);
-    throw error;
-  }
-}
-
-/**
- * Process commission for a specific tier
- */
-async function processTierCommission(
-  referrerUserId: string,
-  payingCompanyId: string,
-  paymentAmount: number,
-  commissionAmount: number,
-  tierLevel: 1 | 2 | 3,
-  tierLabel: string
-): Promise<void> {
-  try {
-    // Get referrer user's company
-    const referrerUserDoc = await db.collection('users').doc(referrerUserId).get();
+    // Step 4: Get referrer user to find their companyId
+    const referrerUserDoc = await db.collection('users').doc(referrerId).get();
     if (!referrerUserDoc.exists) {
-      console.error(`Referrer user ${referrerUserId} not found`);
+      console.error(`Referrer user ${referrerId} not found`);
       return;
     }
     
@@ -218,11 +148,11 @@ async function processTierCommission(
     const referrerCompanyId = referrerUserData.companyId;
     
     if (!referrerCompanyId) {
-      console.error(`Referrer user ${referrerUserId} has no companyId`);
+      console.error(`Referrer user ${referrerId} has no companyId`);
       return;
     }
     
-    // Get referrer company
+    // Step 5: Get referrer company
     const referrerCompanyDoc = await db.collection('companies').doc(referrerCompanyId).get();
     if (!referrerCompanyDoc.exists) {
       console.error(`Referrer company ${referrerCompanyId} not found`);
@@ -230,58 +160,52 @@ async function processTierCommission(
     }
     
     const referrerCompanyData = referrerCompanyDoc.data()!;
-    const commissionPercent = (commissionAmount / paymentAmount) * 100;
     
-    // Create referral ledger entry
+    // Step 6: Create referral ledger entry
     const releaseDate = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); // 30 days from now
     
     await db.collection('referral_ledger').add({
-      referrerId: referrerCompanyId, // Store company ID for compatibility
-      referrerUserId: referrerUserId, // Store user ID for MLM tracking
+      referrerId: referrerCompanyId, // Company ID of the referrer
+      referrerUserId: referrerId, // User ID of the referrer (for tracking)
       referredCompanyId: payingCompanyId,
       amount: commissionAmount,
       paymentAmount: paymentAmount,
       commissionPercent: commissionPercent,
-      tier: tierLevel.toString(), // Store tier level (1, 2, 3)
-      tierLabel: tierLabel, // Human-readable label
+      tier: '1', // Single tier system (always tier 1)
+      tierLabel: 'Comissão Direta - 25%',
       status: 'pending',
       releaseDate: releaseDate,
       createdAt: Timestamp.now(),
     });
     
-    // Update referrer's wallet.pending balance
+    // Step 7: Update referrer's wallet.pending balance
     const currentPending = referrerCompanyData.wallet?.pending || 0;
     const newPending = currentPending + commissionAmount;
     
-    // Update referrer's referralStats.totalEarnings
+    // Step 8: Update referrer's referralStats.totalEarnings
     const currentTotalEarnings = referrerCompanyData.referralStats?.totalEarnings || 0;
     const newTotalEarnings = currentTotalEarnings + commissionAmount;
     
-    // Only increment activeReferrals for Tier 1 (direct sales)
-    let updateData: any = {
+    // Step 9: Increment activeReferrals count
+    const activeReferrals = referrerCompanyData.referralStats?.activeReferrals || 0;
+    const newActiveReferrals = activeReferrals + 1;
+    
+    // Update referrer company
+    await db.collection('companies').doc(referrerCompanyId).update({
       'wallet.pending': newPending,
       'referralStats.totalEarnings': newTotalEarnings,
+      'referralStats.activeReferrals': newActiveReferrals,
       updatedAt: Timestamp.now(),
-    };
+    });
     
-    if (tierLevel === 1) {
-      // Only Tier 1 increments activeReferrals count
-      const activeReferrals = referrerCompanyData.referralStats?.activeReferrals || 0;
-      const newActiveReferrals = activeReferrals + 1;
-      const newTier = getTierName(newActiveReferrals);
-      
-      updateData['referralStats.activeReferrals'] = newActiveReferrals;
-      updateData['referralStats.currentTier'] = newTier;
-    }
-    
-    await db.collection('companies').doc(referrerCompanyId).update(updateData);
-    
-    console.log(`Tier ${tierLevel} commission processed: ${commissionAmount.toFixed(2)} BRL for referrer ${referrerCompanyId} (${tierLabel})`);
+    console.log(`Single-tier commission processed: ${commissionAmount.toFixed(2)} BRL (25%) for referrer ${referrerCompanyId} from payment: ${paymentAmount.toFixed(2)} BRL`);
   } catch (error: any) {
-    console.error(`Error processing Tier ${tierLevel} commission:`, error);
+    console.error('Error processing affiliate commission:', error);
     throw error;
   }
 }
+
+// Removed processTierCommission function - no longer needed with single-tier system
 
 /**
  * Find company by Stripe Customer ID
