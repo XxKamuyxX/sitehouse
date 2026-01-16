@@ -110,6 +110,9 @@ service cloud.firestore {
                        request.resource.data.companyId == resource.data.companyId &&
                        request.resource.data.role == resource.data.role &&
                        request.resource.data.subscriptionStatus == resource.data.subscriptionStatus;
+                       // Note: mobileVerified, phoneNumber, phone, phoneVerifiedAt can be updated
+                       // These are safe fields that don't affect security or access control
+                       // The verification flow relies on these fields being updatable
       
       // Only server (Cloud Functions) or admins can create/delete users
       allow create: if isAuthenticated() && 

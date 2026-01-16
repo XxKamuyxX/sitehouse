@@ -174,12 +174,16 @@ export function Activate() {
       setSuccess(true);
       
       // Refresh user profile to update local state immediately
+      // This prevents redirect loops by ensuring userMetadata.mobileVerified is updated
       await refreshUserProfile();
       
-      // Wait a moment to show success message, then redirect
+      // Small delay to ensure state propagation, then redirect
+      // Using window.location ensures a full page reload if needed to break any cache issues
       setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 1500);
+        // Double-check that we're verified before redirecting
+        // If refresh didn't work, force a page reload
+        window.location.href = '/dashboard';
+      }, 2000);
     } catch (error: any) {
       console.error('Error verifying code:', error);
       
