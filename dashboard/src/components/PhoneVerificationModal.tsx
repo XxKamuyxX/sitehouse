@@ -5,7 +5,7 @@ import { auth, db } from '../lib/firebase';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
-import { X, Loader2, CheckCircle2, XCircle, MessageCircle } from 'lucide-react';
+import { X, Loader2, CheckCircle2, MessageCircle } from 'lucide-react';
 import { formatPhoneForRegistry, sanitizePhone } from '../utils/security';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -100,6 +100,11 @@ export function PhoneVerificationModal({
 
       // Initialize recaptcha
       const verifier = initializeRecaptcha();
+      if (!verifier) {
+        setError('Erro ao inicializar verificação. Recarregue a página.');
+        setLoading(false);
+        return;
+      }
       
       // Send OTP via SMS
       const confirmation = await signInWithPhoneNumber(auth, firebasePhone, verifier);

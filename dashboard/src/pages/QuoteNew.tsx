@@ -137,6 +137,8 @@ export function QuoteNew() {
   const { userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { company } = useCompany();
+  const { verifyGate, PhoneVerificationModalComponent } = useSecurityGate();
+  const [showPaywall, setShowPaywall] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -550,7 +552,7 @@ export function QuoteNew() {
       console.error('Error saving quote:', error);
       const errorMessage = error?.message || 'Erro desconhecido';
       alert(`Erro ao salvar orçamento: ${errorMessage}\n\nVerifique o console para mais detalhes.`);
-      }
+    }
     });
   };
 
@@ -1010,19 +1012,18 @@ export function QuoteNew() {
                       Adicionar Novo Item
                     </Button>
                   </div>
-                ) : (
-                  (() => {
-                  // Get categories based on company industry/segment/profession
-                  const industry = company?.segment || company?.profession || 'glazier';
-                  const allCategories = getCategoriesForIndustry(industry);
-                  
-                  // Filter categories based on search
-                  const filteredCategories = allCategories.filter(category =>
-                    category.label.toLowerCase().includes(categorySearchTerm.toLowerCase())
-                  );
-                  
-                  return (
-                    <div className="mb-6">
+                ) : (() => {
+                    // Get categories based on company industry/segment/profession
+                    const industry = company?.segment || company?.profession || 'glazier';
+                    const allCategories = getCategoriesForIndustry(industry);
+                    
+                    // Filter categories based on search
+                    const filteredCategories = allCategories.filter(category =>
+                      category.label.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                    );
+                    
+                    return (
+                      <div className="mb-6">
                       <h3 className="text-lg font-semibold text-navy mb-4">Selecione a Categoria</h3>
                       
                       {/* Search Bar */}
@@ -1117,9 +1118,9 @@ export function QuoteNew() {
                         </div>
                       )}
                     </div>
-                  );
-                })()
-              )}
+                    );
+                  })()
+                )}
 
               {/* Maintenance & Custom Services - Show Add Button */}
               {(activeServiceTab === 'maintenance' || activeServiceTab === 'custom') && (
@@ -1450,7 +1451,7 @@ export function QuoteNew() {
                     );
                   })}
                 </div>
-              )}
+              ) : null}
             </Card>
           </div>
 

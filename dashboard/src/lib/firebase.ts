@@ -24,7 +24,8 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 // Export config for secondary app instances (e.g., Team Management)
-export { firebaseConfig };
+// Note: firebaseConfig is already exported above, so we just re-export it here for clarity
+// This prevents the duplicate export error
 
 export default app;
 

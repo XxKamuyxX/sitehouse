@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { UserPlus, CheckCircle2, XCircle } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { validateEmailDomain } from '../utils/security';
 
 export function SignUp() {
   const [formData, setFormData] = useState({

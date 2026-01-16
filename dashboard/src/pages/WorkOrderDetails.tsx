@@ -1357,6 +1357,12 @@ export function WorkOrderDetails() {
                             return s;
                           });
                           setManualServices(updated);
+                          // Recalculate total
+                          const newTotal = updated.reduce((sum, s) => {
+                            const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0).replace(',', '.'));
+                            return sum + (isNaN(price) ? 0 : price);
+                          }, 0);
+                          setTotalPrice(roundCurrency(newTotal));
                           // Remove undefined values before saving
                           const cleanedServices = updated.map(s => {
                             const cleaned: any = {

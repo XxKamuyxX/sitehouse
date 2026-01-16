@@ -9,7 +9,6 @@ interface SignatureCanvasProps {
 export function SignatureCanvas({ onSignatureChange, onSignatureComplete, className = '' }: SignatureCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [hasSignature, setHasSignature] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -76,7 +75,6 @@ export function SignatureCanvas({ onSignatureChange, onSignatureComplete, classN
     ctx.lineTo(x, y);
     ctx.stroke();
 
-    setHasSignature(true);
     if (onSignatureChange) {
       onSignatureChange(false);
     }
@@ -101,7 +99,6 @@ export function SignatureCanvas({ onSignatureChange, onSignatureComplete, classN
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasSignature(false);
     if (onSignatureChange) {
       onSignatureChange(true);
     }

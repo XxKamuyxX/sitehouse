@@ -6,11 +6,13 @@ import { Plus, FileText, MessageCircle, Trash2, MoreVertical } from 'lucide-reac
 import { useState, useEffect, useRef } from 'react';
 import { getDocs, addDoc, doc, getDoc, deleteDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { DatePickerModal } from '../components/DatePickerModal';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { TutorialGuide } from '../components/TutorialGuide';
+import { useSecurityGate } from '../hooks/useSecurityGate';
+import { PaywallModal } from '../components/PaywallModal';
 
 interface Quote {
   id: string;
@@ -53,14 +55,14 @@ export function Quotes() {
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
+  const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  
   // Listen for paywall modal trigger
   useEffect(() => {
     const handleOpenPaywall = () => setShowPaywall(true);
     window.addEventListener('openSubscriptionModal', handleOpenPaywall);
     return () => window.removeEventListener('openSubscriptionModal', handleOpenPaywall);
   }, []);
-  const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (companyId) {
@@ -476,6 +478,15 @@ export function Quotes() {
             },
           ]}
         />
+
+        {/* Paywall Modal */}
+        <PaywallModal
+          isOpen={showPaywall}
+          onClose={() => setShowPaywall(false)}
+        />
+        
+        {/* Phone Verification Modal */}
+        <PhoneVerificationModalComponent requiredFor="criar ou excluir orçamentos" />
       </div>
     </Layout>
   );

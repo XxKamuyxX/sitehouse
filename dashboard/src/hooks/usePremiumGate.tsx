@@ -1,5 +1,4 @@
 import { useAuth } from '../contexts/AuthContext';
-import { useState } from 'react';
 
 interface PremiumGateReturn {
   isLocked: boolean;
@@ -15,7 +14,6 @@ interface PremiumGateReturn {
  */
 export function usePremiumGate(): PremiumGateReturn {
   const { user, userMetadata } = useAuth();
-  const [showModal, setShowModal] = useState(false);
 
   // Calculate if trial is expired
   const calculateTrialStatus = () => {

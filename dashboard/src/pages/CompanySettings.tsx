@@ -8,7 +8,7 @@ import { useCompany } from '../hooks/useCompany';
 import { useStorage } from '../hooks/useStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { compressFile } from '../utils/compressImage';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { queryWithCompanyId } from '../lib/queries';
 import { getDefaultContractTemplate } from '../utils/contractTemplates';
@@ -129,7 +129,7 @@ function PDFPreview({
 
 export function CompanySettings() {
   const { company, loading, updateCompany } = useCompany();
-  const { userMetadata } = useAuth();
+  const { user, userMetadata } = useAuth();
   const companyId = userMetadata?.companyId;
   const { uploadImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);

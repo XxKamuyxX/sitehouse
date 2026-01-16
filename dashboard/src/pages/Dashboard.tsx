@@ -10,6 +10,8 @@ import { maturePendingCommissions } from '../utils/referralCommission';
 import { TutorialGuide } from '../components/TutorialGuide';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { roundCurrency } from '../lib/utils';
+import { useSecurityGate } from '../hooks/useSecurityGate';
+import { PaywallModal } from '../components/PaywallModal';
 
 interface ActivityItem {
   id: string;
