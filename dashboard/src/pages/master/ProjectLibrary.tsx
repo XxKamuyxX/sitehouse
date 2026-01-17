@@ -14,9 +14,10 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Plus, Edit2, Trash2, Upload, X, Search, Image as ImageIcon } from 'lucide-react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProjectTemplate {
   id: string;
@@ -58,6 +59,7 @@ const CATEGORIES = [
 ];
 
 export function ProjectLibrary() {
+  const { user, userMetadata } = useAuth();
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -79,21 +81,56 @@ export function ProjectLibrary() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Diagnóstico de autenticação e role
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    const diagnose = async () => {
+      console.log('🔐 DIAGNÓSTICO DE AUTENTICAÇÃO:');
+      console.log('User autenticado?', !!user);
+      console.log('User ID:', user?.uid);
+      console.log('User metadata role:', userMetadata?.role);
+      
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            console.log('✅ Documento do usuário encontrado');
+            console.log('Role no Firestore:', userDoc.data().role);
+            console.log('Dados completos:', userDoc.data());
+          } else {
+            console.error('❌ Documento do usuário NÃO encontrado no Firestore');
+          }
+        } catch (error) {
+          console.error('❌ Erro ao buscar documento do usuário:', error);
+        }
+      }
+    };
+    
+    if (user) {
+      diagnose();
+    }
+  }, [user, userMetadata]);
+
+  useEffect(() => {
+    if (user) {
+      loadTemplates();
+    }
+  }, [user]);
 
   const loadTemplates = async () => {
     try {
+      console.log('🔍 Tentando carregar templates...');
       const snapshot = await getDocs(collection(db, 'projectTemplates'));
+      console.log('✅ Templates carregados:', snapshot.size);
       const templatesData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as ProjectTemplate[];
       setTemplates(templatesData);
-    } catch (error) {
-      console.error('Error loading templates:', error);
-      alert('Erro ao carregar templates');
+    } catch (error: any) {
+      console.error('❌ Error loading templates:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      alert(`Erro ao carregar templates: ${error.message}\n\nVerifique:\n1. Se você publicou as regras no Firebase Console\n2. Se seu usuário tem role 'master'`);
     } finally {
       setLoading(false);
     }
