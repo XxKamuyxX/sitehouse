@@ -97,7 +97,7 @@ export function SetupCompany() {
         cnpj: cnpj.trim() || '',
         address: address.trim() || '',
         email: user.email || '',
-        phone: userMetadata?.phone || userMetadata?.phoneNumber || '',
+        phone: userMetadata?.phone || '',
         ownerId: user.uid,
         affiliateCode,
         referredBy: null,
