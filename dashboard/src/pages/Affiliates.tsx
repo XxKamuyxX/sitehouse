@@ -1,7 +1,7 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Copy, CheckCircle2, TrendingUp, Wallet, DollarSign, Gift, Users, Network, MessageCircle, User, Calendar } from 'lucide-react';
+import { Copy, CheckCircle2, TrendingUp, Wallet, DollarSign, Users, Network, MessageCircle, User, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCompany } from '../hooks/useCompany';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,7 +23,6 @@ interface DirectReferral {
   email: string;
   joinDate: any;
   companyId: string | null;
-  level: 1 | 2 | 3;
   monthlyCommission?: number;
 }
 
@@ -46,7 +45,6 @@ export function Affiliates() {
   const [loadingCommissions, setLoadingCommissions] = useState(false);
   const [networkData, setNetworkData] = useState<{ stats: NetworkStats; directReferrals: DirectReferral[] } | null>(null);
   const [loadingNetwork, setLoadingNetwork] = useState(false);
-  const [networkFilter, setNetworkFilter] = useState<'all' | '1' | '2' | '3'>('all');
 
   useEffect(() => {
     if (company?.id) {
@@ -241,12 +239,8 @@ export function Affiliates() {
   const totalEarnings = company.referralStats?.totalEarnings || 0;
   const canWithdraw = available >= 50;
 
-  // Calculate earnings by level
-  const earningsByLevel = {
-    level1: commissionHistory.filter(c => String(c.tier) === '1').reduce((sum, c) => sum + c.amount, 0),
-    level2: commissionHistory.filter(c => String(c.tier) === '2').reduce((sum, c) => sum + c.amount, 0),
-    level3: commissionHistory.filter(c => String(c.tier) === '3').reduce((sum, c) => sum + c.amount, 0),
-  };
+  // Calculate total earnings (all commissions are now 25% flat rate)
+  // Keeping this for backward compatibility but not using level breakdown
 
   const formatDate = (timestamp: any): string => {
     if (!timestamp) return 'Data não disponível';
@@ -296,7 +290,7 @@ export function Affiliates() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-navy">Indique e Ganhe</h1>
-          <p className="text-slate-600 mt-1">Compartilhe seu código e ganhe comissões recorrentes em 3 níveis</p>
+          <p className="text-slate-600 mt-1">Compartilhe seu código e ganhe 25% de comissão recorrente</p>
         </div>
 
         {/* Tabs */}
@@ -373,55 +367,28 @@ export function Affiliates() {
               </div>
             </Card>
 
-            {/* Rules Section - 3-Level Cards */}
+            {/* Rules Section - Single-Tier Card */}
             <Card>
               <h3 className="text-xl font-bold text-navy mb-6">Como você ganha</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Level 1 Card */}
-                <Card className="border-2 border-blue-200 bg-blue-50">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
+              <div className="flex justify-center">
+                <Card className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 max-w-md w-full">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <User className="w-8 h-8 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-blue-900">Diretos</h4>
-                      <p className="text-2xl font-bold text-blue-700">15%</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-blue-800">Sobre seus amigos diretos</p>
-                </Card>
-
-                {/* Level 2 Card */}
-                <Card className="border-2 border-purple-200 bg-purple-50">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-purple-900">Indiretos</h4>
-                      <p className="text-2xl font-bold text-purple-700">8%</p>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-blue-900 text-lg">Sua Comissão</h4>
+                      <p className="text-4xl font-bold text-blue-700">25%</p>
                     </div>
                   </div>
-                  <p className="text-sm text-purple-800">Amigos dos seus amigos</p>
-                </Card>
-
-                {/* Level 3 Card */}
-                <Card className="border-2 border-green-200 bg-green-50">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
-                      <Network className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-green-900">Rede</h4>
-                      <p className="text-2xl font-bold text-green-700">2%</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-green-800">A 3ª camada de indicação</p>
+                  <p className="text-sm text-blue-800 text-center">
+                    Comissão recorrente por cada indicação direta.
+                  </p>
                 </Card>
               </div>
               <div className="mt-6 p-4 bg-navy-50 rounded-lg border border-navy-200">
                 <p className="text-sm text-navy-800 text-center">
-                  💰 <strong>Construa sua aposentadoria com o sistema.</strong> Ganhe comissões recorrentes mensais enquanto sua rede cresce!
+                  Você recebe 25% do valor da assinatura de todos os clientes que se cadastrarem com seu link, todos os meses enquanto eles permanecerem ativos.
                 </p>
               </div>
             </Card>
@@ -442,7 +409,7 @@ export function Affiliates() {
                   {formatCurrency(totalEarnings)}
                 </p>
                 <p className="text-xs text-slate-500">
-                  L1: {formatCurrency(earningsByLevel.level1)} • L2: {formatCurrency(earningsByLevel.level2)} • L3: {formatCurrency(earningsByLevel.level3)}
+                  Total acumulado de comissões
                 </p>
               </Card>
 
@@ -494,22 +461,6 @@ export function Affiliates() {
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-navy">Minha Rede</h2>
-                {/* Filters */}
-                <div className="flex gap-2">
-                  {(['all', '1', '2', '3'] as const).map((filter) => (
-                    <button
-                      key={filter}
-                      onClick={() => setNetworkFilter(filter)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                        networkFilter === filter
-                          ? 'bg-navy text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {filter === 'all' ? 'Todos' : `Nível ${filter}`}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {loadingNetwork ? (
@@ -524,15 +475,7 @@ export function Affiliates() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {networkData.directReferrals
-                    .filter((ref) => networkFilter === 'all' || String(ref.level) === networkFilter)
-                    .map((referral) => {
-                      const levelConfig = {
-                        1: { label: 'Nível 1 - 15%', color: 'bg-blue-100 text-blue-800', icon: User },
-                        2: { label: 'Nível 2 - 8%', color: 'bg-purple-100 text-purple-800', icon: Users },
-                        3: { label: 'Nível 3 - 2%', color: 'bg-green-100 text-green-800', icon: Network },
-                      }[referral.level] || { label: 'Nível Desconhecido', color: 'bg-gray-100 text-gray-800', icon: User };
-                      
+                  {networkData.directReferrals.map((referral) => {
                       return (
                         <div
                           key={referral.uid}
@@ -553,8 +496,8 @@ export function Affiliates() {
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${levelConfig.color}`}>
-                              {levelConfig.label}
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              25% de comissão
                             </span>
                             {referral.monthlyCommission && (
                               <span className="font-semibold text-navy">
@@ -578,61 +521,9 @@ export function Affiliates() {
             <p className="text-center text-slate-600 py-4">Nenhuma comissão registrada ainda.</p>
           ) : (
             <div className="space-y-4">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                {/* Minhas Vendas (Tier 1) */}
-                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="w-5 h-5 text-green-600" />
-                    <h3 className="font-semibold text-green-800">Minhas Vendas (Nível 1)</h3>
-                  </div>
-                  <p className="text-2xl font-bold text-green-700">
-                    R$ {commissionHistory
-                      .filter(c => String(c.tier) === '1')
-                      .reduce((sum, c) => sum + c.amount, 0)
-                      .toFixed(2)
-                      .replace('.', ',')}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    {commissionHistory.filter(c => String(c.tier) === '1').length} comissão{commissionHistory.filter(c => String(c.tier) === '1').length !== 1 ? 'ões' : ''} • 15% por venda
-                  </p>
-                </div>
-
-                {/* Vendas da Rede (Tier 2 & 3) */}
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Network className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-semibold text-blue-800">Vendas da Rede (Níveis 2 & 3)</h3>
-                  </div>
-                  <p className="text-2xl font-bold text-blue-700">
-                    R$ {commissionHistory
-                      .filter(c => String(c.tier) === '2' || String(c.tier) === '3')
-                      .reduce((sum, c) => sum + c.amount, 0)
-                      .toFixed(2)
-                      .replace('.', ',')}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    {commissionHistory.filter(c => String(c.tier) === '2' || String(c.tier) === '3').length} comissão{commissionHistory.filter(c => String(c.tier) === '2' || String(c.tier) === '3').length !== 1 ? 'ões' : ''} • 8% (N2) + 2% (N3)
-                  </p>
-                </div>
-              </div>
-
               {/* Commission List */}
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {commissionHistory.map((commission) => {
-                  const tierStr = String(commission.tier);
-                  const isTier1 = tierStr === '1';
-                  const isTier2 = tierStr === '2';
-                  const isTier3 = tierStr === '3';
-                  
-                  const tierConfig = isTier1 
-                    ? { label: 'Nível 1', color: 'bg-green-100 text-green-800', icon: Users }
-                    : isTier2
-                    ? { label: 'Nível 2', color: 'bg-blue-100 text-blue-800', icon: Network }
-                    : isTier3
-                    ? { label: 'Nível 3', color: 'bg-purple-100 text-purple-800', icon: Network }
-                    : { label: commission.tierLabel || commission.tier, color: 'bg-slate-100 text-slate-800', icon: Gift };
-                  
                   const statusMap = {
                     pending: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800' },
                     released: { label: 'Disponível', color: 'bg-green-100 text-green-800' },
@@ -653,12 +544,9 @@ export function Affiliates() {
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${tierConfig.color}`}>
-                            {tierConfig.label}
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            25% de Comissão
                           </span>
-                          {commission.tierLabel && (
-                            <span className="text-xs text-slate-600">{commission.tierLabel}</span>
-                          )}
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
                             {statusInfo.label}
                           </span>

@@ -5,7 +5,9 @@
 
 import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { calculateCommission, getTierName } from './referralTiers';
+
+// Single-tier commission rate: 25% flat
+const COMMISSION_RATE = 0.25; // 25%
 
 export interface ReferralLedgerEntry {
   id?: string;
@@ -57,12 +59,10 @@ export async function processPaymentCommission(payingCompanyId: string, paymentA
     }
 
     const referrerData = referrerDoc.data();
-    const activeReferrals = referrerData.referralStats?.activeReferrals || 0;
 
-    // 4. Calculate commission based on tier
-    const tier = getTierName(activeReferrals);
-    const commissionAmount = calculateCommission(paymentAmount, activeReferrals);
-    const commissionPercent = (commissionAmount / paymentAmount) * 100;
+    // 4. Calculate commission: 25% flat rate
+    const commissionAmount = paymentAmount * COMMISSION_RATE;
+    const commissionPercent = 25;
 
     // 5. Create referral ledger entry
     const releaseDate = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); // 30 days from now
@@ -73,7 +73,7 @@ export async function processPaymentCommission(payingCompanyId: string, paymentA
       amount: commissionAmount,
       paymentAmount: paymentAmount,
       commissionPercent: commissionPercent,
-      tier: tier,
+      tier: '1', // Single-tier system: all commissions are tier 1 (direct referrals)
       status: 'pending',
       releaseDate: releaseDate,
       createdAt: serverTimestamp(),
@@ -89,19 +89,18 @@ export async function processPaymentCommission(payingCompanyId: string, paymentA
     const currentTotalEarnings = referrerData.referralStats?.totalEarnings || 0;
     const newTotalEarnings = currentTotalEarnings + commissionAmount;
 
-    // 8. Check if tier needs to be updated
-    const newActiveReferrals = activeReferrals + 1;
-    const newTier = getTierName(newActiveReferrals);
+    // 8. Update active referrals count
+    const currentActiveReferrals = referrerData.referralStats?.activeReferrals || 0;
+    const newActiveReferrals = currentActiveReferrals + 1;
 
     await updateDoc(doc(db, 'companies', referredBy), {
       'wallet.pending': newPending,
       'referralStats.totalEarnings': newTotalEarnings,
       'referralStats.activeReferrals': newActiveReferrals,
-      'referralStats.currentTier': newTier,
       updatedAt: serverTimestamp(),
     });
 
-    console.log(`Commission processed: ${commissionAmount.toFixed(2)} BRL for referrer ${referredBy} (Tier: ${tier})`);
+    console.log(`Commission processed: ${commissionAmount.toFixed(2)} BRL (25%) for referrer ${referredBy}`);
   } catch (error: any) {
     console.error('Error processing payment commission:', error);
     throw error;
