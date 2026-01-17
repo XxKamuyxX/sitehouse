@@ -22,14 +22,15 @@ export function Activate() {
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
-  // Redirect if already verified
+  // CRITICAL: Redirect immediately if already verified - do not show form
   useEffect(() => {
     if (!authLoading && user && userMetadata?.mobileVerified) {
-      // If phone is verified but no company, redirect to setup-company
+      // If phone is verified, redirect immediately based on company status
       if (!userMetadata.companyId || userMetadata.companyId === '') {
+        // No company: redirect to setup-company
         navigate('/setup-company', { replace: true });
       } else {
-        // If phone is verified and has company, redirect to dashboard
+        // Has company: redirect to dashboard
         navigate('/dashboard', { replace: true });
       }
     }
@@ -89,20 +90,23 @@ export function Activate() {
     setIsLoading(true);
 
     try {
-      // Check if phone is already registered
+      // Format phone for registry check
       const formattedPhone = formatPhoneForRegistry(phone);
+      
+      // Check if phone is registered to a different user (BLOCK if different user)
       const phoneDoc = await getDoc(doc(db, 'phone_registry', formattedPhone));
       
       if (phoneDoc.exists()) {
         const phoneData = phoneDoc.data();
         if (phoneData.userId !== user.uid) {
+          // Phone belongs to different user - block this attempt
           setError('Este número já foi usado em outra conta. Use outro número.');
           setIsLoading(false);
           return;
         }
-        // If phone is registered to this user, allow recovery (continue with OTP send)
-        // This handles cases where phone was registered but mobileVerified wasn't set
-        console.log('Recovery scenario: Phone already registered to this user, proceeding with verification...');
+        // Phone is registered to this user - allow recovery scenario
+        // User can re-verify even if phone_registry exists (mobileVerified might not be set)
+        console.log('Recovery scenario: Phone already registered to this user, allowing re-verification...');
       }
 
       // Format phone for Firebase (add +55 for Brazil)
