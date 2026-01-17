@@ -51,6 +51,8 @@ export function InstallationItemModal({
   const [glassThickness, setGlassThickness] = useState('');
   const [profileColor, setProfileColor] = useState('');
   const [customServiceName, setCustomServiceName] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [templateId, setTemplateId] = useState<string | undefined>(undefined);
   const serviceNameInputRef = useRef<HTMLSelectElement>(null);
 
   // Helper: Convert display value to number (treat empty as 0)
@@ -96,6 +98,8 @@ export function InstallationItemModal({
       setProfileColor(initialItem.profileColor || '');
       setCustomServiceName(initialItem.serviceName && !installationServices.find(s => s.value === initialItem.serviceName) ? initialItem.serviceName : '');
       setIsManualOverride(initialItem.pricingMethod === 'fixed' || false);
+      setImageUrl(initialItem.imageUrl);
+      setTemplateId(initialItem.templateId);
     } else {
       // Reset form - empty strings for clean inputs
       setServiceName('');
@@ -110,6 +114,8 @@ export function InstallationItemModal({
       setProfileColor('');
       setCustomServiceName('');
       setIsManualOverride(false);
+      setImageUrl(undefined);
+      setTemplateId(undefined);
     }
   }, [initialItem, isOpen, isInstallation]);
 
@@ -219,8 +225,9 @@ export function InstallationItemModal({
       glassThickness: isInstallation ? (glassThickness || '') : '',
       profileColor: isInstallation ? (profileColor || '') : '',
       isInstallation,
-      // Include library data if available
-      imageUrl: initialItem?.imageUrl,
+      // Include library data if available (preserved from initialItem)
+      imageUrl: imageUrl,
+      templateId: templateId,
       description: initialItem?.description,
     });
 

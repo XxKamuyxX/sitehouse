@@ -647,7 +647,18 @@ export function QuoteWizard() {
                     <div className="space-y-3">
                       {items.map((item, index) => (
                         <Card key={index} className="p-4">
-                          <div className="flex items-start justify-between">
+                          <div className="flex items-start justify-between gap-4">
+                            {/* Imagem do Template */}
+                            {item.imageUrl && (
+                              <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100">
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.serviceName}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            
                             <div className="flex-1">
                               <h3 className="font-bold text-secondary mb-1">{item.serviceName}</h3>
                               {item.isInstallation && item.glassColor && (
