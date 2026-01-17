@@ -15,7 +15,7 @@ import { ClientForm } from '../components/ClientForm';
 import { LibrarySelectorModal } from '../components/LibrarySelectorModal';
 import { getProfessionCatalog } from '../utils/professionCatalog';
 import { getCategoriesForIndustry, getIconComponent } from '../constants/serviceCategories';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
