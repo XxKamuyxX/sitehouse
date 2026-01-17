@@ -422,73 +422,28 @@ export function QuotePDF({
             <Text style={styles.tableCellRight}>TOTAL</Text>
           </View>
           {items.map((item, index) => {
-            // Build service description with pricing details
+            // Build service description - SIMPLIFICADO
             let serviceDescription = item.serviceName;
             
-            if (item.isInstallation && item.pricingMethod) {
-              if (item.pricingMethod === 'm2' && item.dimensions) {
-                // Convert mm² to m²: (width_mm * height_mm) / 1000000
-                const area = item.dimensions.area || ((item.dimensions.width * item.dimensions.height) / 1000000);
-                
-                if (hideDimensions) {
-                  // Hide dimensions completely
-                  serviceDescription = item.serviceName;
-                } else {
-                  // Show dimensions (convert mm to m)
-                  const widthM = (item.dimensions.width / 1000).toFixed(2);
-                  const heightM = (item.dimensions.height / 1000).toFixed(2);
-                  serviceDescription = `${item.serviceName} (${widthM}m × ${heightM}m = ${area.toFixed(2)}m²)`;
-                }
-                
-                // Add unit price only if not hiding it
-                if (!hideUnitPrice && !hideDimensions) {
-                  serviceDescription += ` - ${formatCurrency(item.unitPrice)}/m²`;
-                }
-                
-                if (item.quantity > 1) {
-                  serviceDescription += ` × ${item.quantity}`;
-                }
-              } else if (item.pricingMethod === 'linear' && item.dimensions) {
-                // Convert mm to m
-                const widthM = item.dimensions.width / 1000;
-                const linearMeters = widthM * item.quantity;
-                
-                if (hideDimensions) {
-                  serviceDescription = item.serviceName;
-                } else {
-                  serviceDescription = `${item.serviceName} (${widthM.toFixed(2)}m × ${item.quantity} = ${linearMeters.toFixed(2)}m)`;
-                }
-                
-                if (!hideUnitPrice && !hideDimensions) {
-                  serviceDescription += ` - ${formatCurrency(item.unitPrice)}/m linear`;
-                }
-              } else if (item.pricingMethod === 'fixed') {
-                serviceDescription = `${item.serviceName} - ${formatCurrency(item.total)} (Preço Fechado)`;
-              }
-              
-              // Add color info if available
-              if (item.glassColor || item.profileColor) {
-                const colorInfo = [];
-                if (item.glassColor) colorInfo.push(`Vidro: ${item.glassColor}`);
-                if (item.profileColor) colorInfo.push(`Perfil: ${item.profileColor}`);
-                if (colorInfo.length > 0) {
-                  serviceDescription += `\n${colorInfo.join(' | ')}`;
-                }
+            // Adiciona informações de cores se disponíveis
+            if (item.isInstallation && (item.glassColor || item.profileColor)) {
+              const colorInfo = [];
+              if (item.glassColor) colorInfo.push(`Vidro: ${item.glassColor}`);
+              if (item.profileColor) colorInfo.push(`Perfil: ${item.profileColor}`);
+              if (colorInfo.length > 0) {
+                serviceDescription += `\n${colorInfo.join(' | ')}`;
               }
             }
 
-            // Remove any remaining pricing details from description if hideUnitPrice is true
-            if (hideUnitPrice) {
-              serviceDescription = serviceDescription.replace(/\s*-\s*R\$\s*[\d.,]+\/m²/g, '');
-              serviceDescription = serviceDescription.replace(/\s*-\s*R\$\s*[\d.,]+\/m\s*linear/g, '');
-            }
-
-            // Build dimensions text
+            // Build dimensions text - APENAS TOTAL DE M²
             let dimensionsText = '';
             if (item.isInstallation && item.pricingMethod === 'm2' && item.dimensions && !hideDimensions) {
-              dimensionsText = `${(item.dimensions.width / 1000).toFixed(2)}m × ${(item.dimensions.height / 1000).toFixed(2)}m\n${((item.dimensions.area || (item.dimensions.width * item.dimensions.height / 1000000))).toFixed(2)}m²`;
+              // Apenas mostra o total de m² (área total)
+              const totalArea = (item.dimensions.area || (item.dimensions.width * item.dimensions.height / 1000000)) * item.quantity;
+              dimensionsText = `${totalArea.toFixed(2)} m²`;
             } else if (item.isInstallation && item.pricingMethod === 'linear' && item.dimensions && !hideDimensions) {
-              dimensionsText = `${(item.dimensions.width / 1000).toFixed(2)}m\n${((item.dimensions.width / 1000) * item.quantity).toFixed(2)}m linear`;
+              const totalLinear = (item.dimensions.width / 1000) * item.quantity;
+              dimensionsText = `${totalLinear.toFixed(2)} m`;
             }
 
             return (

@@ -11,7 +11,8 @@ export function cn(...inputs: ClassValue[]) {
  * @returns The rounded value with exactly 2 decimal places
  */
 export function roundCurrency(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  // Arredonda para 2 casas decimais com precisão
+  return Number((Math.round(value * 100) / 100).toFixed(2));
 }
 
 

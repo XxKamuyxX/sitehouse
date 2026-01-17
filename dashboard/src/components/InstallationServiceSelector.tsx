@@ -174,39 +174,37 @@ export function InstallationServiceSelector({ category, onSelectService, onBack 
           <p className="text-slate-600">Nenhum serviço disponível para esta categoria</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {allServices.map((service, index) => (
             <button
               key={`${service.name}-${index}`}
               onClick={() => onSelectService(service)}
-              className="w-full p-4 border-2 border-slate-200 rounded-lg hover:border-primary transition-all bg-white hover:bg-glass-blue text-left"
+              className="p-4 border-2 border-slate-200 rounded-lg hover:border-primary transition-all bg-white hover:bg-glass-blue text-left"
             >
-              <div className="flex gap-4">
-                {/* Image */}
-                {service.imageUrl ? (
-                  <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100">
-                    <img
-                      src={service.imageUrl}
-                      alt={service.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-24 h-24 flex-shrink-0 rounded-lg bg-slate-100 flex items-center justify-center">
-                    <ImageIcon className="w-8 h-8 text-slate-300" />
-                  </div>
-                )}
-                
-                {/* Content */}
-                <div className="flex-1">
-                  <h3 className="font-bold text-secondary mb-1">{service.name}</h3>
-                  <p className="text-sm text-slate-600">{service.description}</p>
-                  {service.isTemplate && (
-                    <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                      Template Personalizado
-                    </span>
-                  )}
+              {/* Image */}
+              {service.imageUrl ? (
+                <div className="w-full aspect-video rounded-lg overflow-hidden bg-slate-100 mb-3">
+                  <img
+                    src={service.imageUrl}
+                    alt={service.name}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
+              ) : (
+                <div className="w-full aspect-video rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+                  <ImageIcon className="w-12 h-12 text-slate-300" />
+                </div>
+              )}
+              
+              {/* Content */}
+              <div>
+                <h3 className="font-bold text-secondary mb-1">{service.name}</h3>
+                <p className="text-sm text-slate-600 line-clamp-2">{service.description}</p>
+                {service.isTemplate && (
+                  <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                    Template Personalizado
+                  </span>
+                )}
               </div>
             </button>
           ))}
