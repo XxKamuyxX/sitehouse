@@ -27,7 +27,6 @@ import { TemplateManager } from './pages/master/TemplateManager';
 import { PayoutManagement } from './pages/master/PayoutManagement';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
-import { Activate } from './pages/Activate';
 import { SetupCompany } from './pages/SetupCompany';
 import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
@@ -93,13 +92,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/master" replace />;
   }
 
-  // Check phone verification - redirect to /activate if not verified
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
-  }
-
   // Check if company is set up - redirect to /setup-company if not
-  if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+  if (userMetadata && (!userMetadata.companyId || userMetadata.companyId === '')) {
     return <Navigate to="/setup-company" replace />;
   }
 
@@ -134,13 +128,8 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/master" replace />;
   }
 
-  // Check phone verification - redirect to /activate if not verified
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
-  }
-
   // Check if company is set up - redirect to /setup-company if not
-  if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+  if (userMetadata && (!userMetadata.companyId || userMetadata.companyId === '')) {
     return <Navigate to="/setup-company" replace />;
   }
 
@@ -174,13 +163,8 @@ function TechRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  // Check phone verification - redirect to /activate if not verified
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
-  }
-
   // Check if company is set up - redirect to /setup-company if not
-  if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+  if (userMetadata && (!userMetadata.companyId || userMetadata.companyId === '')) {
     return <Navigate to="/setup-company" replace />;
   }
 
@@ -244,8 +228,8 @@ function ExpiredRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Special route for activation page - allows unverified users, redirects verified users
-function ActivateRoute({ children }: { children: React.ReactNode }) {
+// Special route for activation page - always redirects based on company status
+function ActivateRoute() {
   const { user, userMetadata, loading } = useAuth();
 
   if (loading) {
@@ -263,20 +247,13 @@ function ActivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  // If user is already verified, check if company is set up
-  if (userMetadata?.mobileVerified) {
-    // If company not set up, redirect to setup-company (CRITICAL: Prevents loop)
-    if (!userMetadata.companyId || userMetadata.companyId === '') {
-      return <Navigate to="/setup-company" replace />;
-    }
-    // Otherwise redirect to dashboard
-    return <Navigate to="/dashboard" replace />;
+  // Always redirect to setup-company or dashboard based on company status
+  if (!userMetadata?.companyId || userMetadata.companyId === '') {
+    return <Navigate to="/setup-company" replace />;
   }
   
-  // Allow access for unverified users (they need to verify phone first)
-
-  // Allow access for unverified users
-  return <>{children}</>;
+  // Otherwise redirect to dashboard
+  return <Navigate to="/dashboard" replace />;
 }
 
 // Special route for setup-company page - allows users without company, redirects users with company
@@ -296,11 +273,6 @@ function SetupCompanyRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" />;
-  }
-
-  // If phone not verified, redirect to activate
-  if (userMetadata && !userMetadata.mobileVerified) {
-    return <Navigate to="/activate" replace />;
   }
 
   // If user already has company, redirect to dashboard (prevents re-setup loop)
@@ -333,11 +305,7 @@ function AppRoutes() {
       <Route path="/signup" element={<SignUp />} />
       <Route 
         path="/activate" 
-        element={
-          <ActivateRoute>
-            <Activate />
-          </ActivateRoute>
-        } 
+        element={<ActivateRoute />} 
       />
       <Route 
         path="/setup-company" 

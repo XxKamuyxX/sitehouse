@@ -44,16 +44,13 @@ export function Layout({ children }: LayoutProps) {
     // Skip if user is not logged in (will be handled by AuthGuard)
     if (!user) return;
     
-    // Skip if phone not verified (will be handled by AuthGuard)
-    if (!userMetadata?.mobileVerified) return;
-    
     // Skip if on setup-company page (allow access)
     if (location.pathname === '/setup-company') return;
     
     // Skip if master user (doesn't need company)
     if (userMetadata?.role === 'master') return;
     
-    // If user has verified phone but no companyId, redirect to setup
+    // If user has no companyId, redirect to setup
     if (!userMetadata?.companyId || userMetadata.companyId === '') {
       navigate('/setup-company', { replace: true });
     }
@@ -136,8 +133,8 @@ export function Layout({ children }: LayoutProps) {
       );
     }
     
-    // If user has verified phone but no companyId, show loading while redirect happens
-    if (user && userMetadata?.mobileVerified && (!userMetadata?.companyId || userMetadata.companyId === '')) {
+    // If user has no companyId, show loading while redirect happens
+    if (user && (!userMetadata?.companyId || userMetadata.companyId === '')) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">

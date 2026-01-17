@@ -35,13 +35,6 @@ export function SetupCompany() {
     }
   }, [user, authLoading, navigate]);
 
-  // Redirect if phone not verified
-  useEffect(() => {
-    if (!authLoading && user && userMetadata && !userMetadata.mobileVerified) {
-      navigate('/activate', { replace: true });
-    }
-  }, [user, userMetadata, authLoading, navigate]);
-
   const formatCNPJ = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     if (numbers.length <= 11) {
@@ -137,6 +130,7 @@ export function SetupCompany() {
         subscriptionStatus: 'trial',
         trialEndsAt,
         isActive: true,
+        mobileVerified: true, // Set for legacy consistency (verification step removed)
         updatedAt: serverTimestamp(),
       });
 
@@ -188,11 +182,6 @@ export function SetupCompany() {
 
   // Don't render if user is not logged in (redirect will happen)
   if (!user) {
-    return null;
-  }
-
-  // Don't render if phone not verified (redirect will happen)
-  if (userMetadata && !userMetadata.mobileVerified) {
     return null;
   }
 

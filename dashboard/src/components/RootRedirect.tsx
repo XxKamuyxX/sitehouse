@@ -16,14 +16,8 @@ export function RootRedirect() {
       return;
     }
 
-    // CRITICAL: Check phone verification first - redirect to /activate if not verified
-    if (userMetadata && !userMetadata.mobileVerified) {
-      navigate('/activate', { replace: true });
-      return;
-    }
-
     // CRITICAL: Check if company is set up - redirect to /setup-company if not
-    if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+    if (userMetadata && (!userMetadata.companyId || userMetadata.companyId === '')) {
       navigate('/setup-company', { replace: true });
       return;
     }

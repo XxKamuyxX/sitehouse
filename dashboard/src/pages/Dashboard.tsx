@@ -42,13 +42,11 @@ export function Dashboard() {
     if (!loading && (!user || !companyId || companyId === '')) {
       if (!user) {
         navigate('/login', { replace: true });
-      } else if (!userMetadata?.mobileVerified) {
-        navigate('/activate', { replace: true });
       } else if (!companyId || companyId === '') {
         navigate('/setup-company', { replace: true });
       }
     }
-  }, [user, companyId, userMetadata, loading, navigate]);
+  }, [user, companyId, loading, navigate]);
 
   useEffect(() => {
     if (companyId && companyId !== '') {
