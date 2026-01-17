@@ -11,6 +11,8 @@ import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { ClientForm } from '../components/ClientForm';
 import { MaintenanceCategorySelector } from '../components/MaintenanceCategorySelector';
 import { MaintenanceServiceSelector } from '../components/MaintenanceServiceSelector';
+import { InstallationCategorySelector } from '../components/InstallationCategorySelector';
+import { InstallationServiceSelector } from '../components/InstallationServiceSelector';
 import { Search, Plus, Wrench, ArrowLeft, ArrowRight, Save, Download, X, Trash2, Hammer } from 'lucide-react';
 import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -91,6 +93,8 @@ export function QuoteWizard() {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [maintenanceCategory, setMaintenanceCategory] = useState<string | null>(null);
   const [maintenanceService, setMaintenanceService] = useState<{ name: string; description: string } | null>(null);
+  const [installationCategory, setInstallationCategory] = useState<string | null>(null);
+  const [installationService, setInstallationService] = useState<{ name: string; description: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -542,10 +546,36 @@ export function QuoteWizard() {
           {/* STEP 3: ITEMS */}
           {currentStep === 3 && (
             <div className="p-4 space-y-4 pb-40">
+              {/* Installation Flow: Category Selection */}
+              {serviceType === 'installation' && !installationCategory && (
+                <div>
+                  <InstallationCategorySelector
+                    onSelectCategory={(category) => {
+                      setInstallationCategory(category);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Installation Flow: Service Selection */}
+              {serviceType === 'installation' && installationCategory && !installationService && (
+                <div>
+                  <InstallationServiceSelector
+                    category={installationCategory}
+                    onSelectService={(service) => {
+                      setInstallationService(service);
+                      // Auto-open modal with pre-filled service
+                      setEditingItemIndex(null);
+                      setShowVisualBuilder(true);
+                    }}
+                    onBack={() => setInstallationCategory(null)}
+                  />
+                </div>
+              )}
+
               {/* Maintenance Flow: Category Selection */}
               {serviceType === 'maintenance' && !maintenanceCategory && (
                 <div>
-                  <h2 className="text-xl font-bold text-secondary mb-4">Selecione a Categoria</h2>
                   <MaintenanceCategorySelector
                     onSelectCategory={(category) => {
                       setMaintenanceCategory(category);
@@ -571,34 +601,44 @@ export function QuoteWizard() {
               )}
 
               {/* Items List (shown when not in category/service selection) */}
-              {!(serviceType === 'maintenance' && (!maintenanceCategory || !maintenanceService)) && (
+              {!(
+                (serviceType === 'maintenance' && (!maintenanceCategory || !maintenanceService)) ||
+                (serviceType === 'installation' && (!installationCategory || !installationService))
+              ) && (
                 <>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-secondary">Itens do Orçamento</h2>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        if (serviceType === 'installation') {
-                          setEditingItemIndex(null);
-                          setShowVisualBuilder(true);
-                        } else {
-                          // Reset maintenance flow
-                          setMaintenanceCategory(null);
-                          setMaintenanceService(null);
-                        }
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Adicionar Item
-                    </Button>
+                    {items.length > 0 && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          if (serviceType === 'installation') {
+                            // Reset installation flow
+                            setInstallationCategory(null);
+                            setInstallationService(null);
+                          } else {
+                            // Reset maintenance flow
+                            setMaintenanceCategory(null);
+                            setMaintenanceService(null);
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Adicionar Item
+                      </Button>
+                    )}
                   </div>
 
                   {items.length === 0 ? (
                     <Card className="p-8 text-center">
                       <p className="text-slate-600 mb-4">Nenhum item adicionado ainda</p>
-                      <p className="text-sm text-slate-500">Clique em "Adicionar Item" para começar</p>
+                      <p className="text-sm text-slate-500">
+                        {serviceType === 'installation'
+                          ? 'Selecione uma categoria acima para começar'
+                          : 'Selecione uma categoria acima para começar'}
+                      </p>
                     </Card>
                   ) : (
                     <div className="space-y-3">
