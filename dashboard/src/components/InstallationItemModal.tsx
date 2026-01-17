@@ -25,6 +25,7 @@ interface InstallationItemModalProps {
     profileColor?: string;
     isInstallation: boolean;
     imageUrl?: string;
+    templateId?: string;
     description?: string;
   }) => void;
   initialItem?: any;

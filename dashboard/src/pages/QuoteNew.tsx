@@ -117,6 +117,7 @@ interface QuoteItem {
   isInstallation?: boolean;
   // Visual library fields
   imageUrl?: string;
+  templateId?: string;
   description?: string;
 }
 
