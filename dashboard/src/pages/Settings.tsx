@@ -597,33 +597,7 @@ export function Settings() {
                 <div className="pt-4 border-t border-slate-200">
                   <Button
                     variant="outline"
-                    onClick={async () => {
-                      try {
-                        // Call API to create customer portal session
-                        const response = await fetch('/api/stripe/create-portal-session', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({
-                            companyId: company.id,
-                            returnUrl: window.location.href,
-                          }),
-                        });
-
-                        if (!response.ok) {
-                          throw new Error('Failed to create portal session');
-                        }
-
-                        const data = await response.json();
-                        if (data.url) {
-                          window.location.href = data.url;
-                        }
-                      } catch (error) {
-                        console.error('Error opening customer portal:', error);
-                        alert('Erro ao abrir portal de gerenciamento. Entre em contato com o suporte.');
-                      }
-                    }}
+                    onClick={() => navigate('/admin/subscription')}
                     className="flex items-center gap-2"
                   >
                     <CreditCard className="w-4 h-4" />

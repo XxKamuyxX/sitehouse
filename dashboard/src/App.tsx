@@ -33,6 +33,7 @@ import { Affiliates } from './pages/Affiliates';
 import { Landing } from './pages/Landing';
 import { MarketingLayout } from './components/MarketingLayout';
 import { VersionChecker } from './components/system/VersionChecker';
+import { ManageSubscription } from './pages/ManageSubscription';
 
 // Helper function to check if subscription is expired
 function isSubscriptionExpired(userMetadata: any): boolean {
@@ -431,6 +432,14 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Settings />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/subscription"
+        element={
+          <AdminRoute>
+            <ManageSubscription />
           </AdminRoute>
         }
       />
