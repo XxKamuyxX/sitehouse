@@ -90,25 +90,6 @@ export function Activate() {
     setIsLoading(true);
 
     try {
-      // Format phone for registry check
-      const formattedPhone = formatPhoneForRegistry(phone);
-      
-      // Check if phone is registered to a different user (BLOCK if different user)
-      const phoneDoc = await getDoc(doc(db, 'phone_registry', formattedPhone));
-      
-      if (phoneDoc.exists()) {
-        const phoneData = phoneDoc.data();
-        if (phoneData.userId !== user.uid) {
-          // Phone belongs to different user - block this attempt
-          setError('Este número já foi usado em outra conta. Use outro número.');
-          setIsLoading(false);
-          return;
-        }
-        // Phone is registered to this user - allow recovery scenario
-        // User can re-verify even if phone_registry exists (mobileVerified might not be set)
-        console.log('Recovery scenario: Phone already registered to this user, allowing re-verification...');
-      }
-
       // Format phone for Firebase (add +55 for Brazil)
       const sanitized = sanitizePhone(phone);
       const firebasePhone = sanitized.startsWith('55') 
@@ -170,7 +151,7 @@ export function Activate() {
       const formattedPhone = formatPhoneForRegistry(phone);
       const userRef = doc(db, 'users', user.uid);
 
-      // STEP 3: Update or create user profile - PRIORITY: This MUST succeed
+      // STEP 3: Update user profile with mobileVerified: true - PRIORITY: This MUST succeed
       // Check if user document exists
       const userDoc = await getDoc(userRef);
       
@@ -203,18 +184,20 @@ export function Activate() {
       }
 
       // STEP 4: Attempt phone_registry write (NON-BLOCKING: Fail-safe approach)
-      // If this fails for ANY reason, we still allow the user to proceed
+      // CRITICAL: Wrap in try/catch and IGNORE any errors (permission-denied, already-exists, etc.)
       // The user has already passed OTP verification, which is the security gate
+      // Prioritize user access over strict data consistency
       try {
         await setDoc(doc(db, 'phone_registry', formattedPhone), {
           userId: user.uid,
           usedAt: serverTimestamp(),
         }, { merge: true });
+        console.log('Phone registry updated successfully');
       } catch (registryError: any) {
         // FAIL-SAFE: Log the error but DO NOT STOP the flow
-        // The user has passed OTP verification, so we prioritize access over registry consistency
-        console.warn('Phone registry write failed (non-blocking):', registryError);
-        console.warn('User verification will proceed despite registry error');
+        // Ignore "already-exists", "permission-denied", or any other registry errors
+        console.warn('Phone registry write failed (non-blocking, proceeding anyway):', registryError?.code || registryError?.message);
+        console.warn('User verification will proceed despite registry error - OTP verification is the security gate');
         // Continue with success flow - user is verified
       }
 
@@ -234,13 +217,13 @@ export function Activate() {
       // Small delay to ensure state propagation
       setTimeout(() => {
         if (!hasCompany) {
-          // No company: redirect to setup-company (critical: prevents white screen)
-          window.location.href = '/setup-company';
+          // No company: redirect to setup-company
+          navigate('/setup-company', { replace: true });
         } else {
           // Has company: redirect to dashboard
-          window.location.href = '/dashboard';
+          navigate('/dashboard', { replace: true });
         }
-      }, 2000);
+      }, 1500);
     } catch (error: any) {
       console.error('Error verifying code:', error);
       
@@ -257,9 +240,8 @@ export function Activate() {
         setError('Erro de permissão: Não foi possível salvar a verificação. Entre em contato com o suporte.');
         console.error('Firestore permission denied. Check firestore.rules for users collection update permissions.');
       }
-      // Handle Firestore "not-found" errors (document doesn't exist but updateDoc was called)
-      // This shouldn't happen anymore with upsert logic, but handle it gracefully
-      if (error.code === 'not-found' || error.code?.includes('not-found')) {
+      // Handle Firestore "not-found" errors
+      else if (error.code === 'not-found' || error.code?.includes('not-found')) {
         setError('Erro: Perfil não encontrado. Tente novamente ou entre em contato com o suporte.');
         console.error('User document not found error:', error);
       }

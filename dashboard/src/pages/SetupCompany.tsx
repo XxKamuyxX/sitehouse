@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -91,14 +91,18 @@ export function SetupCompany() {
       // Generate affiliate code for new company
       const affiliateCode = await generateAffiliateCode(companyName);
 
-      // Create company document
-      await setDoc(doc(db, 'companies', newCompanyId), {
+      // CRITICAL FIX: Ensure ownerId is set correctly to pass Firestore rule
+      // The rule requires: request.resource.data.ownerId == request.auth.uid
+      const currentUserId = auth.currentUser?.uid || user.uid;
+      
+      // Create company document with ownerId as FIRST field (mandatory for rule)
+      const companyData = {
         name: companyName.trim(),
+        ownerId: currentUserId, // <--- THIS IS MANDATORY - Must match request.auth.uid
         cnpj: cnpj.trim() || '',
         address: address.trim() || '',
         email: user.email || '',
         phone: userMetadata?.phone || '',
-        ownerId: user.uid,
         affiliateCode,
         referredBy: null,
         firstMonthDiscount: false,
@@ -119,9 +123,12 @@ export function SetupCompany() {
           workOrdersSeen: false,
           financeSeen: false,
         },
+        status: 'active',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      
+      await setDoc(doc(db, 'companies', newCompanyId), companyData);
 
       // Update user document with companyId and role
       await updateDoc(doc(db, 'users', user.uid), {
@@ -148,8 +155,8 @@ export function SetupCompany() {
 
       // Small delay to ensure state propagation, then redirect
       setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 2000);
+        navigate('/dashboard', { replace: true });
+      }, 1500);
     } catch (error: any) {
       console.error('Error setting up company:', error);
       
