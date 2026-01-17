@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
-import { Save, Trash2, Download, Plus, FileText, Search, MoreVertical, Lock, X, MessageCircle } from 'lucide-react';
+import { Save, Trash2, Download, Plus, FileText, Search, Lock, X, MessageCircle } from 'lucide-react';
 import { PDFOptionsModal } from '../components/PDFOptionsModal';
 import { pdf } from '@react-pdf/renderer';
 import { QuotePDF } from '../components/QuotePDF';
@@ -165,9 +165,7 @@ export function QuoteNew() {
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const actionsDropdownRef = useRef<HTMLDivElement>(null);
   
   const isEditMode = !!id;
 
@@ -206,17 +204,6 @@ export function QuoteNew() {
     };
     init();
   }, [id, companyId]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(event.target as Node)) {
-        setShowActionsDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const loadClients = async () => {
     if (!companyId) return;
