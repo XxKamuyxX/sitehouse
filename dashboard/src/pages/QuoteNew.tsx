@@ -285,6 +285,8 @@ export function QuoteNew() {
       glassThickness: itemData.glassThickness,
       profileColor: itemData.profileColor,
       isInstallation: itemData.isInstallation || false,
+      imageUrl: itemData.imageUrl,
+      templateId: itemData.templateId,
     };
     setItems([...items, newItem]);
   };
@@ -455,6 +457,10 @@ export function QuoteNew() {
           if (item.glassThickness) sanitized.glassThickness = String(item.glassThickness);
           if (item.profileColor) sanitized.profileColor = String(item.profileColor);
         }
+        
+        // Include imageUrl and templateId if available (from project library)
+        if (item.imageUrl) sanitized.imageUrl = String(item.imageUrl);
+        if (item.templateId) sanitized.templateId = String(item.templateId);
         
         return sanitized;
       });
@@ -1143,7 +1149,18 @@ export function QuoteNew() {
                         key={index}
                         className="p-4 border border-slate-200 rounded-lg bg-slate-50"
                       >
-                        <div className="flex justify-between items-start mb-3">
+                        <div className="flex justify-between items-start mb-3 gap-3">
+                          {/* Imagem do Template */}
+                          {item.imageUrl && (
+                            <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.serviceName}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="font-medium text-navy">{item.serviceName}</h3>
