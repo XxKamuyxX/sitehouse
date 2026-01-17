@@ -94,6 +94,9 @@ export function Activate() {
           setIsLoading(false);
           return;
         }
+        // If phone is registered to this user, allow recovery (continue with OTP send)
+        // This handles cases where phone was registered but mobileVerified wasn't set
+        console.log('Recovery scenario: Phone already registered to this user, proceeding with verification...');
       }
 
       // Format phone for Firebase (add +55 for Brazil)
@@ -190,11 +193,35 @@ export function Activate() {
       }
 
       // Register phone in phone_registry (CRITICAL: Anti-fraud)
-      // Use setDoc without merge to ensure immutability
-      await setDoc(doc(db, 'phone_registry', formattedPhone), {
-        userId: user.uid,
-        usedAt: serverTimestamp(),
-      }, { merge: true });
+      // Handle recovery case: phone_registry might already exist from a previous attempt
+      try {
+        await setDoc(doc(db, 'phone_registry', formattedPhone), {
+          userId: user.uid,
+          usedAt: serverTimestamp(),
+        }, { merge: true });
+      } catch (registryError: any) {
+        // Recovery flow: If phone_registry already exists, check ownership
+        console.log('Phone registry creation failed, checking for recovery scenario:', registryError);
+        
+        // Check if the phone number is already registered to this user
+        const existingPhoneDoc = await getDoc(doc(db, 'phone_registry', formattedPhone));
+        
+        if (existingPhoneDoc.exists()) {
+          const existingPhoneData = existingPhoneDoc.data();
+          
+          // If it's the same user, this is a recovery scenario - proceed normally
+          if (existingPhoneData.userId === user.uid) {
+            console.log('Recovery scenario detected: Phone already registered to this user, proceeding...');
+            // Continue with success flow - user profile was already updated above
+          } else {
+            // Phone belongs to a different user - this is an error
+            throw new Error('Este número já está em uso por outra conta. Use outro número de telefone.');
+          }
+        } else {
+          // Document doesn't exist but creation failed - rethrow original error
+          throw registryError;
+        }
+      }
 
       setSuccess(true);
       
@@ -224,6 +251,10 @@ export function Activate() {
       else if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
         setError('Erro de permissão: Não foi possível salvar a verificação. Entre em contato com o suporte.');
         console.error('Firestore permission denied. Check firestore.rules for users collection update permissions.');
+      }
+      // Handle phone already registered to different user
+      else if (error.message && error.message.includes('já está em uso por outra conta')) {
+        setError(error.message);
       }
       // Handle Firestore "not-found" errors (document doesn't exist but updateDoc was called)
       else if (error.code === 'not-found' || error.code?.includes('not-found')) {

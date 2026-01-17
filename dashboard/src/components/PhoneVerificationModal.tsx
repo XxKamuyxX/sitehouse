@@ -90,6 +90,9 @@ export function PhoneVerificationModal({
           setLoading(false);
           return;
         }
+        // If phone is registered to this user, allow recovery (continue with OTP send)
+        // This handles cases where phone was registered but mobileVerified wasn't set
+        console.log('Recovery scenario: Phone already registered to this user, proceeding with verification...');
       }
 
       // Format phone for Firebase (add +55 for Brazil)
@@ -182,10 +185,35 @@ export function PhoneVerificationModal({
         }
 
         // Register phone in phone_registry (CRITICAL: Anti-fraud)
-        await setDoc(doc(db, 'phone_registry', formattedPhone), {
-          userId: user.uid,
-          usedAt: serverTimestamp(),
-        }, { merge: true });
+        // Handle recovery case: phone_registry might already exist from a previous attempt
+        try {
+          await setDoc(doc(db, 'phone_registry', formattedPhone), {
+            userId: user.uid,
+            usedAt: serverTimestamp(),
+          }, { merge: true });
+        } catch (registryError: any) {
+          // Recovery flow: If phone_registry already exists, check ownership
+          console.log('Phone registry creation failed, checking for recovery scenario:', registryError);
+          
+          // Check if the phone number is already registered to this user
+          const existingPhoneDoc = await getDoc(doc(db, 'phone_registry', formattedPhone));
+          
+          if (existingPhoneDoc.exists()) {
+            const existingPhoneData = existingPhoneDoc.data();
+            
+            // If it's the same user, this is a recovery scenario - proceed normally
+            if (existingPhoneData.userId === user.uid) {
+              console.log('Recovery scenario detected: Phone already registered to this user, proceeding...');
+              // Continue with success flow - user profile was already updated above
+            } else {
+              // Phone belongs to a different user - this is an error
+              throw new Error('Este número já está em uso por outra conta. Use outro número de telefone.');
+            }
+          } else {
+            // Document doesn't exist but creation failed - rethrow original error
+            throw registryError;
+          }
+        }
 
         setSuccess(true);
         
@@ -204,6 +232,8 @@ export function PhoneVerificationModal({
         setError('Código expirado. Solicite um novo código.');
         setStep('input');
         setConfirmationResult(null);
+      } else if (error.message && error.message.includes('já está em uso por outra conta')) {
+        setError(error.message);
       } else {
         setError(error.message || 'Erro ao verificar código. Tente novamente.');
       }
