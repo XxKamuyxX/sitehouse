@@ -4,9 +4,17 @@ import { db } from '../lib/firebase';
 import { Button } from './ui/Button';
 import { ArrowLeft, Image as ImageIcon } from 'lucide-react';
 
+interface ServiceItem {
+  name: string;
+  description: string;
+  imageUrl?: string;
+  templateId?: string;
+  isTemplate?: boolean;
+}
+
 interface InstallationServiceSelectorProps {
   category: string;
-  onSelectService: (service: { name: string; description: string; imageUrl?: string; templateId?: string }) => void;
+  onSelectService: (service: ServiceItem) => void;
   onBack: () => void;
 }
 

@@ -23,7 +23,6 @@ import { TechDashboard } from './pages/TechDashboard';
 import { AdminCalendar } from './pages/AdminCalendar';
 import { CompanySettings } from './pages/CompanySettings';
 import { MasterDashboard } from './pages/MasterDashboard';
-import { TemplateManager } from './pages/master/TemplateManager';
 import { PayoutManagement } from './pages/master/PayoutManagement';
 import { ProjectLibrary } from './pages/master/ProjectLibrary';
 import { SignUp } from './pages/SignUp';

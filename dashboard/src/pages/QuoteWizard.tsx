@@ -94,9 +94,9 @@ export function QuoteWizard() {
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [maintenanceCategory, setMaintenanceCategory] = useState<string | null>(null);
-  const [maintenanceService, setMaintenanceService] = useState<{ name: string; description: string } | null>(null);
+  const [maintenanceService, setMaintenanceService] = useState<{ name: string; description: string; imageUrl?: string; templateId?: string } | null>(null);
   const [installationCategory, setInstallationCategory] = useState<string | null>(null);
-  const [installationService, setInstallationService] = useState<{ name: string; description: string } | null>(null);
+  const [installationService, setInstallationService] = useState<{ name: string; description: string; imageUrl?: string; templateId?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
