@@ -28,6 +28,7 @@ import { PayoutManagement } from './pages/master/PayoutManagement';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { Activate } from './pages/Activate';
+import { SetupCompany } from './pages/SetupCompany';
 import { RootRedirect } from './components/RootRedirect';
 import { Affiliates } from './pages/Affiliates';
 import { Landing } from './pages/Landing';
@@ -97,6 +98,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/activate" replace />;
   }
 
+  // Check if company is set up - redirect to /setup-company if not
+  if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+    return <Navigate to="/setup-company" replace />;
+  }
+
   // Check subscription status
   if (userMetadata && isSubscriptionExpired(userMetadata)) {
     return <Navigate to="/subscription-expired" replace />;
@@ -133,6 +139,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/activate" replace />;
   }
 
+  // Check if company is set up - redirect to /setup-company if not
+  if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+    return <Navigate to="/setup-company" replace />;
+  }
+
   if (!userMetadata || userMetadata.role !== 'admin') {
     return <Navigate to="/tech/dashboard" />;
   }
@@ -166,6 +177,11 @@ function TechRoute({ children }: { children: React.ReactNode }) {
   // Check phone verification - redirect to /activate if not verified
   if (userMetadata && !userMetadata.mobileVerified) {
     return <Navigate to="/activate" replace />;
+  }
+
+  // Check if company is set up - redirect to /setup-company if not
+  if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+    return <Navigate to="/setup-company" replace />;
   }
 
   if (!userMetadata || userMetadata.role !== 'technician') {
@@ -247,12 +263,50 @@ function ActivateRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  // If user is already verified, redirect to dashboard (prevents re-verification loop)
+  // If user is already verified, check if company is set up
   if (userMetadata?.mobileVerified) {
+    // If company not set up, redirect to setup-company
+    if (!userMetadata.companyId || userMetadata.companyId === '') {
+      return <Navigate to="/setup-company" replace />;
+    }
+    // Otherwise redirect to dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
   // Allow access for unverified users
+  return <>{children}</>;
+}
+
+// Special route for setup-company page - allows users without company, redirects users with company
+function SetupCompanyRoute({ children }: { children: React.ReactNode }) {
+  const { user, userMetadata, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+          <p className="mt-4 text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // If phone not verified, redirect to activate
+  if (userMetadata && !userMetadata.mobileVerified) {
+    return <Navigate to="/activate" replace />;
+  }
+
+  // If user already has company, redirect to dashboard (prevents re-setup loop)
+  if (userMetadata?.companyId && userMetadata.companyId !== '') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Allow access for users without company
   return <>{children}</>;
 }
 
@@ -281,6 +335,14 @@ function AppRoutes() {
           <ActivateRoute>
             <Activate />
           </ActivateRoute>
+        } 
+      />
+      <Route 
+        path="/setup-company" 
+        element={
+          <SetupCompanyRoute>
+            <SetupCompany />
+          </SetupCompanyRoute>
         } 
       />
       <Route 

@@ -22,6 +22,12 @@ export function RootRedirect() {
       return;
     }
 
+    // CRITICAL: Check if company is set up - redirect to /setup-company if not
+    if (userMetadata && userMetadata.mobileVerified && (!userMetadata.companyId || userMetadata.companyId === '')) {
+      navigate('/setup-company', { replace: true });
+      return;
+    }
+
     if (userMetadata?.role === 'master') {
       navigate('/master', { replace: true });
       return;

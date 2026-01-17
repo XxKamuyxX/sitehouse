@@ -22,7 +22,7 @@ interface ActivityItem {
 }
 
 export function Dashboard() {
-  const { userMetadata } = useAuth();
+  const { user, userMetadata, loading } = useAuth();
   const companyId = userMetadata?.companyId;
   const navigate = useNavigate();
   // Removed useSecurityGate - phone verification is now handled globally
@@ -37,8 +37,21 @@ export function Dashboard() {
   const [chartData, setChartData] = useState<Array<{ date: string; revenue: number }>>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
 
+  // Safety check: redirect if no user or no companyId
   useEffect(() => {
-    if (companyId) {
+    if (!loading && (!user || !companyId || companyId === '')) {
+      if (!user) {
+        navigate('/login', { replace: true });
+      } else if (!userMetadata?.mobileVerified) {
+        navigate('/activate', { replace: true });
+      } else if (!companyId || companyId === '') {
+        navigate('/setup-company', { replace: true });
+      }
+    }
+  }, [user, companyId, userMetadata, loading, navigate]);
+
+  useEffect(() => {
+    if (companyId && companyId !== '') {
       loadDashboardStats();
       loadChartData();
       loadRecentActivity();
@@ -257,6 +270,20 @@ export function Dashboard() {
       navigate(`/admin/work-orders/${item.id}`);
     }
   };
+
+  // Safety check: show loading if no user or no companyId
+  if (loading || !user || !companyId || companyId === '') {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+            <p className="mt-4 text-slate-600">Carregando...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
