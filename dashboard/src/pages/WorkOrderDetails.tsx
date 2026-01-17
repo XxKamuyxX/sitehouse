@@ -439,22 +439,26 @@ export function WorkOrderDetails() {
 
       // Prepare receipt data for PDF
       const receiptItems = (quoteData?.items || []).map((item: any) => ({
-        serviceName: item.name || item.title || 'Serviço',
+        serviceName: item.name || item.title || item.serviceName || 'Serviço',
         quantity: item.quantity || 1,
         unitPrice: item.unitPrice || item.price || 0,
-        total: item.total || 0,
+        total: item.total || (item.quantity || 1) * (item.unitPrice || item.price || 0),
       }));
 
-      // Add manual services
-      const manualServicesItems = (manualServices || []).map((service) => ({
+      // Add manual services from work order if no quote items
+      const manualServicesItems = (workOrder.manualServices || manualServices || []).map((service: any) => ({
         serviceName: service.description,
         quantity: 1,
         unitPrice: service.price || 0,
         total: service.price || 0,
       }));
 
-      const allItems = [...receiptItems, ...manualServicesItems];
-      const totalAmount = allItems.reduce((sum, item) => sum + item.total, 0) || totalPrice || 0;
+      // Combine all items (prioritize quote items if they exist, otherwise use manual services)
+      const allItems = receiptItems.length > 0 ? receiptItems : manualServicesItems;
+      
+      // Calculate total from all items
+      const itemsTotal = allItems.reduce((sum, item) => sum + item.total, 0);
+      const totalAmount = itemsTotal > 0 ? itemsTotal : (totalPrice || 0);
 
       // Generate PDF
       const pdfDoc = (
