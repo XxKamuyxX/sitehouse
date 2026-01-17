@@ -653,12 +653,32 @@ export function QuoteNew() {
     });
 
     try {
+      const { getBase64ImageFromUrl } = await import('../utils/imageToBase64');
+      
       // Convert logo to base64 to avoid CORS issues
       let logoBase64: string | null = null;
       if (company?.logoUrl) {
-        const { getBase64ImageFromUrl } = await import('../utils/imageToBase64');
         logoBase64 = await getBase64ImageFromUrl(company.logoUrl);
       }
+
+      // Convert all item images to base64 to avoid CORS issues
+      const itemsWithBase64Images = await Promise.all(
+        items.map(async (item) => {
+          if (item.imageUrl) {
+            console.log(`🖼️ Converting image to base64 for item: ${item.serviceName}`);
+            const base64Image = await getBase64ImageFromUrl(item.imageUrl);
+            if (base64Image) {
+              console.log(`✅ Successfully converted image for: ${item.serviceName}`);
+              return { ...item, imageUrl: base64Image };
+            } else {
+              console.warn(`⚠️ Failed to convert image for: ${item.serviceName}`);
+            }
+          }
+          return item;
+        })
+      );
+
+      console.log('📦 Items with base64 images:', itemsWithBase64Images);
 
       const doc = (
         <QuotePDF
@@ -667,7 +687,7 @@ export function QuoteNew() {
           clientCondominium={selectedClient.condominium}
           clientPhone={selectedClient.phone}
           clientEmail={selectedClient.email}
-          items={items}
+          items={itemsWithBase64Images}
           subtotal={subtotal}
           discount={discount}
           total={total}
