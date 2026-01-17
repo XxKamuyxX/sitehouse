@@ -566,7 +566,7 @@ export function QuoteWizard() {
                       setInstallationService(service);
                       // Auto-open modal with pre-filled service
                       setEditingItemIndex(null);
-                      setShowVisualBuilder(true);
+                      setShowInstallationModal(true);
                     }}
                     onBack={() => setInstallationCategory(null)}
                   />
@@ -887,27 +887,40 @@ export function QuoteWizard() {
                 setMaintenanceCategory(null);
                 setMaintenanceService(null);
               }
+              if (serviceType === 'installation') {
+                setInstallationCategory(null);
+                setInstallationService(null);
+              }
             }}
             onSave={handleSaveInstallationItem}
             initialItem={
               editingItemIndex !== null
                 ? items[editingItemIndex]
-                : serviceType === 'maintenance' && maintenanceService
+                : serviceType === 'installation' && installationService
                   ? {
-                      serviceName: `Manutenção de ${maintenanceCategory ? maintenanceCategory.charAt(0).toUpperCase() + maintenanceCategory.slice(1) : ''} - ${maintenanceService.name}`,
-                      isInstallation: false,
-                      pricingMethod: 'unit',
+                      serviceName: installationService.name,
+                      isInstallation: true,
+                      pricingMethod: 'm2',
                       quantity: 1,
                       unitPrice: 0,
                       total: 0,
                     }
-                  : selectedTemplate
+                  : serviceType === 'maintenance' && maintenanceService
                     ? {
-                        serviceName: selectedTemplate.serviceName || selectedTemplate.name || '',
-                        isInstallation: true,
-                        pricingMethod: 'm2',
+                        serviceName: `Manutenção de ${maintenanceCategory ? maintenanceCategory.charAt(0).toUpperCase() + maintenanceCategory.slice(1) : ''} - ${maintenanceService.name}`,
+                        isInstallation: false,
+                        pricingMethod: 'unit',
+                        quantity: 1,
+                        unitPrice: 0,
+                        total: 0,
                       }
-                    : undefined
+                    : selectedTemplate
+                      ? {
+                          serviceName: selectedTemplate.serviceName || selectedTemplate.name || '',
+                          isInstallation: true,
+                          pricingMethod: 'm2',
+                        }
+                      : undefined
             }
             isInstallation={serviceType === 'installation'}
           />
