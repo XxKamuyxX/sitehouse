@@ -277,9 +277,10 @@ export function QuoteWizard() {
       }
 
       console.log('Creating quote with data:', { ...quoteData, createdAt: '[serverTimestamp]' });
-      await addDoc(collection(db, 'quotes'), quoteData);
+      const docRef = await addDoc(collection(db, 'quotes'), quoteData);
       alert('Orçamento salvo com sucesso!');
-      navigate('/quotes');
+      // Redirect to edit page for the newly created quote
+      navigate(`/admin/quotes/${docRef.id}`);
     } catch (error: any) {
       console.error('Error saving quote:', error);
       alert(`Erro ao salvar orçamento: ${error.message}`);

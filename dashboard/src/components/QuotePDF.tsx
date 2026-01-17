@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 10,
+    alignItems: 'center', // CENTRALIZAR LOGO
   },
   companyName: {
     fontSize: 24,
@@ -328,9 +329,10 @@ export function QuotePDF({
     title: {
       fontSize: 18,
       fontWeight: 'bold',
-      color: pdfSettings.primaryColor,
+      color: '#0F172A', // SEMPRE PRETO, não muda conforme empresa
       marginTop: 20,
       marginBottom: 15,
+      textAlign: 'center', // CENTRALIZADO
     },
     tableHeader: {
       flexDirection: 'row',
@@ -422,8 +424,14 @@ export function QuotePDF({
             <Text style={styles.tableCellRight}>TOTAL</Text>
           </View>
           {items.map((item, index) => {
-            // Build service description - SIMPLIFICADO
+            // Build service description
             let serviceDescription = item.serviceName;
+            
+            // Adiciona ÁREA TOTAL (m²) na descrição
+            if (item.isInstallation && item.pricingMethod === 'm2' && item.dimensions && !hideDimensions) {
+              const totalArea = (item.dimensions.area || (item.dimensions.width * item.dimensions.height / 1000000)) * item.quantity;
+              serviceDescription += `\n${totalArea.toFixed(2)} m²`;
+            }
             
             // Adiciona informações de cores se disponíveis
             if (item.isInstallation && (item.glassColor || item.profileColor)) {
@@ -435,15 +443,16 @@ export function QuotePDF({
               }
             }
 
-            // Build dimensions text - APENAS TOTAL DE M²
+            // Build dimensions text - LARGURA x ALTURA (original)
             let dimensionsText = '';
             if (item.isInstallation && item.pricingMethod === 'm2' && item.dimensions && !hideDimensions) {
-              // Apenas mostra o total de m² (área total)
-              const totalArea = (item.dimensions.area || (item.dimensions.width * item.dimensions.height / 1000000)) * item.quantity;
-              dimensionsText = `${totalArea.toFixed(2)} m²`;
+              // Mostra as medidas originais (largura x altura)
+              const widthM = (item.dimensions.width / 1000).toFixed(2);
+              const heightM = (item.dimensions.height / 1000).toFixed(2);
+              dimensionsText = `Largura: ${widthM}m\nAltura: ${heightM}m`;
             } else if (item.isInstallation && item.pricingMethod === 'linear' && item.dimensions && !hideDimensions) {
-              const totalLinear = (item.dimensions.width / 1000) * item.quantity;
-              dimensionsText = `${totalLinear.toFixed(2)} m`;
+              const widthM = (item.dimensions.width / 1000).toFixed(2);
+              dimensionsText = `Largura: ${widthM}m`;
             }
 
             return (

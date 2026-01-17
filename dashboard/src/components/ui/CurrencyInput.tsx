@@ -92,8 +92,10 @@ export function CurrencyInput({ value, onChange, onBlur, placeholder, className 
     setIsFocused(true);
     // When focused, show raw number (no formatting) for easier editing
     if (value > 0) {
+      // Round first to avoid floating point errors (1500 becoming 1499.98)
+      const roundedValue = roundCurrency(value);
       // Show as number with 2 decimal places (comma as separator)
-      const formatted = value.toFixed(2).replace('.', ',');
+      const formatted = roundedValue.toFixed(2).replace('.', ',');
       setDisplayValue(formatted);
     } else {
       setDisplayValue('');

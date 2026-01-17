@@ -779,91 +779,73 @@ export function QuoteNew() {
                 {id ? 'Editar Orçamento' : 'Novo Orçamento'}
               </h1>
             </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             <Button variant="outline" onClick={() => navigate('/quotes')}>
               Cancelar
             </Button>
             
-            {/* Actions Dropdown */}
-            {id && (
-              <div className="relative" ref={actionsDropdownRef}>
+            {/* Action Buttons (no longer in dropdown) */}
+            {id && selectedClientId && (() => {
+              const selectedClient = clients.find((c) => c.id === selectedClientId);
+              const sanitizePhone = (phone: string): string => {
+                if (!phone) return '';
+                let cleaned = phone.replace(/[\s\(\)\-]/g, '');
+                if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
+                if (!cleaned.startsWith('55')) cleaned = '55' + cleaned;
+                return cleaned;
+              };
+              const handleWhatsApp = () => {
+                const message = `Olá ${selectedClient?.name}, segue o link do seu Orçamento: ${window.location.origin}/p/quote/${id}${(company as any)?.googleReviewUrl ? `\n\nAvalie nosso serviço: ${(company as any).googleReviewUrl}` : ''}`;
+                const encodedMessage = encodeURIComponent(message);
+                const phone = sanitizePhone(selectedClient?.phone || '');
+                const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+                window.open(whatsappUrl, '_blank');
+              };
+              return (
                 <Button
                   variant="outline"
-                  onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+                  onClick={handleWhatsApp}
                   className="flex items-center gap-2"
                 >
-                  <MoreVertical className="w-5 h-5" />
-                  Ações
+                  <MessageCircle className="w-4 h-4" />
+                  WhatsApp
                 </Button>
-                {showActionsDropdown && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                    <div className="py-1">
-                      {selectedClientId && (() => {
-                        const selectedClient = clients.find((c) => c.id === selectedClientId);
-                        const sanitizePhone = (phone: string): string => {
-                          if (!phone) return '';
-                          let cleaned = phone.replace(/[\s\(\)\-]/g, '');
-                          if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
-                          if (!cleaned.startsWith('55')) cleaned = '55' + cleaned;
-                          return cleaned;
-                        };
-                        const handleWhatsApp = () => {
-                          setShowActionsDropdown(false);
-                          const message = `Olá ${selectedClient?.name}, segue o link do seu Orçamento: ${window.location.origin}/p/quote/${id}${(company as any)?.googleReviewUrl ? `\n\nAvalie nosso serviço: ${(company as any).googleReviewUrl}` : ''}`;
-                          const encodedMessage = encodeURIComponent(message);
-                          const phone = sanitizePhone(selectedClient?.phone || '');
-                          const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
-                          window.open(whatsappUrl, '_blank');
-                        };
-                        return (
-                          <button
-                            onClick={handleWhatsApp}
-                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            Enviar no WhatsApp
-                          </button>
-                        );
-                      })()}
-                      <button
-                        onClick={() => {
-                          setShowActionsDropdown(false);
-                          handleGeneratePDFClick();
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                        disabled={!selectedClientId || items.length === 0}
-                      >
-                        <Download className="w-4 h-4" />
-                        Gerar PDF
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowActionsDropdown(false);
-                          setShowContractModal(true);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                        disabled={!selectedClientId || items.length === 0}
-                      >
-                        <FileText className="w-4 h-4" />
-                        Gerar Contrato
-                      </button>
-                      {status === 'approved' && (
-                        <button
-                          onClick={() => {
-                            setShowActionsDropdown(false);
-                            handleCreateWorkOrder();
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                        >
-                          🛠️ Gerar Ordem de Serviço
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
             
+            {id && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleGeneratePDFClick}
+                  className="flex items-center gap-2"
+                  disabled={!selectedClientId || items.length === 0}
+                >
+                  <Download className="w-4 h-4" />
+                  Gerar PDF
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => setShowContractModal(true)}
+                  className="flex items-center gap-2"
+                  disabled={!selectedClientId || items.length === 0}
+                >
+                  <FileText className="w-4 h-4" />
+                  Contrato
+                </Button>
+                
+                {status === 'approved' && (
+                  <Button
+                    variant="outline"
+                    onClick={handleCreateWorkOrder}
+                    className="flex items-center gap-2"
+                  >
+                    🛠️ Ordem de Serviço
+                  </Button>
+                )}
+              </>
+            )}
             
             <Button 
               variant="primary" 
