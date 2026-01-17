@@ -26,6 +26,11 @@ service cloud.firestore {
               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
     }
     
+    function isMaster() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master';
+    }
+    
     function canReadCompany(companyId) {
       return isAuthenticated() && belongsToCompany(companyId);
     }
@@ -34,8 +39,8 @@ service cloud.firestore {
     // 1. EMPRESAS (CORREÇÃO APLICADA AQUI)
     // ============================================
     match /companies/{companyId} {
-      // Leitura: Só quem é da empresa pode ler
-      allow read: if canReadCompany(companyId);
+      // Leitura: Quem é da empresa OU master pode ler
+      allow read: if canReadCompany(companyId) || isMaster();
       
       // CRIAÇÃO (A MUDANÇA IMPORTANTE):
       // Antes estava bloqueado. Agora permitimos criar se o usuário 
@@ -51,7 +56,7 @@ service cloud.firestore {
       
       // Subcoleções (Clientes, Orçamentos, etc)
       match /{document=**} {
-        allow read: if canReadCompany(companyId);
+        allow read: if canReadCompany(companyId) || isMaster();
         allow write: if isOwnerOrAdmin(companyId);
       }
     }
@@ -105,9 +110,9 @@ service cloud.firestore {
     // 5. USUÁRIOS (CORREÇÃO MANTIDA)
     // ============================================
     match /users/{userId} {
-      // Permite leitura e escrita total se for o dono da conta.
-      // Isso é essencial para o fluxo de cadastro e "auto-cura".
-      allow read, write: if request.auth.uid == userId;
+      // Permite leitura e escrita total se for o dono da conta OU se for master
+      allow read: if request.auth.uid == userId || isMaster();
+      allow write: if request.auth.uid == userId;
       
       allow delete: if false;
     }
@@ -118,9 +123,8 @@ service cloud.firestore {
     match /referrals/{referralId} {
       allow create: if isAuthenticated() &&
                         request.resource.data.referrerId == request.auth.uid;
-      allow read: if isAuthenticated() && 
-                      resource.data.referrerId == request.auth.uid;
-      allow update: if false;
+      allow read: if (isAuthenticated() && resource.data.referrerId == request.auth.uid) || isMaster();
+      allow update: if isMaster();
       allow delete: if false;
     }
 
@@ -146,7 +150,50 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 9. DEFAULT DENY
+    // 9. PROJECT TEMPLATES (BIBLIOTECA DE PROJETOS)
+    // ============================================
+    match /projectTemplates/{templateId} {
+      // Master pode criar, editar e deletar templates
+      allow create, update, delete: if isMaster();
+      // Todos os usuários autenticados podem ler templates
+      allow read: if isAuthenticated();
+    }
+
+    // ============================================
+    // 10. COMMISSIONS & PAYOUTS (MASTER ONLY)
+    // ============================================
+    match /commissions/{commissionId} {
+      allow read, write: if isMaster();
+    }
+    
+    match /payoutRequests/{requestId} {
+      allow read, write: if isMaster();
+    }
+    
+    match /affiliateCommissions/{commissionId} {
+      allow read, write: if isMaster();
+    }
+
+    // ============================================
+    // 11. ACTIVITIES & MONITORING (MASTER ONLY)
+    // ============================================
+    match /activities/{activityId} {
+      allow read, write: if isMaster();
+    }
+    
+    match /recentActivity/{activityId} {
+      allow read, write: if isMaster();
+    }
+
+    // ============================================
+    // 12. MASTER DASHBOARD DATA
+    // ============================================
+    match /masterStats/{docId} {
+      allow read, write: if isMaster();
+    }
+
+    // ============================================
+    // 13. DEFAULT DENY
     // ============================================
     match /{document=**} {
       allow read, write: if false;
