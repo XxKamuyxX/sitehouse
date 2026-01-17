@@ -3,15 +3,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ============================================
-    // HELPER FUNCTIONS (Mantidas do seu código)
+    // HELPER FUNCTIONS
     // ============================================
     function isAuthenticated() {
       return request.auth != null;
     }
     
     function getUserCompanyId() {
-      // Nota: Essa função pode falhar se o doc do usuário não existir.
-      // Por isso removemos a dependência dela na regra de CRIAÇÃO de usuário abaixo.
+      // Pega o ID da empresa do usuário (pode estar vazio se ele ainda não criou)
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
     }
     
@@ -32,26 +31,25 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 1. COMPANIES & DATA ISOLATION (Multi-Tenant)
+    // 1. EMPRESAS (CORREÇÃO APLICADA AQUI)
     // ============================================
     match /companies/{companyId} {
+      // Leitura: Só quem é da empresa pode ler
       allow read: if canReadCompany(companyId);
       
-      // Allow creation if:
-      // 1. User is owner/admin of the company (normal case), OR
-      // 2. User doesn't have a companyId yet (first-time setup) AND sets ownerId to their uid
+      // CRIAÇÃO (A MUDANÇA IMPORTANTE):
+      // Antes estava bloqueado. Agora permitimos criar se o usuário 
+      // se colocar como 'ownerId' do documento.
       allow create: if isAuthenticated() && 
-                       (isOwnerOrAdmin(companyId) ||
-                        (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
-                         !('companyId' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == '' ||
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == null) &&
-                        request.resource.data.ownerId == request.auth.uid);
+                    request.resource.data.ownerId == request.auth.uid;
       
+      // Atualização: Continua restrita aos donos/admins existentes
       allow update: if isOwnerOrAdmin(companyId) && 
                         request.resource.data.keys().hasAll(['updatedAt']);
+      
       allow delete: if false; 
       
+      // Subcoleções (Clientes, Orçamentos, etc)
       match /{document=**} {
         allow read: if canReadCompany(companyId);
         allow write: if isOwnerOrAdmin(companyId);
@@ -59,7 +57,7 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 2. QUOTES (Isolated by companyId)
+    // 2. ORÇAMENTOS (QUOTES)
     // ============================================
     match /quotes/{quoteId} {
       allow read: if isAuthenticated() && 
@@ -74,7 +72,7 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 3. WORK ORDERS (Isolated by companyId)
+    // 3. ORDENS DE SERVIÇO (WORK ORDERS)
     // ============================================
     match /workOrders/{workOrderId} {
       allow read: if isAuthenticated() && 
@@ -89,7 +87,7 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 4. CLIENTS (Isolated by companyId)
+    // 4. CLIENTES (CLIENTS)
     // ============================================
     match /clients/{clientId} {
       allow read: if isAuthenticated() && 
@@ -104,20 +102,18 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 5. USERS (CORREÇÃO DE SEGURANÇA / DEADLOCK)
+    // 5. USUÁRIOS (CORREÇÃO MANTIDA)
     // ============================================
     match /users/{userId} {
-      // CORREÇÃO CRÍTICA: Simplificamos a regra para permitir o "Auto-Cura".
-      // Se o ID do usuário logado bater com o ID do documento, ele tem permissão total
-      // para criar ou editar sua própria ficha. Isso resolve o erro "User document does not exist".
+      // Permite leitura e escrita total se for o dono da conta.
+      // Isso é essencial para o fluxo de cadastro e "auto-cura".
       allow read, write: if request.auth.uid == userId;
       
-      // Mantemos apenas a proteção contra deletar a conta acidentalmente.
       allow delete: if false;
     }
 
     // ============================================
-    // 6. REFERRALS (Anti-Fraud Lock)
+    // 6. INDICAÇÕES (REFERRALS)
     // ============================================
     match /referrals/{referralId} {
       allow create: if isAuthenticated() &&
@@ -129,21 +125,18 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 7. PHONE REGISTRY (Anti-Fraud & Verificação)
+    // 7. REGISTRO DE TELEFONE (PHONE REGISTRY)
     // ============================================
     match /phone_registry/{phoneNumber} {
       allow read: if isAuthenticated();
-      
-      // CORREÇÃO: Simplificado para permitir que a tela de Ativação crie o registro
-      // sem barreiras complexas de validação de payload.
-      allow create: if isAuthenticated();
-      
-      allow update: if false; // Imutável
-      allow delete: if false; // Imutável
+      // Permite criar livremente se estiver logado (fluxo de ativação)
+      allow create: if isAuthenticated(); 
+      allow update: if false;
+      allow delete: if false;
     }
 
     // ============================================
-    // 8. TAX ID REGISTRY (Anti-Fraud)
+    // 8. REGISTRO DE CNPJ/CPF (TAX ID)
     // ============================================
     match /tax_id_registry/{taxId} {
       allow read: if isAuthenticated();
@@ -153,7 +146,7 @@ service cloud.firestore {
     }
 
     // ============================================
-    // 9. DEFAULT DENY (Security by default)
+    // 9. DEFAULT DENY
     // ============================================
     match /{document=**} {
       allow read, write: if false;
