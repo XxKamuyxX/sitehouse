@@ -153,19 +153,44 @@ export function Activate() {
       // Verify the code
       await confirmationResult.confirm(code);
 
-      // If verification successful, update user profile
+      // If verification successful, update or create user profile (UPSERT logic)
       const formattedPhone = formatPhoneForRegistry(phone);
+      const userRef = doc(db, 'users', user.uid);
       
-      // Update user document with mobileVerified and phoneNumber
-      await updateDoc(doc(db, 'users', user.uid), {
-        mobileVerified: true,
-        phoneNumber: formattedPhone,
-        phone: formattedPhone, // Keep phone for backward compatibility
-        phoneVerifiedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      // Check if user document exists
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        // Document exists: update it
+        await updateDoc(userRef, {
+          mobileVerified: true,
+          phoneNumber: formattedPhone,
+          phone: formattedPhone, // Keep phone for backward compatibility
+          phoneVerifiedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Document doesn't exist: create it (self-healing recovery)
+        // This handles cases where Auth User exists but Firestore document is missing
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email || '',
+          name: user.displayName || 'Usuário',
+          mobileVerified: true,
+          phoneNumber: formattedPhone,
+          phone: formattedPhone,
+          phoneVerifiedAt: serverTimestamp(),
+          role: 'owner', // Default fallback for recovery
+          companyId: '', // Empty initially, will be set later
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        console.log('User profile created during activation (self-healing)');
+      }
 
       // Register phone in phone_registry (CRITICAL: Anti-fraud)
+      // Use setDoc without merge to ensure immutability
       await setDoc(doc(db, 'phone_registry', formattedPhone), {
         userId: user.uid,
         usedAt: serverTimestamp(),
@@ -199,6 +224,12 @@ export function Activate() {
       else if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
         setError('Erro de permissão: Não foi possível salvar a verificação. Entre em contato com o suporte.');
         console.error('Firestore permission denied. Check firestore.rules for users collection update permissions.');
+      }
+      // Handle Firestore "not-found" errors (document doesn't exist but updateDoc was called)
+      else if (error.code === 'not-found' || error.code?.includes('not-found')) {
+        // This shouldn't happen anymore with upsert logic, but handle it gracefully
+        setError('Erro: Perfil não encontrado. Tente novamente ou entre em contato com o suporte.');
+        console.error('User document not found error:', error);
       }
       // Handle Firestore other errors
       else if (error.code?.startsWith('firestore/') || error.code?.startsWith('PERMISSION')) {

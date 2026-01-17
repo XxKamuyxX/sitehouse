@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -144,16 +144,42 @@ export function PhoneVerificationModal({
       // Verify the code
       await confirmationResult.confirm(code);
 
-      // If verification successful, update user profile
+      // If verification successful, update or create user profile (UPSERT logic)
       if (user) {
         const formattedPhone = formatPhoneForRegistry(phone);
+        const userRef = doc(db, 'users', user.uid);
         
-        // Update user document
-        await setDoc(doc(db, 'users', user.uid), {
-          mobileVerified: true,
-          phone: formattedPhone,
-          phoneVerifiedAt: serverTimestamp(),
-        }, { merge: true });
+        // Check if user document exists
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          // Document exists: update it
+          await updateDoc(userRef, {
+            mobileVerified: true,
+            phone: formattedPhone,
+            phoneNumber: formattedPhone, // Keep phoneNumber for consistency
+            phoneVerifiedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Document doesn't exist: create it (self-healing recovery)
+          // This handles cases where Auth User exists but Firestore document is missing
+          await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email || '',
+            name: user.displayName || 'Usuário',
+            mobileVerified: true,
+            phone: formattedPhone,
+            phoneNumber: formattedPhone,
+            phoneVerifiedAt: serverTimestamp(),
+            role: 'owner', // Default fallback for recovery
+            companyId: '', // Empty initially, will be set later
+            isActive: true,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          console.log('User profile created during phone verification (self-healing)');
+        }
 
         // Register phone in phone_registry (CRITICAL: Anti-fraud)
         await setDoc(doc(db, 'phone_registry', formattedPhone), {

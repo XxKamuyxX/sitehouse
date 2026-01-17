@@ -116,10 +116,18 @@ service cloud.firestore {
                        // These are safe fields that don't affect security or access control
                        // The verification flow relies on these fields being updatable
       
-      // Only server (Cloud Functions) or admins can create/delete users
+      // Allow users to create their own profile during activation (self-healing)
+      // This handles cases where Auth User exists but Firestore document is missing
       allow create: if isAuthenticated() && 
-                       (request.resource.data.companyId == getUserCompanyId() ||
-                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master');
+                       request.auth.uid == userId &&
+                       // Must include required fields: email, name, uid matching userId
+                       request.resource.data.uid == userId &&
+                       request.resource.data.email == request.auth.token.email &&
+                       request.resource.data.name is string &&
+                       request.resource.data.name != '';
+                       // companyId can be empty initially (will be set later)
+                       // role defaults to 'owner' for recovery cases
+      
       allow delete: if false; // Never allow deletion (soft delete via isActive field)
     }
 
