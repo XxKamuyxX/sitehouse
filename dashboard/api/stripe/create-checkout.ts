@@ -71,6 +71,8 @@ if (!PRICE_ID) {
 
 // Coupon ID for referral discount (15% off) - optional
 const COUPON_ID = process.env.STRIPE_COUPON_ID || process.env.NEXT_PUBLIC_STRIPE_COUPON_ID;
+// Referral Coupon ID specifically for referral system (15% off via INDICACAO15)
+const REFERRAL_COUPON_ID = process.env.STRIPE_REFERRAL_COUPON_ID || 'INDICACAO15';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST requests
@@ -96,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Validate referral code if provided
-    let affiliateId: string | null = null;
+    let referrerId: string | null = null;
     let shouldApplyDiscount = referralDiscountActive;
 
     if (referralCode) {
@@ -104,18 +106,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Normalize code: uppercase and remove spaces
         const normalizedCode = referralCode.toUpperCase().trim().replace(/\s/g, '');
 
-        // Search for company with this affiliate code
-        const companiesSnapshot = await db
-          .collection('companies')
-          .where('affiliateCode', '==', normalizedCode)
+        // Search for user with this myReferralCode in users collection
+        const usersSnapshot = await db
+          .collection('users')
+          .where('myReferralCode', '==', normalizedCode)
           .limit(1)
           .get();
 
-        if (!companiesSnapshot.empty) {
-          const companyDoc = companiesSnapshot.docs[0];
-          affiliateId = companyDoc.id;
+        if (!usersSnapshot.empty) {
+          const userDoc = usersSnapshot.docs[0];
+          referrerId = userDoc.id; // This is the uid (referrerId)
           shouldApplyDiscount = true; // Apply discount if valid code found
-          console.log(`Valid referral code found: ${normalizedCode} for company ${affiliateId}`);
+          console.log(`Valid referral code found: ${normalizedCode} for user ${referrerId}`);
         } else {
           console.log(`Referral code not found: ${normalizedCode}, proceeding without discount`);
           // Continue without discount if code is invalid
@@ -197,14 +199,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     // Apply discount coupon if referral discount is active or valid code found
+    // Use STRIPE_REFERRAL_COUPON_ID (INDICACAO15) for referral system
     // Stripe applies the coupon to the first invoice generated AFTER the trial ends
     // So if trial is 7 days, coupon applies to invoice on day 8
-    if (shouldApplyDiscount && COUPON_ID) {
+    if (shouldApplyDiscount && referrerId && REFERRAL_COUPON_ID) {
       sessionParams.discounts = [
         {
-          coupon: COUPON_ID,
+          coupon: REFERRAL_COUPON_ID,
         },
       ];
+      console.log(`Applying referral coupon ${REFERRAL_COUPON_ID} for referrer ${referrerId}`);
     }
 
     // Create the checkout session with error handling for invalid customer IDs

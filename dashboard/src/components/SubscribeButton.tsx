@@ -130,12 +130,12 @@ export function SubscribeButton({
     try {
       setValidatingCode(true);
       
-      // Search for company with this affiliate code
-      const companiesQuery = query(
-        collection(db, 'companies'),
-        where('affiliateCode', '==', normalizedCode)
+      // Search for user with this myReferralCode in users collection
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('myReferralCode', '==', normalizedCode)
       );
-      const snapshot = await getDocs(companiesQuery);
+      const snapshot = await getDocs(usersQuery);
 
       if (snapshot.empty) {
         setCodeValidation({
@@ -199,11 +199,11 @@ export function SubscribeButton({
       const normalizedCode = referralCode.toUpperCase().trim().replace(/\s/g, '');
       if (/^[A-Z]{3}\d{4}$/.test(normalizedCode)) {
         // Code format is valid, check if it exists in database
-        const companiesQuery = query(
-          collection(db, 'companies'),
-          where('affiliateCode', '==', normalizedCode)
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('myReferralCode', '==', normalizedCode)
         );
-        const snapshot = await getDocs(companiesQuery);
+        const snapshot = await getDocs(usersQuery);
         if (snapshot.empty) {
           alert('Código de indicação não encontrado. Por favor, verifique o código ou deixe em branco.');
           setLoading(false);
