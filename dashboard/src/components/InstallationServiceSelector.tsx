@@ -31,15 +31,42 @@ const INSTALLATION_SERVICES: Record<string, Array<{ name: string; description: s
   ],
   sacada: [
     { name: 'Envidraçamento de Sacada', description: 'Fechamento completo de sacada com vidros' },
-    { name: 'Guarda-Corpo de Vidro', description: 'Guarda-corpo de vidro temperado' },
     { name: 'Cortina de Vidro', description: 'Sistema de cortina de vidro' },
     { name: 'Outro tipo de Envidraçamento', description: 'Envidraçamento personalizado' },
   ],
+  espelho: [
+    { name: 'Espelho para Banheiro', description: 'Espelho sob medida para banheiro' },
+    { name: 'Espelho de Parede', description: 'Espelho decorativo de parede' },
+    { name: 'Espelho com Bisotê', description: 'Espelho com acabamento bisotê' },
+    { name: 'Espelho de Corpo Inteiro', description: 'Espelho grande de corpo inteiro' },
+    { name: 'Outro tipo de Espelho', description: 'Espelho personalizado' },
+  ],
+  'guarda-corpo': [
+    { name: 'Guarda-Corpo de Vidro Temperado', description: 'Guarda-corpo com vidro temperado 10mm' },
+    { name: 'Guarda-Corpo com Inox', description: 'Guarda-corpo de vidro com perfil de inox' },
+    { name: 'Guarda-Corpo Frameless', description: 'Guarda-corpo sem perfil aparente' },
+    { name: 'Guarda-Corpo de Escada', description: 'Guarda-corpo específico para escadas' },
+    { name: 'Outro tipo de Guarda-Corpo', description: 'Guarda-corpo personalizado' },
+  ],
+  divisorio: [
+    { name: 'Divisória de Ambiente', description: 'Divisória de vidro para separar ambientes' },
+    { name: 'Divisória de Escritório', description: 'Divisória com perfil de alumínio para escritório' },
+    { name: 'Divisória Acústica', description: 'Divisória com isolamento acústico' },
+    { name: 'Divisória Piso-Teto', description: 'Divisória que vai do piso ao teto' },
+    { name: 'Outro tipo de Divisória', description: 'Divisória personalizada' },
+  ],
+  'vidro-fixo': [
+    { name: 'Vidro Fixo de Fachada', description: 'Vidro fixo para fachada de imóveis' },
+    { name: 'Vidro Fixo de Vitrine', description: 'Vidro fixo para vitrines comerciais' },
+    { name: 'Vidro Fixo Decorativo', description: 'Vidro fixo para decoração de ambientes' },
+    { name: 'Vidro Fixo de Varanda', description: 'Vidro fixo para fechamento de varanda' },
+    { name: 'Outro tipo de Vidro Fixo', description: 'Vidro fixo personalizado' },
+  ],
   outros: [
-    { name: 'Espelho', description: 'Instalação de espelho personalizado' },
-    { name: 'Fixos/Vitrines', description: 'Vitrines e vidros fixos' },
     { name: 'Blindex', description: 'Instalação de blindex' },
     { name: 'Coberturas de Vidro', description: 'Coberturas e telhados de vidro' },
+    { name: 'Tampo de Mesa em Vidro', description: 'Tampo de vidro temperado para mesa' },
+    { name: 'Prateleiras de Vidro', description: 'Prateleiras de vidro temperado' },
     { name: 'Outro Serviço', description: 'Serviço personalizado de instalação' },
   ],
 };
@@ -49,6 +76,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   janela: 'Janela',
   porta: 'Porta',
   sacada: 'Sacada',
+  espelho: 'Espelho',
+  'guarda-corpo': 'Guarda-Corpo',
+  divisorio: 'Divisório',
+  'vidro-fixo': 'Vidro Fixo',
   outros: 'Outros',
 };
 
