@@ -194,8 +194,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...(referrerId && { referrerId: referrerId }),
         },
       },
-      // If no trial, require immediate payment
-      payment_behavior: shouldOfferTrial ? undefined : 'default_incomplete',
     };
 
     // Apply discount coupon if referral discount is active or valid code found
