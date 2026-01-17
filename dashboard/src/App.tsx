@@ -25,6 +25,7 @@ import { CompanySettings } from './pages/CompanySettings';
 import { MasterDashboard } from './pages/MasterDashboard';
 import { TemplateManager } from './pages/master/TemplateManager';
 import { PayoutManagement } from './pages/master/PayoutManagement';
+import { ProjectLibrary } from './pages/master/ProjectLibrary';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { SetupCompany } from './pages/SetupCompany';
@@ -579,7 +580,7 @@ function AppRoutes() {
         path="/master/templates"
         element={
           <MasterRoute>
-            <TemplateManager />
+            <ProjectLibrary />
           </MasterRoute>
         }
       />
