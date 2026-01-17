@@ -209,7 +209,7 @@ export function InstallationItemModal({
       }
     }
 
-    onSave({
+    const itemToSave = {
       serviceName: finalServiceName,
       quantity,
       unitPrice: pricingMethod === 'fixed' ? totalPrice : unitPrice,
@@ -230,7 +230,17 @@ export function InstallationItemModal({
       imageUrl: imageUrl,
       templateId: templateId,
       description: initialItem?.description,
+    };
+    
+    console.log('📤 InstallationItemModal - Sending to onSave:', {
+      serviceName: itemToSave.serviceName,
+      imageUrl: itemToSave.imageUrl,
+      templateId: itemToSave.templateId,
+      hasImageUrl: !!itemToSave.imageUrl,
+      fullItem: itemToSave,
     });
+    
+    onSave(itemToSave);
 
     onClose();
   };

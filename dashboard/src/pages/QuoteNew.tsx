@@ -289,6 +289,13 @@ export function QuoteNew() {
     imageUrl?: string;
     templateId?: string;
   }) => {
+    console.log('🎯 handleSelectServiceFromModal received:', {
+      serviceName: itemData.serviceName,
+      imageUrl: itemData.imageUrl,
+      templateId: itemData.templateId,
+      hasImageUrl: !!itemData.imageUrl,
+    });
+    
     const newItem: QuoteItem = {
       serviceId: itemData.serviceId,
       serviceName: itemData.serviceName,
@@ -304,6 +311,13 @@ export function QuoteNew() {
       imageUrl: itemData.imageUrl,
       templateId: itemData.templateId,
     };
+    
+    console.log('✅ Created newItem:', {
+      serviceName: newItem.serviceName,
+      imageUrl: newItem.imageUrl,
+      hasImageUrl: !!newItem.imageUrl,
+    });
+    
     setItems([...items, newItem]);
   };
 
@@ -439,7 +453,13 @@ export function QuoteNew() {
 
       try {
       // Sanitize items - include all fields including installation data
-      const sanitizedItems = items.map((item) => {
+      const sanitizedItems = items.map((item, index) => {
+        console.log(`🔧 Sanitizing item ${index}:`, {
+          serviceName: item.serviceName,
+          imageUrl: item.imageUrl,
+          hasImageUrl: !!item.imageUrl,
+        });
+        
         // Validate required fields
         if (!item.serviceId || !item.serviceName) {
           throw new Error(`Item inválido: falta serviceId ou serviceName`);
@@ -475,9 +495,15 @@ export function QuoteNew() {
         }
         
         // Include imageUrl and templateId if available (from project library)
-        if (item.imageUrl) sanitized.imageUrl = String(item.imageUrl);
+        if (item.imageUrl) {
+          sanitized.imageUrl = String(item.imageUrl);
+          console.log(`✅ Added imageUrl to sanitized item ${index}:`, sanitized.imageUrl);
+        } else {
+          console.warn(`⚠️ No imageUrl for item ${index}:`, item.serviceName);
+        }
         if (item.templateId) sanitized.templateId = String(item.templateId);
         
+        console.log(`📦 Sanitized item ${index}:`, sanitized);
         return sanitized;
       });
 

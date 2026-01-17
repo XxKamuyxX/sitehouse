@@ -164,6 +164,14 @@ export function QuoteWizard() {
   };
 
   const handleSaveInstallationItem = (itemData: any) => {
+    console.log('💾 QuoteWizard - handleSaveInstallationItem received:', {
+      serviceName: itemData.serviceName,
+      imageUrl: itemData.imageUrl,
+      templateId: itemData.templateId,
+      hasImageUrl: !!itemData.imageUrl,
+      fullItemData: itemData,
+    });
+    
     if (editingItemIndex !== null) {
       const newItems = [...items];
       newItems[editingItemIndex] = {
@@ -172,6 +180,7 @@ export function QuoteWizard() {
         serviceId: newItems[editingItemIndex].serviceId || `${itemData.isInstallation ? 'installation' : 'maintenance'}-${Date.now()}`,
         isInstallation: serviceType === 'installation', // Ensure isInstallation is set correctly
       };
+      console.log('✏️ Updated item:', newItems[editingItemIndex]);
       setItems(newItems);
       setEditingItemIndex(null);
     } else {
@@ -180,6 +189,7 @@ export function QuoteWizard() {
         serviceId: `${itemData.isInstallation ? 'installation' : 'maintenance'}-${Date.now()}`,
         isInstallation: serviceType === 'installation', // Ensure isInstallation is set correctly
       };
+      console.log('➕ Created new item:', newItem);
       setItems([...items, newItem]);
     }
     setShowInstallationModal(false);
