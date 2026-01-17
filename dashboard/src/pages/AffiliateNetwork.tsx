@@ -1,6 +1,6 @@
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
-import { Users, Network, Layers, TrendingUp, UserCheck, Calendar } from 'lucide-react';
+import { Users, TrendingUp, UserCheck, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
