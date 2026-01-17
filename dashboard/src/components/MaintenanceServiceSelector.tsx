@@ -104,7 +104,7 @@ export function MaintenanceServiceSelector({ category, onSelectService, onBack }
   };
 
   // Combine default services with templates
-  const allServices = [
+  const allServices: ServiceItem[] = [
     ...templates.map((template) => ({
       name: template.title,
       description: template.description,
@@ -113,7 +113,10 @@ export function MaintenanceServiceSelector({ category, onSelectService, onBack }
       isTemplate: true,
     })),
     ...defaultServices.map((service) => ({
-      ...service,
+      name: service.name,
+      description: service.description,
+      imageUrl: undefined,
+      templateId: undefined,
       isTemplate: false,
     })),
   ];
