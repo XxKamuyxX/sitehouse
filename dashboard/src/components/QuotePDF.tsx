@@ -1,5 +1,21 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
+// Helper function to ensure image URL is accessible
+const getAccessibleImageUrl = (url: string | undefined): string | undefined => {
+  if (!url) return undefined;
+  
+  // If it's already a Firebase Storage URL, ensure it has the correct format
+  if (url.includes('firebasestorage.googleapis.com')) {
+    // Make sure it has token parameter for public access
+    if (!url.includes('alt=media')) {
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}alt=media`;
+    }
+  }
+  
+  return url;
+};
+
 interface QuoteItem {
   serviceId: string;
   serviceName: string;
@@ -319,6 +335,16 @@ export function QuotePDF({
     paymentNotes: '',
   };
   
+  // Debug: Log items with imageUrl
+  console.log('📄 QuotePDF received items:', items);
+  items.forEach((item, index) => {
+    console.log(`PDF Item ${index}:`, {
+      serviceName: item.serviceName,
+      imageUrl: item.imageUrl,
+      hasImageUrl: !!item.imageUrl,
+    });
+  });
+  
   // Dynamic styles based on pdfSettings
   const dynamicStyles = StyleSheet.create({
     header: {
@@ -461,7 +487,8 @@ export function QuotePDF({
                 <View style={[styles.tableCell, { flex: 1.5, paddingRight: 5 }]}>
                   {item.imageUrl ? (
                     <Image
-                      src={item.imageUrl}
+                      src={getAccessibleImageUrl(item.imageUrl) || ''}
+                      cache={false}
                       style={{
                         width: 60,
                         height: 60,

@@ -243,6 +243,19 @@ export function QuoteNew() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setSelectedClientId(data.clientId);
+        
+        // Debug: Log items to check imageUrl
+        console.log('📦 Loading quote items:', data.items);
+        if (data.items && data.items.length > 0) {
+          data.items.forEach((item: any, index: number) => {
+            console.log(`Item ${index}:`, {
+              serviceName: item.serviceName,
+              imageUrl: item.imageUrl,
+              templateId: item.templateId,
+            });
+          });
+        }
+        
         setItems(data.items || []);
         setDiscount(data.discount || 0);
         setStatus(data.status || 'draft');
@@ -627,6 +640,17 @@ export function QuoteNew() {
   const handleGeneratePDF = async (options: { hideDimensions: boolean; hideUnitPrice: boolean }) => {
     const selectedClient = clients.find((c) => c.id === selectedClientId);
     if (!selectedClient) return;
+
+    // Debug: Log items before generating PDF
+    console.log('🔍 Items before PDF generation:', items);
+    items.forEach((item, index) => {
+      console.log(`Pre-PDF Item ${index}:`, {
+        serviceName: item.serviceName,
+        imageUrl: item.imageUrl,
+        hasImageUrl: !!item.imageUrl,
+        imageUrlLength: item.imageUrl?.length,
+      });
+    });
 
     try {
       // Convert logo to base64 to avoid CORS issues
