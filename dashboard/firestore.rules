@@ -109,8 +109,10 @@ service cloud.firestore {
                        // Prevent users from changing critical fields themselves
                        request.resource.data.companyId == resource.data.companyId &&
                        request.resource.data.role == resource.data.role &&
-                       request.resource.data.subscriptionStatus == resource.data.subscriptionStatus;
-                       // Note: mobileVerified, phoneNumber, phone, phoneVerifiedAt can be updated
+                       // Handle subscriptionStatus - it may not exist in old documents
+                       (request.resource.data.subscriptionStatus == resource.data.subscriptionStatus ||
+                        !('subscriptionStatus' in resource.data));
+                       // Note: mobileVerified, phoneNumber, phone, phoneVerifiedAt, updatedAt can be updated
                        // These are safe fields that don't affect security or access control
                        // The verification flow relies on these fields being updatable
       
