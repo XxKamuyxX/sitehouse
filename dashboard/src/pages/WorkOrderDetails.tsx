@@ -457,7 +457,7 @@ export function WorkOrderDetails() {
       const allItems = receiptItems.length > 0 ? receiptItems : manualServicesItems;
       
       // Calculate total from all items
-      const itemsTotal = allItems.reduce((sum, item) => sum + item.total, 0);
+      const itemsTotal = allItems.reduce((sum: number, item: any) => sum + item.total, 0);
       const totalAmount = itemsTotal > 0 ? itemsTotal : (totalPrice || 0);
 
       // Generate PDF
