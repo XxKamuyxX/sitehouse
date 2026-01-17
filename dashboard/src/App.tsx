@@ -265,13 +265,15 @@ function ActivateRoute({ children }: { children: React.ReactNode }) {
 
   // If user is already verified, check if company is set up
   if (userMetadata?.mobileVerified) {
-    // If company not set up, redirect to setup-company
+    // If company not set up, redirect to setup-company (CRITICAL: Prevents loop)
     if (!userMetadata.companyId || userMetadata.companyId === '') {
       return <Navigate to="/setup-company" replace />;
     }
     // Otherwise redirect to dashboard
     return <Navigate to="/dashboard" replace />;
   }
+  
+  // Allow access for unverified users (they need to verify phone first)
 
   // Allow access for unverified users
   return <>{children}</>;

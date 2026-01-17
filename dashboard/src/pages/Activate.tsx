@@ -25,7 +25,13 @@ export function Activate() {
   // Redirect if already verified
   useEffect(() => {
     if (!authLoading && user && userMetadata?.mobileVerified) {
-      navigate('/dashboard', { replace: true });
+      // If phone is verified but no company, redirect to setup-company
+      if (!userMetadata.companyId || userMetadata.companyId === '') {
+        navigate('/setup-company', { replace: true });
+      } else {
+        // If phone is verified and has company, redirect to dashboard
+        navigate('/dashboard', { replace: true });
+      }
     }
   }, [user, userMetadata, authLoading, navigate]);
 
@@ -229,12 +235,22 @@ export function Activate() {
       // This prevents redirect loops by ensuring userMetadata.mobileVerified is updated
       await refreshUserProfile();
       
+      // Read the updated user document to check companyId
+      // This is more reliable than relying on state that might not be updated yet
+      const updatedUserDoc = await getDoc(doc(db, 'users', user.uid));
+      const hasCompany = updatedUserDoc.exists() && 
+                        updatedUserDoc.data().companyId && 
+                        updatedUserDoc.data().companyId !== '';
+      
       // Small delay to ensure state propagation, then redirect
-      // Using window.location ensures a full page reload if needed to break any cache issues
+      // Redirect to setup-company if no company (critical: prevents white screen)
+      // If company exists, redirect to dashboard
       setTimeout(() => {
-        // Double-check that we're verified before redirecting
-        // If refresh didn't work, force a page reload
-        window.location.href = '/dashboard';
+        if (!hasCompany) {
+          window.location.href = '/setup-company';
+        } else {
+          window.location.href = '/dashboard';
+        }
       }, 2000);
     } catch (error: any) {
       console.error('Error verifying code:', error);
