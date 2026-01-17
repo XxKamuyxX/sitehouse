@@ -273,6 +273,8 @@ export function QuoteNew() {
     glassThickness?: string;
     profileColor?: string;
     isInstallation?: boolean;
+    imageUrl?: string;
+    templateId?: string;
   }) => {
     const newItem: QuoteItem = {
       serviceId: itemData.serviceId,
