@@ -184,14 +184,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cancel_url: finalCancelUrl,
       metadata: {
         companyId: companyId,
-        ...(affiliateId && { affiliateId: affiliateId }),
+        ...(referrerId && { referrerId: referrerId }),
       },
       subscription_data: {
         // Only add trial_period_days if account was created recently (< 7 days)
         ...(shouldOfferTrial && { trial_period_days: 7 }),
         metadata: {
           companyId: companyId,
-          ...(affiliateId && { affiliateId: affiliateId }),
+          ...(referrerId && { referrerId: referrerId }),
         },
       },
       // If no trial, require immediate payment
