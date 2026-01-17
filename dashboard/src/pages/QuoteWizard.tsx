@@ -48,6 +48,8 @@ interface QuoteItem {
   glassThickness?: string;
   profileColor?: string;
   isInstallation?: boolean;
+  imageUrl?: string;
+  templateId?: string;
 }
 
 type ServiceType = 'installation' | 'maintenance' | null;
@@ -904,6 +906,8 @@ export function QuoteWizard() {
                       quantity: 1,
                       unitPrice: 0,
                       total: 0,
+                      imageUrl: installationService.imageUrl,
+                      templateId: installationService.templateId,
                     }
                   : serviceType === 'maintenance' && maintenanceService
                     ? {
@@ -913,6 +917,8 @@ export function QuoteWizard() {
                         quantity: 1,
                         unitPrice: 0,
                         total: 0,
+                        imageUrl: maintenanceService.imageUrl,
+                        templateId: maintenanceService.templateId,
                       }
                     : selectedTemplate
                       ? {
