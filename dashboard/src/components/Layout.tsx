@@ -29,12 +29,35 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { signOut, userMetadata } = useAuth();
+  const { signOut, user, userMetadata, loading: authLoading } = useAuth();
   const { branding } = useBranding();
   const { company, loading: companyLoading } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Safety check: Redirect if user has no companyId (but allow setup-company page)
+  useEffect(() => {
+    // Skip if auth is still loading
+    if (authLoading) return;
+    
+    // Skip if user is not logged in (will be handled by AuthGuard)
+    if (!user) return;
+    
+    // Skip if phone not verified (will be handled by AuthGuard)
+    if (!userMetadata?.mobileVerified) return;
+    
+    // Skip if on setup-company page (allow access)
+    if (location.pathname === '/setup-company') return;
+    
+    // Skip if master user (doesn't need company)
+    if (userMetadata?.role === 'master') return;
+    
+    // If user has verified phone but no companyId, redirect to setup
+    if (!userMetadata?.companyId || userMetadata.companyId === '') {
+      navigate('/setup-company', { replace: true });
+    }
+  }, [user, userMetadata, authLoading, location.pathname, navigate]);
 
   // Update document title dynamically
   useEffect(() => {
@@ -99,6 +122,44 @@ export function Layout({ children }: LayoutProps) {
 
     return () => unsubscribe();
   }, [isMaster]);
+  
+  // Safety check: Show loading if no companyId (but skip for master users and setup-company page)
+  if (!isMaster && location.pathname !== '/setup-company') {
+    if (authLoading || companyLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+            <p className="mt-4 text-slate-600">Carregando...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // If user has verified phone but no companyId, show loading while redirect happens
+    if (user && userMetadata?.mobileVerified && (!userMetadata?.companyId || userMetadata.companyId === '')) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+            <p className="mt-4 text-slate-600">Redirecionando...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // If no company data when it should exist, show loading
+    if (userMetadata?.companyId && !company && !companyLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto"></div>
+            <p className="mt-4 text-slate-600">Carregando dados da empresa...</p>
+          </div>
+        </div>
+      );
+    }
+  }
   
   // Master users navigation items
   const masterNavItems = isMaster
