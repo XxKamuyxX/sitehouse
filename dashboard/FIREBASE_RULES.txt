@@ -148,5 +148,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isMaster();
     }
+    
+    // 14. PROJECT TEMPLATES (Biblioteca de Projetos - Nova Feature)
+    match /projectTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isMaster();
+    }
   }
 }
