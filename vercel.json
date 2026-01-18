@@ -2,5 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "ignoreCommand": "bash -c 'if [ -d dashboard ]; then exit 0; else exit 1; fi'"
 }
