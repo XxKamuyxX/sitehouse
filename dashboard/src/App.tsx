@@ -27,6 +27,7 @@ import { MasterDashboard } from './pages/MasterDashboard';
 import { PayoutManagement } from './pages/master/PayoutManagement';
 import { ProjectLibrary } from './pages/master/ProjectLibrary';
 import { StudioPage } from './pages/admin/StudioPage';
+import { DebugPage } from './pages/DebugPage';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { SetupCompany } from './pages/SetupCompany';
@@ -600,6 +601,15 @@ function AppRoutes() {
           <MasterRoute>
             <StudioPage />
           </MasterRoute>
+        }
+      />
+
+      <Route
+        path="/debug"
+        element={
+          <AdminRoute>
+            <DebugPage />
+          </AdminRoute>
         }
       />
       

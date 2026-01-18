@@ -383,8 +383,11 @@ export function QuoteNew() {
 
   // Helper: Gera engine_config_snapshot básico para itens de instalação
   const generateEngineConfig = (itemData: any) => {
+    console.log('🔧 generateEngineConfig chamado:', itemData);
+    
     // Só gera se for instalação E tiver dimensões
     if (!itemData.isInstallation || !itemData.dimensions) {
+      console.log('❌ Não gera config - isInstallation:', itemData.isInstallation, 'dimensions:', itemData.dimensions);
       return null;
     }
 
@@ -402,8 +405,10 @@ export function QuoteNew() {
       engineId = 'sacada_ks';
     }
 
+    console.log('✅ Engine detectado:', engineId, 'para serviço:', serviceName);
+
     // Gerar configuração básica
-    return {
+    const config = {
       engine_id: engineId,
       regras_fisicas: {
         tipo_movimento: engineId === 'janela_correr' ? 'correr' : 'empilhavel',
@@ -412,17 +417,25 @@ export function QuoteNew() {
         quantidade_folhas: Math.ceil(itemData.dimensions.width / 1000) * 2, // Estimativa: 2 folhas por metro
       },
     };
+    
+    console.log('📦 Config gerado:', config);
+    return config;
   };
 
   const handleSaveInstallationItem = (itemData: any) => {
+    console.log('💾 handleSaveInstallationItem chamado:', itemData);
+    
     // Gerar engine_config_snapshot automaticamente
     const engine_config_snapshot = generateEngineConfig(itemData);
+    console.log('🎯 engine_config_snapshot:', engine_config_snapshot);
 
     const enrichedData = {
       ...itemData,
       engine_config_snapshot,
       usar_engenharia: !!engine_config_snapshot,
     };
+    
+    console.log('📝 enrichedData:', enrichedData);
 
     if (editingItemIndex !== null) {
       // Update existing item
@@ -434,6 +447,7 @@ export function QuoteNew() {
       };
       setItems(newItems);
       setEditingItemIndex(null);
+      console.log('✏️ Item atualizado no índice:', editingItemIndex);
     } else {
       // Add new item
       const newItem: QuoteItem = {
@@ -441,6 +455,7 @@ export function QuoteNew() {
         ...enrichedData,
       };
       setItems([...items, newItem]);
+      console.log('➕ Novo item adicionado:', newItem);
     }
     setShowInstallationModal(false);
   };
@@ -644,6 +659,16 @@ export function QuoteNew() {
           return;
         }
         console.log('Creating quote with data:', { ...quoteData, createdAt: '[serverTimestamp]' });
+        console.log('🔍 Items being saved:', quoteData.items);
+        quoteData.items?.forEach((item: any, index: number) => {
+          console.log(`📦 Item ${index}:`, {
+            serviceName: item.serviceName,
+            isInstallation: item.isInstallation,
+            usar_engenharia: item.usar_engenharia,
+            engine_config_snapshot: item.engine_config_snapshot,
+            ladoAbertura: item.ladoAbertura,
+          });
+        });
         await addDoc(collection(db, 'quotes'), quoteData);
         alert('Orçamento salvo com sucesso!');
       }
