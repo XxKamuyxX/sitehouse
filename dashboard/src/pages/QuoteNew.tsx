@@ -114,11 +114,15 @@ interface QuoteItem {
   glassColor?: string;
   glassThickness?: string;
   profileColor?: string;
+  ladoAbertura?: 'esquerda' | 'direita';
   isInstallation?: boolean;
   // Visual library fields
   imageUrl?: string;
   templateId?: string;
   description?: string;
+  // Engine fields (Digital Twin)
+  engine_config_snapshot?: any;
+  usar_engenharia?: boolean;
 }
 
 const VIP_CONDOMINIUMS = [
@@ -377,13 +381,55 @@ export function QuoteNew() {
     setItems(newItems);
   };
 
+  // Helper: Gera engine_config_snapshot básico para itens de instalação
+  const generateEngineConfig = (itemData: any) => {
+    // Só gera se for instalação E tiver dimensões
+    if (!itemData.isInstallation || !itemData.dimensions) {
+      return null;
+    }
+
+    // Determinar engine_id baseado no nome do serviço
+    let engineId = 'sacada_ks'; // Default
+    const serviceName = itemData.serviceName.toLowerCase();
+    
+    if (serviceName.includes('janela')) {
+      engineId = 'janela_correr';
+    } else if (serviceName.includes('box')) {
+      engineId = 'box_frontal';
+    } else if (serviceName.includes('guarda')) {
+      engineId = 'guarda_corpo_torre';
+    } else if (serviceName.includes('sacada') || serviceName.includes('cortina')) {
+      engineId = 'sacada_ks';
+    }
+
+    // Gerar configuração básica
+    return {
+      engine_id: engineId,
+      regras_fisicas: {
+        tipo_movimento: engineId === 'janela_correr' ? 'correr' : 'empilhavel',
+        tem_pivo: engineId === 'sacada_ks',
+        folgas: { padrao: 15, lateral: 20, superior: 15, inferior: 15 },
+        quantidade_folhas: Math.ceil(itemData.dimensions.width / 1000) * 2, // Estimativa: 2 folhas por metro
+      },
+    };
+  };
+
   const handleSaveInstallationItem = (itemData: any) => {
+    // Gerar engine_config_snapshot automaticamente
+    const engine_config_snapshot = generateEngineConfig(itemData);
+
+    const enrichedData = {
+      ...itemData,
+      engine_config_snapshot,
+      usar_engenharia: !!engine_config_snapshot,
+    };
+
     if (editingItemIndex !== null) {
       // Update existing item
       const newItems = [...items];
       newItems[editingItemIndex] = {
         ...newItems[editingItemIndex],
-        ...itemData,
+        ...enrichedData,
         serviceId: newItems[editingItemIndex].serviceId || `installation-${Date.now()}`,
       };
       setItems(newItems);
@@ -392,7 +438,7 @@ export function QuoteNew() {
       // Add new item
       const newItem: QuoteItem = {
         serviceId: `installation-${Date.now()}`,
-        ...itemData,
+        ...enrichedData,
       };
       setItems([...items, newItem]);
     }
