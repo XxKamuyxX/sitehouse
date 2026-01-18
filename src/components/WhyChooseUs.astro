@@ -1,0 +1,49 @@
+---
+const benefits = [
+  {
+    title: 'Atendimento 24h',
+    description: 'Resolvemos seu problema em até 24 horas após o contato.',
+    icon: '⏰',
+  },
+  {
+    title: 'Garantia Total',
+    description: 'Todos os serviços vêm com garantia de qualidade e durabilidade.',
+    icon: '🛡️',
+  },
+  {
+    title: 'Peças de Qualidade',
+    description: 'Utilizamos apenas peças de primeira linha e originais.',
+    icon: '⭐',
+  },
+  {
+    title: 'Técnicos Especializados',
+    description: 'Equipe experiente e treinada para resolver qualquer problema.',
+    icon: '👷',
+  },
+];
+---
+
+<section class="py-20 md:py-32 bg-gradient-to-b from-blue-50 to-slate-50">
+  <div class="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+    <div class="text-center mb-16">
+      <h2 class="text-4xl md:text-5xl lg:text-6xl font-serif font-bold mb-6 text-slate-900">
+        Por Que Escolher a <span class="text-gold">House Manutenção</span>
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+      {benefits.map((benefit) => (
+        <div class="bg-white rounded-xl p-8 text-center shadow-md hover:shadow-xl transition-all duration-300 border-2 border-slate-200 hover:border-blue-400 hover:-translate-y-2 hover:bg-blue-50 cursor-pointer">
+          <div class="text-5xl mb-4">{benefit.icon}</div>
+          <h3 class="text-xl font-serif font-bold mb-3 text-slate-900">
+            {benefit.title}
+          </h3>
+          <p class="text-slate-600 leading-relaxed">
+            {benefit.description}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+

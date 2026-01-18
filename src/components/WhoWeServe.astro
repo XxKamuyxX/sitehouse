@@ -1,0 +1,37 @@
+---
+const areas = [
+  'Belvedere',
+  'Vila da Serra',
+  'Nova Lima',
+  'Buritis',
+  'Pampulha',
+  'Sion',
+  'Gutierrez',
+  'Cidade Nova',
+];
+---
+
+<section class="py-16 md:py-32 bg-deep-navy text-white">
+  <div class="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+    <h2 id="atendimento" class="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-center mb-6">
+      Nossa Base Operacional Atende Você
+    </h2>
+    
+    <p class="text-lg md:text-xl text-slate-300 text-center max-w-4xl mx-auto mb-8 leading-relaxed">
+      Com equipes volantes em pontos estratégicos, garantimos pontualidade no <strong class="text-white">Belvedere, Nova Lima, Pampulha, Buritis, Sion, Gutierrez</strong> e toda região metropolitana.
+    </p>
+    
+    <p class="text-base text-slate-400 text-center max-w-3xl mx-auto mb-12">
+      Nossa estrutura logística permite atendimento rápido e eficiente em toda Grande BH, mantendo o mesmo padrão de excelência técnica independente da localização.
+    </p>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-4xl mx-auto">
+      {areas.map((area) => (
+        <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition-colors">
+          <span class="text-white font-medium">{area}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+

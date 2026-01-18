@@ -1,0 +1,155 @@
+---
+import HeaderCTA from './HeaderCTA';
+---
+
+<div id="header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-white/95 backdrop-blur-md border-b border-slate-200" data-header>
+  <nav class="container mx-auto px-4 md:px-6 lg:px-8 py-2 md:py-3">
+    <div class="px-4 py-2 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <img 
+          src="/logo.png" 
+          alt="House Manutenção" 
+          class="h-8 md:h-10 w-auto"
+        />
+        <span class="text-xl md:text-2xl font-serif font-bold text-slate-900 hidden sm:inline">
+          House Manutenção
+        </span>
+      </a>
+      
+      <div class="hidden md:flex items-center gap-3 lg:gap-4">
+        <a href="#metodo" class="text-xs md:text-sm font-medium text-slate-700 hover:text-[#D4AF37] transition-colors relative group">
+          Método
+          <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F6E27A] group-hover:w-full transition-all duration-300"></span>
+        </a>
+        <a href="#problemas" class="text-xs md:text-sm font-medium text-slate-700 hover:text-[#D4AF37] transition-colors relative group">
+          Problemas
+          <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F6E27A] group-hover:w-full transition-all duration-300"></span>
+        </a>
+        <a href="#servicos" class="text-xs md:text-sm font-medium text-slate-700 hover:text-[#D4AF37] transition-colors relative group">
+          Serviços
+          <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F6E27A] group-hover:w-full transition-all duration-300"></span>
+        </a>
+        <a href="#depoimentos" class="text-xs md:text-sm font-medium text-slate-700 hover:text-[#D4AF37] transition-colors relative group">
+          Depoimentos
+          <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F6E27A] group-hover:w-full transition-all duration-300"></span>
+        </a>
+        <a href="#faq" class="text-xs md:text-sm font-medium text-slate-700 hover:text-[#D4AF37] transition-colors relative group">
+          FAQ
+          <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F6E27A] group-hover:w-full transition-all duration-300"></span>
+        </a>
+        <a href="/blog" class="text-xs md:text-sm font-medium text-slate-700 hover:text-[#D4AF37] transition-colors relative group">
+          Blog
+          <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F6E27A] group-hover:w-full transition-all duration-300"></span>
+        </a>
+        <HeaderCTA client:load />
+      </div>
+      
+      <button 
+        id="mobile-menu-btn"
+        class="md:hidden text-slate-700 hover:text-[#D4AF37] transition-colors"
+        aria-label="Menu"
+        type="button"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+      
+      <!-- Mobile Menu -->
+      <div id="mobile-menu" class="hidden md:hidden fixed inset-0 top-16 bg-white z-40 overflow-y-auto">
+        <div class="container mx-auto px-4 py-8">
+          <nav class="flex flex-col gap-6">
+            <a href="#metodo" class="text-lg font-medium text-slate-700 hover:text-[#D4AF37] transition-colors py-2 border-b border-slate-200">
+              Método
+            </a>
+            <a href="#problemas" class="text-lg font-medium text-slate-700 hover:text-[#D4AF37] transition-colors py-2 border-b border-slate-200">
+              Problemas
+            </a>
+            <a href="#servicos" class="text-lg font-medium text-slate-700 hover:text-[#D4AF37] transition-colors py-2 border-b border-slate-200">
+              Serviços
+            </a>
+            <a href="#depoimentos" class="text-lg font-medium text-slate-700 hover:text-[#D4AF37] transition-colors py-2 border-b border-slate-200">
+              Depoimentos
+            </a>
+            <a href="#faq" class="text-lg font-medium text-slate-700 hover:text-[#D4AF37] transition-colors py-2 border-b border-slate-200">
+              FAQ
+            </a>
+            <a href="/blog" class="text-lg font-medium text-slate-700 hover:text-[#D4AF37] transition-colors py-2 border-b border-slate-200">
+              Blog
+            </a>
+            <button 
+              type="button"
+              onclick="window.dispatchEvent(new CustomEvent('openWhatsAppModal')); closeMobileMenu();"
+              class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-colors shadow-lg mt-4"
+            >
+              Agendar
+            </button>
+          </nav>
+        </div>
+      </div>
+      
+      <!-- Mobile Menu Backdrop -->
+      <div id="mobile-menu-backdrop" class="hidden md:hidden fixed inset-0 bg-black/50 z-30" onclick="closeMobileMenu()"></div>
+    </div>
+  </nav>
+</div>
+
+<script>
+  // Header scroll effect
+  const header = document.querySelector('[data-header]');
+  let lastScroll = 0;
+  
+  window.addEventListener('scroll', () => {
+    const currentScroll = window.scrollY;
+    
+    if (currentScroll > 100) {
+      header?.classList.add('shadow-md');
+    } else {
+      header?.classList.remove('shadow-md');
+    }
+    
+    lastScroll = currentScroll;
+  });
+  
+  // Mobile menu functions
+  function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const backdrop = document.getElementById('mobile-menu-backdrop');
+    if (menu && backdrop) {
+      menu.classList.toggle('hidden');
+      backdrop.classList.toggle('hidden');
+      document.body.style.overflow = menu.classList.contains('hidden') ? '' : 'hidden';
+    }
+  }
+  
+  function closeMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const backdrop = document.getElementById('mobile-menu-backdrop');
+    if (menu && backdrop) {
+      menu.classList.add('hidden');
+      backdrop.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  }
+  
+  // Attach event listener to mobile menu button
+  document.addEventListener('DOMContentLoaded', () => {
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+    }
+    
+    // Close menu when clicking on links
+    const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
+    mobileMenuLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        setTimeout(closeMobileMenu, 100);
+      });
+    });
+  });
+  
+  // Make functions globally available
+  window.toggleMobileMenu = toggleMobileMenu;
+  window.closeMobileMenu = closeMobileMenu;
+</script>
+

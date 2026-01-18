@@ -1,0 +1,54 @@
+---
+const steps = [
+  {
+    number: '01',
+    title: 'Diagnóstico',
+    description: 'Avaliamos trilhos, guias e folgas.',
+    icon: '🔍',
+  },
+  {
+    number: '02',
+    title: 'Higienização',
+    description: 'Limpamos a crosta de sujeira e pelos dos trilhos.',
+    icon: '✨',
+  },
+  {
+    number: '03',
+    title: 'Troca Técnica',
+    description: 'Substituímos as peças plásticas por roldanas de alta resistência.',
+    icon: '🔧',
+  },
+  {
+    number: '04',
+    title: 'Acabamento',
+    description: 'Lubrificação seca e limpeza dos vidros.',
+    icon: '✨',
+  },
+];
+---
+
+<section class="py-16 md:py-32 bg-soft-gray">
+  <div class="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+    <h2 id="solucao" class="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-center mb-4 text-slate-900">
+      O Que Fazemos na Sua Casa <span class="text-gold">(Passo a Passo)</span>
+    </h2>
+    
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mt-12">
+      {steps.map((step) => (
+        <div class="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow border border-slate-100">
+          <div class="text-4xl mb-4">{step.icon}</div>
+          <div class="text-gold text-2xl font-serif font-bold mb-2 opacity-50">
+            {step.number}
+          </div>
+          <h3 class="text-xl font-serif font-bold mb-3 text-slate-900">
+            {step.title}
+          </h3>
+          <p class="text-slate-600 leading-relaxed">
+            {step.description}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+

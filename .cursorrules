@@ -1,0 +1,17 @@
+# PROTOCOLO DE DEPLOY AUTOMÁTICO
+
+Sempre que você realizar uma alteração no código ou corrigir um erro, siga obrigatoriamente estes passos finais antes de encerrar sua resposta:
+
+1. **Verificação de Segurança:**
+   - Rode `npm run build` dentro da pasta `dashboard` para garantir que não há erros de TypeScript.
+
+2. **Envio Automático (Se o build passar):**
+   - Execute os seguintes comandos no terminal sequencialmente:
+     1. `git add .`
+     2. `git commit -m "Auto: {resumo_curto_do_que_foi_feito}"`
+     3. `git push`
+
+3. **Confirmação:**
+   - Avise o usuário: "✅ Código enviado para o GitHub. A Vercel iniciará a atualização em instantes."
+
+Se o build falhar, NÃO faça o push. Avise o usuário sobre o erro.

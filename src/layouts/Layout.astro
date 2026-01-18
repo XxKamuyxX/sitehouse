@@ -1,0 +1,78 @@
+---
+import '@fontsource/playfair-display/400.css';
+import '@fontsource/playfair-display/700.css';
+import '@fontsource/manrope/400.css';
+import '@fontsource/manrope/500.css';
+import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/700.css';
+import '../styles/global.css';
+import LenisInit from '../components/LenisInit';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="description" content="House Manutenção - Engenharia de Precisão em Cortinas de Vidro. Belo Horizonte, Nova Lima, Vila da Serra." />
+    <title>House Manutenção | Engenharia de Precisão em Cortinas de Vidro</title>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17852160281"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'AW-17852160281');
+    </script>
+    
+    <!-- GCLID Capture Script -->
+    <script is:inline>
+      (function() {
+        'use strict';
+        
+        // Parse URL parameters
+        function getUrlParams() {
+          const params = new URLSearchParams(window.location.search);
+          return {
+            gclid: params.get('gclid') || null,
+            utm_source: params.get('utm_source') || null,
+            utm_medium: params.get('utm_medium') || null,
+            utm_campaign: params.get('utm_campaign') || null,
+          };
+        }
+        
+        // Store in sessionStorage
+        function storeTrackingParams() {
+          const params = getUrlParams();
+          if (params.gclid || params.utm_source || params.utm_medium || params.utm_campaign) {
+            sessionStorage.setItem('trackingParams', JSON.stringify(params));
+          }
+        }
+        
+        // Expose global function to retrieve params
+        window.getTrackingParams = function() {
+          try {
+            const stored = sessionStorage.getItem('trackingParams');
+            return stored ? JSON.parse(stored) : getUrlParams();
+          } catch (e) {
+            return getUrlParams();
+          }
+        };
+        
+        // Execute on load
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', storeTrackingParams);
+        } else {
+          storeTrackingParams();
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-white text-slate-900 font-sans antialiased">
+    <slot />
+    <LenisInit client:load />
+  </body>
+</html>
+

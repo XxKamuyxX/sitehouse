@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-slate-900;
+    font-feature-settings: "kern" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  html {
+    scroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)];
+  }
+  
+  .gold-gradient {
+    @apply bg-gradient-to-r from-[#D4AF37] via-[#F6E27A] to-[#D4AF37];
+  }
+  
+  .gold-border {
+    @apply border border-[#D4AF37]/50 hover:border-[#D4AF37] transition-colors;
+  }
+  
+  .text-gold {
+    @apply bg-gradient-to-r from-[#D4AF37] via-[#F6E27A] to-[#D4AF37] bg-clip-text text-transparent;
+  }
+  
+  .bg-soft-gray {
+    @apply bg-[#F8FAFC];
+  }
+  
+  .bg-deep-navy {
+    @apply bg-[#0F172A];
+  }
+}
+

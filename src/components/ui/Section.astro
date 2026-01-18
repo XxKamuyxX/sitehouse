@@ -1,0 +1,27 @@
+---
+interface Props {
+  class?: string;
+  background?: 'black' | 'navy' | 'white';
+}
+
+const { 
+  class: className = '', 
+  background = 'black' 
+} = Astro.props;
+
+const bgClasses = {
+  black: 'bg-void-black',
+  navy: 'bg-deep-navy',
+  white: 'bg-paper-white text-void-black',
+};
+---
+
+<section class={`${bgClasses[background]} py-16 md:py-32 ${className}`}>
+  <div class="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+    <slot />
+  </div>
+</section>
+
+
+
+

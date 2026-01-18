@@ -1,0 +1,65 @@
+---
+const condominios = [
+  'Alphaville Lagoa dos Ingleses',
+  'Vale dos Cristais',
+  'Vila da Serra',
+  'Olympus',
+  'Four Seasons',
+  'Beverly Hills',
+];
+---
+
+<section class="py-12 md:py-16 bg-gradient-to-r from-blue-50 via-amber-50 to-blue-50">
+  <div class="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+    <p class="text-center text-sm uppercase tracking-widest text-slate-600 mb-8 font-semibold">
+      Atendemos nos principais condomínios de Nova Lima e Belvedere:
+    </p>
+    
+    <div class="relative flex overflow-hidden">
+      <div class="flex animate-marquee whitespace-nowrap">
+        {condominios.map((condo) => (
+          <div class="mx-8 flex items-center justify-center">
+            <div class="condo-logo text-2xl md:text-3xl font-serif font-bold text-slate-500 hover:text-amber-700 transition-all duration-300 cursor-default hover:scale-110">
+              {condo}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div class="flex animate-marquee whitespace-nowrap" aria-hidden="true">
+        {condominios.map((condo) => (
+          <div class="mx-8 flex items-center justify-center">
+            <div class="condo-logo text-2xl md:text-3xl font-serif font-bold text-slate-500 hover:text-amber-700 transition-all duration-300 cursor-default hover:scale-110">
+              {condo}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+    
+    <div class="mt-8 text-center">
+      <button onclick="window.dispatchEvent(new CustomEvent('openWhatsAppModal'))" class="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg uppercase tracking-wider transition-colors shadow-lg hover:shadow-xl">
+        Solicitar Orçamento
+      </button>
+    </div>
+  </div>
+</section>
+
+<style>
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+  
+  .condo-logo {
+    min-width: fit-content;
+  }
+</style>
+
