@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to get user's companyId from user document
+    function getUserCompanyId() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
+    }
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Users - acesso apenas ao próprio documento (DEVE VIR PRIMEIRO para permitir getUserCompanyId funcionar)
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Clients - apenas usuários autenticados com companyId correspondente
+    match /clients/{clientId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId() &&
+                       request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+    
+    // Work Orders - leitura pública, escrita apenas com companyId correspondente
+    match /workOrders/{workOrderId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if (isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId() &&
+                        request.resource.data.companyId == getUserCompanyId()) ||
+                      (request.resource.data.diff(resource.data).unchangedKeys()
+                        .hasAll(['quoteId', 'clientName', 'scheduledDate', 'technician', 'status', 'checklist', 'notes', 'photos', 'technicalInspection', 'createdAt', 'companyId'])
+                        && (request.resource.data.keys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate'])
+                            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate'])));
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+    
+    // Expenses - apenas usuários autenticados com companyId correspondente
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId() &&
+                       request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+    
+    // Quotes - leitura pública, escrita apenas com companyId correspondente
+    match /quotes/{quoteId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if (isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId() &&
+                        request.resource.data.companyId == getUserCompanyId()) ||
+                      (request.resource.data.diff(resource.data).unchangedKeys()
+                        .hasAll(['clientId', 'clientName', 'items', 'subtotal', 'discount', 'total', 'warranty', 'observations', 'diagnosis', 'createdAt', 'companyId'])
+                        && request.resource.data.status in ['approved', 'rejected']
+                        && request.resource.data.updatedAt is timestamp);
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+    
+    // Receipts - leitura pública, escrita apenas com companyId correspondente
+    match /receipts/{receiptId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId() &&
+                       request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.data.companyId == getUserCompanyId();
+    }
+    
+    // Settings - acesso apenas autenticado
+    match /settings/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Companies - acesso apenas ao próprio companyId
+    match /companies/{companyId} {
+      allow read: if isAuthenticated() && 
+                     resource.id == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                       request.resource.id == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                       resource.id == getUserCompanyId() &&
+                       request.resource.id == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                       resource.id == getUserCompanyId();
+    }
+  }
+}

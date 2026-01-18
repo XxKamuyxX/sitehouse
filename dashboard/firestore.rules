@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserCompanyId() {
+      // Pega o ID da empresa do usuário (pode estar vazio se ele ainda não criou)
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
+    }
+    
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && 
+             getUserCompanyId() == companyId;
+    }
+    
+    function isOwnerOrAdmin(companyId) {
+      return isAuthenticated() && 
+             belongsToCompany(companyId) &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
+    }
+    
+    function isMaster() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master';
+    }
+    
+    function canReadCompany(companyId) {
+      return isAuthenticated() && belongsToCompany(companyId);
+    }
+
+    // ============================================
+    // 1. EMPRESAS (CORREÇÃO APLICADA AQUI)
+    // ============================================
+    match /companies/{companyId} {
+      // Leitura: Quem é da empresa OU master pode ler
+      allow read: if canReadCompany(companyId) || isMaster();
+      
+      // CRIAÇÃO (A MUDANÇA IMPORTANTE):
+      // Antes estava bloqueado. Agora permitimos criar se o usuário 
+      // se colocar como 'ownerId' do documento.
+      allow create: if isAuthenticated() && 
+                    request.resource.data.ownerId == request.auth.uid;
+      
+      // Atualização: Continua restrita aos donos/admins existentes
+      allow update: if isOwnerOrAdmin(companyId) && 
+                        request.resource.data.keys().hasAll(['updatedAt']);
+      
+      allow delete: if false; 
+      
+      // Subcoleções (Clientes, Orçamentos, etc)
+      match /{document=**} {
+        allow read: if canReadCompany(companyId) || isMaster();
+        allow write: if isOwnerOrAdmin(companyId);
+      }
+    }
+
+    // ============================================
+    // 2. ORÇAMENTOS (QUOTES)
+    // ============================================
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated() && 
+                      resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                        request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId() &&
+                        request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId();
+    }
+
+    // ============================================
+    // 3. ORDENS DE SERVIÇO (WORK ORDERS)
+    // ============================================
+    match /workOrders/{workOrderId} {
+      allow read: if isAuthenticated() && 
+                      resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                        request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId() &&
+                        request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId();
+    }
+
+    // ============================================
+    // 4. CLIENTES (CLIENTS)
+    // ============================================
+    match /clients/{clientId} {
+      allow read: if isAuthenticated() && 
+                      resource.data.companyId == getUserCompanyId();
+      allow create: if isAuthenticated() && 
+                        request.resource.data.companyId == getUserCompanyId();
+      allow update: if isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId() &&
+                        request.resource.data.companyId == getUserCompanyId();
+      allow delete: if isAuthenticated() && 
+                        resource.data.companyId == getUserCompanyId();
+    }
+
+    // ============================================
+    // 5. USUÁRIOS (CORREÇÃO MANTIDA)
+    // ============================================
+    match /users/{userId} {
+      // Permite leitura e escrita total se for o dono da conta OU se for master
+      allow read: if request.auth.uid == userId || isMaster();
+      allow write: if request.auth.uid == userId;
+      
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 6. INDICAÇÕES (REFERRALS)
+    // ============================================
+    match /referrals/{referralId} {
+      allow create: if isAuthenticated() &&
+                        request.resource.data.referrerId == request.auth.uid;
+      allow read: if (isAuthenticated() && resource.data.referrerId == request.auth.uid) || isMaster();
+      allow update: if isMaster();
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 7. REGISTRO DE TELEFONE (PHONE REGISTRY)
+    // ============================================
+    match /phone_registry/{phoneNumber} {
+      allow read: if isAuthenticated();
+      // Permite criar livremente se estiver logado (fluxo de ativação)
+      allow create: if isAuthenticated(); 
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 8. REGISTRO DE CNPJ/CPF (TAX ID)
+    // ============================================
+    match /tax_id_registry/{taxId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // 9. PROJECT TEMPLATES (BIBLIOTECA DE PROJETOS)
+    // ============================================
+    match /projectTemplates/{templateId} {
+      // Master pode criar, editar e deletar templates
+      allow create, update, delete: if isMaster();
+      // Todos os usuários autenticados podem ler templates
+      allow read: if isAuthenticated();
+    }
+
+    // ============================================
+    // 10. COMMISSIONS & PAYOUTS (MASTER ONLY)
+    // ============================================
+    match /commissions/{commissionId} {
+      allow read, write: if isMaster();
+    }
+    
+    match /payoutRequests/{requestId} {
+      allow read, write: if isMaster();
+    }
+    
+    match /affiliateCommissions/{commissionId} {
+      allow read, write: if isMaster();
+    }
+
+    // ============================================
+    // 11. ACTIVITIES & MONITORING (MASTER ONLY)
+    // ============================================
+    match /activities/{activityId} {
+      allow read, write: if isMaster();
+    }
+    
+    match /recentActivity/{activityId} {
+      allow read, write: if isMaster();
+    }
+
+    // ============================================
+    // 12. MASTER DASHBOARD DATA
+    // ============================================
+    match /masterStats/{docId} {
+      allow read, write: if isMaster();
+    }
+
+    // ============================================
+    // 13. DEFAULT DENY
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

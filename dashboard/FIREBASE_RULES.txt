@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- FUNÇÕES AUXILIARES ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // 👑 FUNÇÃO MASTER (Dono Supremo)
+    // Libera acesso total para o seu e-mail
+    function isMaster() {
+      return isAuthenticated() && request.auth.token.email == "poucavistavidelonge@gmail.com";
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function hasCompanyId() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserDoc().data.companyId != null &&
+             getUserDoc().data.companyId is string &&
+             getUserDoc().data.companyId != '';
+    }
+    
+    function getUserCompanyId() {
+      return hasCompanyId() ? getUserDoc().data.companyId : null;
+    }
+
+    // Verifica se o usuário pertence à mesma empresa do documento que está tentando ler
+    function isSameCompany(resourceData) {
+      return hasCompanyId() && resourceData.companyId == getUserCompanyId();
+    }
+    
+    // --- REGRAS DAS COLEÇÕES ---
+
+    // 1. USERS (Usuários)
+    // - Master vê todos
+    // - Usuário vê a si mesmo
+    // - Colegas de equipe veem uns aos outros (para a tela de Equipe funcionar)
+    match /users/{userId} {
+      allow read: if isMaster() || 
+                  (isAuthenticated() && request.auth.uid == userId) || 
+                  (isAuthenticated() && hasCompanyId() && resource.data.companyId == getUserCompanyId());
+      allow write: if isMaster() || (isAuthenticated() && request.auth.uid == userId);
+    }
+    
+    // 2. CLIENTS (Clientes)
+    match /clients/{clientId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
+    }
+    
+    // 3. COMPANIES (Empresas)
+    // - Master vê todas
+    // - Usuário vê/edita a sua própria
+    match /companies/{companyId} {
+      allow read: if isMaster() || (isAuthenticated() && hasCompanyId() && resource.id == getUserCompanyId());
+      allow create: if isAuthenticated(); // Permite criar na hora do registro
+      allow update: if isMaster() || (isAuthenticated() && hasCompanyId() && resource.id == getUserCompanyId());
+      allow delete: if isMaster();
+    }
+    
+    // 4. WORK ORDERS (Ordens de Serviço)
+    match /workOrders/{workOrderId} {
+      allow read: if true; // Mantém público para o cliente final ver o link
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      // Lógica complexa de atualização mantida (para feedback do cliente) + Master
+      allow update: if isMaster() || 
+                    (isAuthenticated() && isSameCompany(resource.data)) ||
+                    (!isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'rejected', 'approvedAt', 'rejectedAt', 'updatedAt', 'feedbackSubmitted', 'feedbackRating', 'feedbackDate', 'feedbackComment']));
+      allow delete: if isMaster() || isSameCompany(resource.data);
+    }
+    
+    // 5. EXPENSES (Despesas)
+    match /expenses/{expenseId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
+    }
+    
+    // 6. QUOTES (Orçamentos)
+    match /quotes/{quoteId} {
+      allow read: if true; // Mantém público para cliente ver PDF/Link
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update: if isMaster() || 
+                    (isAuthenticated() && isSameCompany(resource.data)) ||
+                    (request.resource.data.status in ['approved', 'rejected']); // Permite cliente aprovar externamente
+      allow delete: if isMaster() || isSameCompany(resource.data);
+    }
+    
+    // 7. RECEIPTS (Recibos)
+    match /receipts/{receiptId} {
+      allow read: if true;
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
+    }
+    
+    // 8. SERVICES (Meus Serviços)
+    match /services/{serviceId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster() || (isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId());
+      allow update, delete: if isMaster() || isSameCompany(resource.data);
+    }
+
+    // --- COLEÇÕES DE ASSINATURAS E FINANCEIRO ---
+
+    // 9. SUBSCRIPTIONS (Assinaturas - Stripe)
+    match /subscriptions/{subId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow write: if isMaster(); // Só o sistema ou Master mexe aqui
+    }
+
+    // 10. REFERRAL_LEDGER (Histórico de Comissões de Afiliados)
+    // - Usuários podem ler apenas suas próprias entradas
+    // - Apenas backend/Master pode criar/atualizar
+    match /referral_ledger/{ledgerId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isMaster(); // Criado via Backend/Webhook
+      allow update: if isMaster(); // Só Master ou sistema mexe aqui
+      allow delete: if isMaster();
+    }
+
+    // 11. PAYOUT_REQUESTS (Solicitações de Saque dos Afiliados)
+    // - Usuários podem criar suas próprias solicitações
+    // - Usuários podem ler suas próprias solicitações
+    // - Master pode ver todas e atualizar status
+    match /payout_requests/{requestId} {
+      allow read: if isMaster() || isSameCompany(resource.data);
+      allow create: if isAuthenticated() && hasCompanyId() && request.resource.data.companyId == getUserCompanyId();
+      allow update: if isMaster(); // Só Master muda status para "pago" ou "rejeitado"
+      allow delete: if isMaster();
+    }
+
+    // --- COLEÇÕES DE CONFIGURAÇÃO ---
+
+    // 12. SETTINGS (Configurações Gerais)
+    match /settings/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // 13. TEMPLATES (Templates de Projetos/Orçamentos)
+    match /templates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isMaster();
+    }
+    
+    // 14. PROJECT TEMPLATES (Biblioteca de Projetos - Nova Feature)
+    match /projectTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isMaster();
+    }
+  }
+}

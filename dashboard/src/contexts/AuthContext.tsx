@@ -1,0 +1,275 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { 
+  User, 
+  signInWithEmailAndPassword, 
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail
+} from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { generateAffiliateCode } from '../utils/affiliateCode';
+import { syncStripeCustomer } from '../services/stripe';
+
+export type UserRole = 'owner' | 'admin' | 'technician' | 'sales' | 'master';
+
+export interface UserMetadata {
+  companyId: string;
+  role: UserRole;
+  name?: string;
+  email: string;
+  subscriptionStatus?: 'trial' | 'trialing' | 'active' | 'expired' | 'canceled' | 'past_due';
+  trialEndsAt?: any;
+  isActive?: boolean;
+  mobileVerified?: boolean;
+  phone?: string;
+  phoneVerifiedAt?: any;
+  // Payout Information (for affiliates/users who receive commissions)
+  payoutInfo?: {
+    pixKey: string;
+    pixKeyType: string; // 'CPF', 'EMAIL', 'PHONE', 'RANDOM'
+    bankName: string;
+    agency: string;
+    accountNumber: string;
+    accountType: string; // 'Corrente' or 'Poupança'
+    holderName: string;
+    holderCpf: string;
+  };
+}
+
+interface AuthContextType {
+  user: User | null;
+  userMetadata: UserMetadata | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  createUser: (email: string, password: string, companyId: string, role: UserRole, name?: string) => Promise<void>;
+  signUp: (email: string, password: string, companyName: string, ownerName: string, phone: string, referredBy?: string) => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [userMetadata, setUserMetadata] = useState<UserMetadata | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadUserMetadata = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        console.log('User metadata loaded:', { userId, companyId: data.companyId, role: data.role });
+        if (!data.companyId) {
+          console.error('User document exists but companyId is missing!', data);
+          setUserMetadata(null);
+          return;
+        }
+        setUserMetadata({
+          companyId: data.companyId,
+          role: data.role,
+          name: data.name,
+          email: data.email,
+          subscriptionStatus: data.subscriptionStatus,
+          trialEndsAt: data.trialEndsAt,
+          isActive: data.isActive !== false, // Default to true if not set
+          payoutInfo: data.payoutInfo,
+          mobileVerified: data.mobileVerified || false,
+          phone: data.phone,
+          phoneVerifiedAt: data.phoneVerifiedAt,
+        });
+      } else {
+        console.error('User document does not exist for userId:', userId);
+        // If user document doesn't exist, create it with default values
+        // This handles legacy users - they'll need to be migrated
+        setUserMetadata(null);
+      }
+    } catch (error: any) {
+      console.error('Error loading user metadata:', error);
+      if (error.code === 'permission-denied') {
+        console.error('Permission denied when loading user metadata. Check Firestore rules for users collection.');
+      }
+      setUserMetadata(null);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        await loadUserMetadata(firebaseUser.uid);
+      } else {
+        setUserMetadata(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    
+    // Check if user document exists
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    if (!userDoc.exists()) {
+      // New user - create a basic user document
+      // They'll need to complete signup flow
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email || '',
+        name: user.displayName || '',
+        photoURL: user.photoURL || '',
+        createdAt: Timestamp.now(),
+        // Note: companyId and role will need to be set via signup flow
+      });
+    } else {
+      // Existing user - update photoURL and displayName if changed
+      const userData = userDoc.data();
+      if (user.photoURL !== userData.photoURL || user.displayName !== userData.name || user.email !== userData.email) {
+        await updateDoc(doc(db, 'users', user.uid), {
+          photoURL: user.photoURL || userData.photoURL || '',
+          name: user.displayName || userData.name || '',
+          email: user.email || userData.email || '',
+        });
+      }
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  const signOut = async () => {
+    await firebaseSignOut(auth);
+    setUserMetadata(null);
+  };
+
+  const createUser = async (email: string, password: string, companyId: string, role: UserRole, name?: string) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUser = userCredential.user;
+    
+    // Create user document in Firestore
+    await setDoc(doc(db, 'users', newUser.uid), {
+      email,
+      companyId,
+      role,
+      name: name || '',
+      createdAt: new Date(),
+    });
+  };
+
+  const signUp = async (email: string, password: string, companyName: string, ownerName: string, phone: string, referredBy?: string) => {
+    // Generate unique companyId (slugified name + random string)
+    const slug = companyName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const randomSuffix = Math.random().toString(36).substring(2, 10);
+    const companyId = `${slug}-${randomSuffix}`;
+
+    // Create auth user
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUser = userCredential.user;
+
+    // Calculate trial end date (7 days from now) - ONLY on account creation
+    const trialEndsAt = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+
+    // Create user document
+    await setDoc(doc(db, 'users', newUser.uid), {
+      email,
+      companyId,
+      role: 'admin' as UserRole,
+      name: ownerName,
+      subscriptionStatus: 'trial',
+      trialEndsAt,
+      isActive: true,
+      createdAt: Timestamp.now(),
+    });
+
+    // Generate affiliate code for new company
+    const affiliateCode = await generateAffiliateCode(companyName);
+    
+    // Calculate discount expiration date (30 days from now if referred)
+    const discountExpirationDate = referredBy
+      ? Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+      : null;
+    
+    // Create company document with affiliate system fields
+    await setDoc(doc(db, 'companies', companyId), {
+      name: companyName,
+      phone,
+      email,
+      address: '',
+      affiliateCode,
+      referredBy: referredBy || null,
+      firstMonthDiscount: referredBy ? true : false,
+      discountExpirationDate: discountExpirationDate || null,
+      referralStats: {
+        activeReferrals: 0,
+        totalEarnings: 0,
+        currentTier: 'bronze',
+      },
+      wallet: {
+        pending: 0,
+        available: 0,
+        totalPaid: 0,
+      },
+      tutorialProgress: {
+        dashboardSeen: false,
+        quotesSeen: false,
+        workOrdersSeen: false,
+        financeSeen: false,
+      },
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+
+    // Sync with Stripe (create customer)
+    // This is non-blocking - if it fails, company is still created
+    try {
+      await syncStripeCustomer(companyId, email, companyName);
+    } catch (stripeError) {
+      console.error('Error syncing with Stripe (non-blocking):', stripeError);
+      // Don't throw - company creation should succeed even if Stripe sync fails
+    }
+  };
+
+  const refreshUserProfile = async () => {
+    if (user) {
+      await loadUserMetadata(user.uid);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, userMetadata, loading, signIn, signInWithGoogle, resetPassword, signOut, createUser, signUp, refreshUserProfile }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+
+
+
