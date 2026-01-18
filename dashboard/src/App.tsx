@@ -15,6 +15,7 @@ import { PublicQuote } from './pages/PublicQuote';
 import { PublicWorkOrder } from './pages/PublicWorkOrder';
 import { PublicWorkOrderApprove } from './pages/PublicWorkOrderApprove';
 import { PublicReceipt } from './pages/PublicReceipt';
+import { PropostaCliente } from './pages/PropostaCliente';
 import { WorkOrderAcceptance } from './pages/WorkOrderAcceptance';
 import { WorkOrderDetails } from './pages/WorkOrderDetails';
 import { Feedback } from './pages/Feedback';
@@ -25,6 +26,7 @@ import { CompanySettings } from './pages/CompanySettings';
 import { MasterDashboard } from './pages/MasterDashboard';
 import { PayoutManagement } from './pages/master/PayoutManagement';
 import { ProjectLibrary } from './pages/master/ProjectLibrary';
+import { StudioPage } from './pages/admin/StudioPage';
 import { SignUp } from './pages/SignUp';
 import { Expired } from './pages/Expired';
 import { SetupCompany } from './pages/SetupCompany';
@@ -326,6 +328,7 @@ function AppRoutes() {
       />
       <Route path="/p/quote/:quoteId" element={<PublicQuote />} />
       <Route path="/p/:quoteId" element={<PublicQuote />} />
+      <Route path="/proposta/:orcamentoId" element={<PropostaCliente />} />
       <Route path="/p/os/:osId" element={<PublicWorkOrder />} />
       <Route path="/p/os/:osId/approve" element={<PublicWorkOrderApprove />} />
       <Route path="/p/os/accept/:osId" element={<WorkOrderAcceptance />} />
@@ -588,6 +591,14 @@ function AppRoutes() {
         element={
           <MasterRoute>
             <PayoutManagement />
+          </MasterRoute>
+        }
+      />
+      <Route
+        path="/admin/studio"
+        element={
+          <MasterRoute>
+            <StudioPage />
           </MasterRoute>
         }
       />

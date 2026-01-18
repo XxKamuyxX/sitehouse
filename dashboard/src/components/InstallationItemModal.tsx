@@ -23,6 +23,7 @@ interface InstallationItemModalProps {
     glassColor?: string;
     glassThickness?: string;
     profileColor?: string;
+    ladoAbertura?: 'esquerda' | 'direita';
     isInstallation: boolean;
     imageUrl?: string;
     templateId?: string;
@@ -51,6 +52,7 @@ export function InstallationItemModal({
   const [glassColor, setGlassColor] = useState('');
   const [glassThickness, setGlassThickness] = useState('');
   const [profileColor, setProfileColor] = useState('');
+  const [ladoAbertura, setLadoAbertura] = useState<'esquerda' | 'direita'>('esquerda');
   const [customServiceName, setCustomServiceName] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [templateId, setTemplateId] = useState<string | undefined>(undefined);
@@ -97,6 +99,7 @@ export function InstallationItemModal({
       setGlassColor(initialItem.glassColor || '');
       setGlassThickness(initialItem.glassThickness || '');
       setProfileColor(initialItem.profileColor || '');
+      setLadoAbertura(initialItem.ladoAbertura || 'esquerda');
       setCustomServiceName(initialItem.serviceName && !installationServices.find(s => s.value === initialItem.serviceName) ? initialItem.serviceName : '');
       setIsManualOverride(initialItem.pricingMethod === 'fixed' || false);
       setImageUrl(initialItem.imageUrl);
@@ -113,6 +116,7 @@ export function InstallationItemModal({
       setGlassColor('');
       setGlassThickness('');
       setProfileColor('');
+      setLadoAbertura('esquerda');
       setCustomServiceName('');
       setIsManualOverride(false);
       setImageUrl(undefined);
@@ -225,6 +229,7 @@ export function InstallationItemModal({
       glassColor: isInstallation ? (glassColor || '') : '',
       glassThickness: isInstallation ? (glassThickness || '') : '',
       profileColor: isInstallation ? (profileColor || '') : '',
+      ladoAbertura: isInstallation ? ladoAbertura : undefined,
       isInstallation,
       // Include library data if available (preserved from initialItem)
       imageUrl: imageUrl,
@@ -552,6 +557,43 @@ export function InstallationItemModal({
                 selected={profileColor}
                 onChange={(value) => setProfileColor(typeof value === 'string' ? value : value[0] || '')}
               />
+
+              {/* Lado de Abertura / Estacionamento */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Lado de Abertura / Estacionamento
+                  <span className="text-slate-500 font-normal ml-2">(Opcional)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLadoAbertura('esquerda')}
+                    className={`px-4 py-3 border-2 rounded-lg font-medium transition-all ${
+                      ladoAbertura === 'esquerda'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    ⬅️ Esquerda
+                    <div className="text-xs text-slate-500 mt-1">Pivô à esquerda</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLadoAbertura('direita')}
+                    className={`px-4 py-3 border-2 rounded-lg font-medium transition-all ${
+                      ladoAbertura === 'direita'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    ➡️ Direita
+                    <div className="text-xs text-slate-500 mt-1">Pivô à direita</div>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  💡 Define de qual lado ficará o pivô/estacionamento da sacada
+                </p>
+              </div>
             </div>
           )}
 

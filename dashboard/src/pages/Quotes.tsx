@@ -2,7 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Plus, FileText, MessageCircle, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, FileText, MessageCircle, Trash2, MoreVertical, Eye } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { getDocs, addDoc, doc, getDoc, deleteDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -11,6 +11,7 @@ import { DatePickerModal } from '../components/DatePickerModal';
 import { queryWithCompanyId } from '../lib/queries';
 import { useAuth } from '../contexts/AuthContext';
 import { TutorialGuide } from '../components/TutorialGuide';
+import { ValidationModal } from '../components/ValidationModal';
 // Removed useSecurityGate - phone verification is now handled globally at /activate
 import { PaywallModal } from '../components/PaywallModal';
 
@@ -54,6 +55,8 @@ export function Quotes() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [selectedItemForValidation, setSelectedItemForValidation] = useState<any>(null);
 
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   
@@ -267,6 +270,41 @@ export function Quotes() {
     }
   };
 
+  const handleValidateProject = async (quote: Quote) => {
+    // Buscar detalhes completos do orçamento
+    try {
+      const quoteDoc = await getDoc(doc(db, 'quotes', quote.id));
+      if (!quoteDoc.exists()) {
+        alert('Orçamento não encontrado');
+        return;
+      }
+
+      const quoteData = quoteDoc.data();
+      const items = quoteData.items || [];
+
+      // Se tiver apenas 1 item, abrir modal direto
+      if (items.length === 1) {
+        setSelectedItemForValidation(items[0]);
+        setShowValidationModal(true);
+        return;
+      }
+
+      // Se tiver múltiplos itens, perguntar qual validar
+      if (items.length > 1) {
+        // Por enquanto, validar o primeiro item
+        // TODO: Adicionar seletor de item em modal futuro
+        setSelectedItemForValidation(items[0]);
+        setShowValidationModal(true);
+        return;
+      }
+
+      alert('Este orçamento não possui itens para validar');
+    } catch (error) {
+      console.error('Error validating project:', error);
+      alert('Erro ao validar projeto');
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -422,12 +460,23 @@ export function Quotes() {
                   </div>
 
                   {/* Action Footer */}
-                  <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200">
+                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-200">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleValidateProject(quote)}
+                      className="flex items-center justify-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+                      title="Validar Projeto"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Validar
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleSendWhatsApp(quote)}
                       className="flex items-center justify-center gap-2 border-green-200 text-green-700 hover:bg-green-50"
+                      title="Enviar via WhatsApp"
                     >
                       <MessageCircle className="w-4 h-4" />
                       WhatsApp
@@ -437,9 +486,10 @@ export function Quotes() {
                       size="sm"
                       onClick={() => navigate(`/admin/quotes/${quote.id}`)}
                       className="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                      title="Ver Detalhes"
                     >
                       <FileText className="w-4 h-4" />
-                      Ver Detalhes
+                      Detalhes
                     </Button>
                   </div>
                 </Card>
@@ -457,6 +507,18 @@ export function Quotes() {
             }}
             title="Agendar Ordem de Serviço"
             message="Selecione a data para agendar a ordem de serviço:"
+          />
+        )}
+
+        {/* Validation Modal */}
+        {showValidationModal && selectedItemForValidation && (
+          <ValidationModal
+            isOpen={showValidationModal}
+            onClose={() => {
+              setShowValidationModal(false);
+              setSelectedItemForValidation(null);
+            }}
+            item={selectedItemForValidation}
           />
         )}
 
